@@ -1,7 +1,12 @@
 <?php
-// تنظیم تایتل صفحه برای head.php
-$current_page = '/login';
-require_once BASE_PATH . '/assets/php/head.php';
+require_once BASE_PATH . '/assets/php/head.php'; 
+
+// اگر کاربر از قبل لاگین است، مستقیم به پروفایل برود
+if (isset($_SESSION['user_id'])) {
+    header("Location: /profile");
+    exit;
+}
+$current_page = '/login'; 
 ?>
 <body class="bg-brand-dark text-white font-sans antialiased min-h-screen flex flex-col">
     
