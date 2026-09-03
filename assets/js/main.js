@@ -518,8 +518,13 @@ function getProductIdFromURL() {
 
 function renderMediaHTML(source, iconStyleClass = "anim-float") {
     if (!source) return '';
+    
+    if (source !== 'disc' && !source.startsWith('http') && !source.includes('.') && source.length > 20) {
+        return `<img src="/image?id=${source}" class="max-w-full max-h-full object-contain ${iconStyleClass}" alt="Product Image" loading="lazy" />`;
+    }
+    
     if (source.startsWith('http') || source.includes('/') || source.includes('.')) {
-        return `<img src="${source}" class="max-w-full max-h-full object-contain ${iconStyleClass}" alt="Part Image" />`;
+        return `<img src="${source}" class="max-w-full max-h-full object-contain ${iconStyleClass}" alt="Part Image" loading="lazy" />`;
     }
     return `<i data-lucide="${source}" class="${iconStyleClass}" style="width:100%; height:100%; max-width:110px; max-height:110px;"></i>`;
 }

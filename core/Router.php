@@ -42,6 +42,7 @@ class Router
 
     private function defineRoutes()
     {
+        $this->get('/image', 'ImageController@show');
         $this->get('/', 'HomeController@index');
         $this->get('/index', 'HomeController@index');
         $this->get('/parts', 'PartController@index');
