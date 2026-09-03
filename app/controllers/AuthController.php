@@ -1,18 +1,11 @@
 <?php
 namespace App\controllers;
 
-use Core\Database;
-use PDO;
+use App\models\User;
+use App\models\Otp;
 
 class AuthController
 {
-    private $db;
-
-    public function __construct()
-    {
-        $this->db = Database::getInstance();
-    }
-
     public function loginForm()
     {
         if (isset($_SESSION['user_id'])) {
@@ -27,7 +20,7 @@ class AuthController
         header('Content-Type: application/json');
         $input = json_decode(file_get_contents('php://input'), true);
         $headers = getallheaders();
-
+        
         $client_csrf = $headers['X-CSRF-Token'] ?? ($headers['x-csrf-token'] ?? '');
         if (empty($client_csrf) || !hash_equals($_SESSION['csrf_token'] ?? '', $client_csrf)) {
             http_response_code(403);
@@ -37,7 +30,63 @@ class AuthController
         return $input;
     }
 
-    // بررسی اینکه آیا شماره موبایل در سیستم وجود دارد یا کاربر جدید است
+    private function sendSmsIr($mobile, $code)
+    {
+        $api_key = '6yvodOobNXvR0bKclRjAAZTffumOuyQmeIOGJXKdEMO0JkHD';
+        
+        $template_id = 219706; 
+
+        $data = [
+            "mobile" => $mobile,
+            "templateId" => $template_id,
+            "parameters" => [
+                [
+                    "name" => "Code", 
+                    "value" => (string)$code
+                ]
+            ]
+        ];
+
+        $curl = curl_init();
+        curl_setopt_array($curl, array(
+            CURLOPT_URL => 'https://api.sms.ir/v1/send/verify',
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_ENCODING => '',
+            CURLOPT_MAXREDIRS => 10,
+            CURLOPT_TIMEOUT => 10,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_CUSTOMREQUEST => 'POST',
+            CURLOPT_POSTFIELDS => json_encode($data),
+            CURLOPT_HTTPHEADER => array(
+                'Content-Type: application/json',
+                'Accept: text/plain',
+                'x-api-key: ' . $api_key
+            ),
+        ));
+
+        $response = curl_exec($curl);
+        $err = curl_error($curl);
+        curl_close($curl);
+
+        if ($err) {
+            http_response_code(500);
+            echo json_encode(['error' => 'خطای ارتباط با سرور پیامک: ' . $err]);
+            exit;
+        }
+
+        $result = json_decode($response, true);
+
+        if (!isset($result['status']) || $result['status'] != 1) {
+            $api_error_message = $result['message'] ?? 'خطای نامشخص از پنل sms.ir';
+            http_response_code(400);
+            echo json_encode(['error' => 'خطای پیامک: ' . $api_error_message]);
+            exit;
+        }
+
+        return true;
+    }
+
     public function checkUser()
     {
         $input = $this->validateApiRequest();
@@ -49,23 +98,17 @@ class AuthController
             exit;
         }
 
-        $stmt = $this->db->prepare("SELECT id FROM users WHERE phone = ? LIMIT 1");
-        $stmt->execute([$phone]);
-        $exists = $stmt->fetch() ? true : false;
-
-        echo json_encode(['exists' => $exists]);
+        $user = User::findByPhone($phone);
+        echo json_encode(['exists' => $user ? true : false]);
     }
 
-    // ورود کاربر قدیمی با رمز عبور
     public function loginPassword()
     {
         $input = $this->validateApiRequest();
         $phone = trim($input['phone'] ?? '');
         $password = $input['password'] ?? '';
 
-        $stmt = $this->db->prepare("SELECT id, password_hash, role FROM users WHERE phone = ? LIMIT 1");
-        $stmt->execute([$phone]);
-        $user = $stmt->fetch();
+        $user = User::findByPhone($phone);
 
         if ($user && password_verify($password, $user['password_hash'])) {
             session_regenerate_id(true);
@@ -80,95 +123,42 @@ class AuthController
         }
     }
 
-    // متد اختصاصی اتصال به پنل sms.ir
-    private function sendSmsIr($mobile, $code)
-    {
-        $api_key = 'rPyOycfmesAuqqRHlk1UV8fYfXvl7bvktcgtcgyYFnBxWsst';
-
-        // شما باید در پنل sms.ir یک قالب (Template) بسازید و آیدی آن را اینجا قرار دهید
-        $template_id = 100000; // این عدد را با شناسه قالب خودتان جایگزین کنید
-
-        $data = [
-            "mobile" => $mobile,
-            "templateId" => $template_id,
-            "parameters" => [
-                [
-                    "name" => "CODE", // این نام باید دقیقا با متغیری که در پنل پیامک تعریف کردید یکی باشد
-                    "value" => (string) $code
-                ]
-            ]
-        ];
-
-        $ch = curl_init("https://api.sms.ir/v1/send/verify");
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            "Content-Type: application/json",
-            "Accept: text/plain",
-            "x-api-key: " . $api_key
-        ]);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-        curl_setopt($ch, CURLOPT_TIMEOUT, 5); // تایم‌اوت 5 ثانیه تا سایت کند نشود
-
-        $response = curl_exec($ch);
-        curl_close($ch);
-
-        return $response;
-    }
-
-    // تولید و ارسال کد یکبار مصرف (مشترک بین کاربر جدید و قدیمی)
-    // تولید و ارسال کد یکبار مصرف
     public function sendOtp()
     {
         $input = $this->validateApiRequest();
         $phone = trim($input['phone'] ?? '');
 
-        // تولید کد 5 رقمی تصادفی
         $otp_code = rand(10000, 99999);
 
-        // ذخیره در دیتابیس (انقضا 2 دقیقه)
-        $stmt = $this->db->prepare("INSERT INTO otp_codes (phone, code, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 2 MINUTE))");
-        $stmt->execute([$phone, $otp_code]);
+        // ذخیره کد در دیتابیس از طریق مدل
+        Otp::create($phone, $otp_code);
 
-        // ارسال پیامک واقعی از طریق sms.ir
+        // ارسال پیامک واقعی
         $this->sendSmsIr($phone, $otp_code);
-
-        // لاگ کردن کد در فایل برای زمان برنامه‌نویسی و تست (اختیاری)
-        error_log("کد ورود پرادو یدک برای {$phone} : {$otp_code}");
 
         echo json_encode(['message' => 'کد تایید با موفقیت پیامک شد.']);
     }
 
-    // بررسی کد OTP و تکمیل عملیات (ورود کاربر قدیمی یا ثبت نام کاربر جدید)
     public function verifyOtp()
     {
         $input = $this->validateApiRequest();
         $phone = trim($input['phone'] ?? '');
         $code = trim($input['code'] ?? '');
 
-        // بررسی صحت کد و منقضی نشدن آن
-        $stmt = $this->db->prepare("SELECT id FROM otp_codes WHERE phone = ? AND code = ? AND expires_at > NOW() ORDER BY id DESC LIMIT 1");
-        $stmt->execute([$phone, $code]);
-        $valid_otp = $stmt->fetch();
-
-        if (!$valid_otp) {
+        // بررسی صحت کد از طریق مدل
+        if (!Otp::verify($phone, $code)) {
             http_response_code(401);
             echo json_encode(['error' => 'کد تایید اشتباه است یا منقضی شده.']);
             exit;
         }
 
-        // بررسی اینکه آیا کاربر از قبل وجود دارد؟
-        $stmt = $this->db->prepare("SELECT id, role FROM users WHERE phone = ? LIMIT 1");
-        $stmt->execute([$phone]);
-        $user = $stmt->fetch();
+        $user = User::findByPhone($phone);
 
         if ($user) {
-            // کاربر قدیمی است -> ورود موفق
             $user_id = $user['id'];
             $role = $user['role'];
             $msg = 'ورود با موفقیت انجام شد.';
         } else {
-            // کاربر جدید است -> ثبت‌نام
             $full_name = trim($input['full_name'] ?? '');
             $password = $input['password'] ?? '';
 
@@ -179,17 +169,15 @@ class AuthController
             }
 
             $password_hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
-
-            $stmt = $this->db->prepare("INSERT INTO users (full_name, phone, password_hash, role) VALUES (?, ?, ?, 'user')");
-            $stmt->execute([$full_name, $phone, $password_hash]);
-
-            $user_id = $this->db->lastInsertId();
+            
+            // ثبت کاربر جدید از طریق مدل
+            $user_id = User::create($full_name, $phone, $password_hash);
             $role = 'user';
             $msg = 'ثبت‌نام شما با موفقیت انجام شد.';
         }
 
-        // پاک کردن کد OTP بعد از استفاده موفقیت آمیز
-        $this->db->prepare("DELETE FROM otp_codes WHERE phone = ?")->execute([$phone]);
+        // پاک کردن کدهای مصرف شده
+        Otp::deleteByPhone($phone);
 
         session_regenerate_id(true);
         $_SESSION['user_id'] = $user_id;

@@ -21,6 +21,7 @@ $pageTitle = isset($titles[$current_file]) ? $titles[$current_file] : 'پراد�
 ?>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
 <title><?php echo $pageTitle; ?></title>
 
 <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js" defer></script>
