@@ -1,0 +1,471 @@
+@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* تعریف فونت‌های ایران‌سانس با وزن‌های مختلف */
+@font-face {
+    font-family: 'IRANSans';
+    src: url('../font/IRANSans.ttf') format('truetype');
+    font-weight: 400;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'IRANSans';
+    src: url('../font/IRANSans-Medium.ttf') format('truetype');
+    font-weight: 500;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'IRANSans';
+    src: url('../font/IRANSans-Bold.ttf') format('truetype');
+    font-weight: 700;
+    font-style: normal;
+}
+
+@theme {
+  --font-vazir: 'IRANSans', sans-serif;
+  --font-iransans: 'IRANSans', sans-serif;
+
+  --color-brand-dark: #251E1B;
+  --color-brand-darker: #2A201C;
+  --color-brand-grey: #312725;
+  --color-brand-light: #5F605C;
+  
+  /* رنگ مسی/قهوه‌ای جدید به عنوان رنگ اکنت تعریف شده است */
+  --color-brand-accent: #8B533A; 
+  
+  /* ترفند اصلی: رنگ قرمز برند را در کل تم به رنگ جدید تغییر می‌دهیم 
+     تا تمام متن‌ها (text-brand-red) و بردرها (border-brand-red) خودکار تغییر کنند */
+  --color-brand-red: #8B533A; 
+  
+  /* متغیر جدید برای دکمه‌های CTA که می‌خواهیم قرمز بمانند */
+  --color-cta-red: #EB0A1E; 
+}
+
+/* ==========================================
+   ۲. مدیریت استثنائات (حفظ رنگ قرمز برای دکمه‌ها)
+========================================== */
+@layer utilities {
+  /* با این کد، پس‌زمینه دکمه‌هایی که کلاس bg-brand-red دارند 
+     دوباره به همان قرمز جذاب (CTA) برمی‌گردد و رنگ متن آن‌ها سفید می‌ماند */
+  .bg-brand-red { 
+    background-color: var(--color-cta-red) !important; 
+    color: #FFFFFF !important; 
+  }
+  
+  .bg-brand-red .text-white, .bg-brand-red\/90 .text-white { 
+    color: #FFFFFF !important; 
+  }
+  
+  /* حفظ رنگ قرمز تیره برای حالت Hover دکمه‌ها */
+  .hover\:bg-red-700:hover { 
+    background-color: #C10818 !important; 
+  }
+
+  /* ==========================================
+     تنظیم سایه‌ها، هاله‌ها و شفافیت‌ها برای هماهنگی با رنگ جدید (#8b533a)
+  ========================================== */
+  .bg-brand-red\/5 { background-color: rgba(139, 83, 58, 0.05) !important; }
+  .bg-brand-red\/10 { background-color: rgba(139, 83, 58, 0.1) !important; }
+  .bg-brand-red\/20 { background-color: rgba(139, 83, 58, 0.2) !important; }
+  .bg-brand-red\/90 { background-color: rgba(139, 83, 58, 0.9) !important; }
+
+  .border-brand-red\/30 { border-color: rgba(139, 83, 58, 0.3) !important; }
+  .hover\:border-brand-red\/20:hover { border-color: rgba(139, 83, 58, 0.2) !important; }
+  .hover\:border-brand-red\/30:hover { border-color: rgba(139, 83, 58, 0.3) !important; }
+  
+  /* سایه قرمز منحصراً برای دکمه‌های CTA حفظ شود */
+  .shadow-\[0_4px_20px_rgba\(225\,6\,0\,0\.3\)\] {
+    box-shadow: 0 4px 15px rgba(235, 10, 30, 0.25) !important;
+  }
+}
+
+@layer base {
+  body {
+    /* رنگ کرم روشن برای پس‌زمینه اصلی سایت */
+    background-color: #F8F6F0 !important; 
+    /* پالت: قهوه‌ای تیره (متن اصلی) */
+    color: #251E1B !important; 
+  }
+}
+
+@layer utilities {
+  /* ==========================================
+     تبدیل پس‌زمینه‌های تیره به پالت کرم و سفید
+  ========================================== */
+  .bg-brand-dark { background-color: #F8F6F0 !important; }
+  .bg-black { background-color: #F0EBE1 !important; /* کمی تیره‌تر برای تفکیک بخش‌ها */ }
+  .bg-brand-grey { 
+    background-color: #FFFFFF !important; 
+    box-shadow: 0 4px 24px rgba(49, 39, 37, 0.04) !important; 
+  }
+  
+  /* شفافیت‌ها و باکس‌های داخلی */
+  .bg-brand-dark\/40, .bg-brand-dark\/50, .bg-brand-dark\/60, .bg-brand-dark\/70, .bg-brand-dark\/80 {
+    background-color: #FFFFFF !important;
+  }
+  .bg-brand-dark\/95 {
+    background-color: rgba(248, 246, 240, 0.95) !important;
+  }
+  .bg-black\/20, .bg-black\/30 {
+    background-color: rgba(49, 39, 37, 0.04) !important;
+  }
+  .bg-white\/5 { background-color: rgba(139, 83, 58, 0.05) !important; }
+  .bg-white\/10 { background-color: rgba(139, 83, 58, 0.1) !important; }
+
+  /* ==========================================
+     مدیریت رنگ متن‌ها (تطبیق با پالت جدید)
+  ========================================== */
+  /* تبدیل متن‌های سفید به قهوه‌ای تیره، به جز داخل دکمه‌های قرمز و سبز */
+  .text-white:not(button):not(a.bg-brand-red):not(a.bg-emerald-600):not(.bg-brand-red) {
+    color: #251E1B !important;
+  }
+  
+  .text-gray-200, .text-gray-300 { color: #312725 !important; }
+  .text-gray-400 { color: #5F605C !important; }
+  .text-gray-500 { color: #8B533A !important; }
+
+  /* ==========================================
+     تنظیم رنگ قرمز (CTA) و حفظ قرمزی برند
+  ========================================== */
+  .bg-brand-red { background-color: #EB0A1E !important; color: #FFFFFF !important; }
+  .bg-brand-red .text-white, .bg-brand-red\/90 .text-white { color: #FFFFFF !important; }
+  
+  .bg-emerald-500, .bg-emerald-600 { color: #FFFFFF !important; }
+  .bg-emerald-500 .text-white, .bg-emerald-600 .text-white { color: #FFFFFF !important; }
+  
+  .bg-rose-600 { color: #FFFFFF !important; }
+  .bg-rose-600 .text-white { color: #FFFFFF !important; }
+  
+  .text-brand-red { color: #EB0A1E !important; }
+  .border-brand-red { border-color: #EB0A1E !important; }
+  .border-brand-red\/30 { border-color: rgba(235, 10, 30, 0.3) !important; }
+  .hover\:bg-red-700:hover { background-color: #C10818 !important; }
+  .hover\:border-brand-red:hover { border-color: #EB0A1E !important; }
+  
+  /* ==========================================
+     بردرها و خطوط
+  ========================================== */
+  .border-white\/5, .border-white\/10, .border-white\/20, .border-white\/30 {
+    border-color: rgba(49, 39, 37, 0.1) !important;
+  }
+  
+  /* اینپوت‌ها */
+  input, textarea, select {
+    background-color: #FFFFFF !important;
+    color: #251E1B !important;
+    border-color: rgba(49, 39, 37, 0.2) !important;
+  }
+  input::placeholder, textarea::placeholder {
+    color: #5F605C !important;
+  }
+
+  /* تنظیم سایه‌های قرمز برای دکمه‌ها */
+  .shadow-\[0_4px_20px_rgba\(225\,6\,0\,0\.3\)\] {
+    box-shadow: 0 4px 15px rgba(235, 10, 30, 0.25) !important;
+  }
+  
+  /* گرافیک‌ها و گرادیانت‌ها (تنظیم سایه‌های تاریک برای هماهنگی با تم روشن) */
+  .from-black\/60 { --tw-gradient-from: rgba(248, 246, 240, 0.8) !important; }
+  .to-black { --tw-gradient-to: #F8F6F0 !important; }
+  .via-black { --tw-gradient-stops: var(--tw-gradient-from), #F8F6F0, var(--tw-gradient-to) !important; }
+}
+
+/* اعمال فونت به تمامی عناصر صفحه */
+body, html {
+    font-family: 'IRANSans', sans-serif !important;
+}
+
+/* ۲. تنظیم متغیرهای قالب Tailwind v4 */
+@theme {
+  /* ترفند: مقدار font-vazir را روی IRANSans می‌گذاریم تا نیازی به تغییر کلاس‌ها در فایل‌های PHP نباشد */
+  --font-vazir: 'IRANSans', sans-serif;
+  --font-iransans: 'IRANSans', sans-serif;
+
+  --color-brand-dark: #251E1B;
+  --color-brand-darker: #2A201C;
+  --color-brand-grey: #312725;
+  --color-brand-light: #5F605C;
+  --color-brand-accent: #8B533A;
+  --color-brand-red: #EB0A1E;
+}
+
+html,
+body {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+/* Keyframe Animations */
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(40px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(60px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes pulse-glow {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(139, 83, 58, 0.3); /* تغییر به #8b533a */
+    }
+    50% {
+        box-shadow: 0 0 40px rgba(139, 83, 58, 0.6); /* تغییر به #8b533a */
+    }
+}
+
+.cat-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(139, 83, 58, 0) 0%, rgba(139, 83, 58, 0.15) 100%); /* تغییر به #8b533a */
+    opacity: 0;
+    transition: opacity 0.4s;
+    z-index: 1;
+}
+
+.cat-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 60px rgba(139, 83, 58, 0.25); /* تغییر به #8b533a */
+}
+
+@keyframes float {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+@keyframes wipe {
+    from {
+        width: 0;
+    }
+
+    to {
+        width: 100%;
+    }
+}
+
+@keyframes countUp {
+    from {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Animation Classes */
+.anim-fade-up {
+    animation: fadeUp 0.7s ease-out both;
+}
+
+.anim-slide-in {
+    animation: slideIn 0.6s ease-out both;
+}
+
+.anim-float {
+    animation: float 3s ease-in-out infinite;
+}
+
+.anim-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.anim-wipe {
+    animation: wipe 1s ease-out both;
+}
+
+.anim-count {
+    animation: countUp 0.5s ease-out both;
+}
+
+/* Custom Interactive Cards */
+.cat-card {
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    position: relative;
+    overflow: hidden;
+}
+
+.cat-card:hover::before {
+    opacity: 1;
+}
+
+.cat-card:hover .cat-icon {
+    transform: scale(1.15) rotate(-5deg);
+}
+
+.cat-icon {
+    transition: transform 0.4s ease;
+}
+
+.brand-card {
+    transition: all 0.3s ease;
+}
+
+.brand-card:hover {
+    transform: translateY(-4px);
+    border-color: #E10600;
+}
+
+/* Layout Utilities */
+.hero-pattern {
+    background-image:
+        radial-gradient(circle at 20% 50%, rgba(225, 6, 0, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(225, 6, 0, 0.05) 0%, transparent 40%),
+        linear-gradient(135deg, #111111 0%, #1A1A1A 50%, #111111 100%);
+}
+
+.scroll-reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.6s ease;
+}
+
+.scroll-reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.red-line {
+    height: 3px;
+    background: linear-gradient(90deg, #E10600, transparent);
+}
+
+/* Custom Webkit Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #111;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #E10600;
+    border-radius: 4px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    background: #E10600;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    appearance: none;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@theme {
+  --color-brand-dark: #251E1B;
+  --color-brand-grey: #312725;
+  
+  /* رنگ مسی/قهوه‌ای برای متون و حاشیه‌های ملایم */
+  --color-brand-accent: #8B533A; 
+  
+  /* رنگ طلایی/کهربایی جدید برای روح دادن به سایت */
+  --color-brand-vibrant: #F59E0B; 
+  
+  /* رنگ دکمه‌های اصلی */
+  --color-cta-red: #EB0A1E; 
+}
+
+@layer utilities {
+  /* ==========================================
+     زنده کردن آیکون‌ها و افکت‌های هاور با رنگ طلایی
+  ========================================== */
+  /* متن‌ها قهوه‌ای می‌مانند، اما آیکون‌ها طلایی می‌شوند */
+  .text-brand-accent i, 
+  .cat-icon svg, 
+  .brand-card svg {
+      color: var(--color-brand-vibrant) !important;
+      stroke: var(--color-brand-vibrant) !important;
+  }
+
+  /* تغییر رنگ کادرهای هاور به طلایی برای جذابیت بیشتر */
+  .hover\:border-brand-accent:hover { 
+      border-color: var(--color-brand-vibrant) !important; 
+  }
+  
+  /* پس‌زمینه ملایم طلایی برای آیکون‌ها */
+  .bg-brand-accent\/10 { 
+      background-color: rgba(245, 158, 11, 0.1) !important; 
+  }
+
+  /* ==========================================
+     انیمیشن‌ها و هاله‌های نوری پرانرژی
+  ========================================== */
+  .cat-card::before {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0) 0%, rgba(245, 158, 11, 0.15) 100%) !important;
+  }
+  
+  .cat-card:hover {
+      box-shadow: 0 20px 60px rgba(245, 158, 11, 0.2) !important;
+      border-color: var(--color-brand-vibrant) !important;
+  }
+
+  /* حفظ دکمه‌های قرمز CTA */
+  .bg-brand-red { 
+    background-color: var(--color-cta-red) !important; 
+    color: #FFFFFF !important; 
+  }
+  .hover\:bg-red-700:hover { 
+    background-color: #C10818 !important; 
+  }
+}
+
+/* انیمیشن تپش نور طلایی */
+@keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.3); }
+    50% { box-shadow: 0 0 40px rgba(245, 158, 11, 0.6); }
+}
