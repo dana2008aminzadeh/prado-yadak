@@ -518,11 +518,11 @@ function getProductIdFromURL() {
 
 function renderMediaHTML(source, iconStyleClass = "anim-float") {
     if (!source) return '';
-    
+
     if (source !== 'disc' && !source.startsWith('http') && !source.includes('.') && source.length > 20) {
         return `<img src="/image?id=${source}" class="max-w-full max-h-full object-contain ${iconStyleClass}" alt="Product Image" loading="lazy" />`;
     }
-    
+
     if (source.startsWith('http') || source.includes('/') || source.includes('.')) {
         return `<img src="${source}" class="max-w-full max-h-full object-contain ${iconStyleClass}" alt="Part Image" loading="lazy" />`;
     }
@@ -944,66 +944,130 @@ function togglePasswordVisibility(inputId, btn) {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-function handleLogin(event) {
+// --- شروع کدهای سیستم احراز هویت یکپارچه ---
+let authPhone = '';
+let isNewUser = false;
+
+function getCsrfToken() {
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+}
+
+// ۱. بررسی شماره موبایل کاربر
+async function handleCheckPhone(event) {
     if (event) event.preventDefault();
-    const identifierEl = document.getElementById('login-identifier');
-    const passwordEl = document.getElementById('login-password');
-    if (!identifierEl || !passwordEl) return;
+    const phoneInput = document.getElementById('auth-phone');
+    if (!phoneInput) return;
 
-    const identifier = identifierEl.value.trim();
-    const password = passwordEl.value;
-
-    if (!identifier || !password) {
-        showAlert('لطفاً تمامی فیلدها را وارد کنید.');
+    authPhone = phoneInput.value.trim();
+    if (!authPhone.match(/^09[0-9]{9}$/)) {
+        showAlert('لطفاً یک شماره موبایل معتبر وارد کنید (مثال: 09123456789)');
         return;
     }
 
-    showAlert('✔ ورود با موفقیت انجام شد. در حال انتقال به پنل کاربری...', 'success');
+    try {
+        const response = await fetch('/api/auth/check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+            body: JSON.stringify({ phone: authPhone })
+        });
+        const result = await response.json();
 
-    setTimeout(() => {
-        window.location.href = '/profile';
-    }, 1500);
+        if (response.ok) {
+            hideAlert();
+            document.getElementById('step-phone').classList.add('hidden');
+
+            if (result.exists) {
+                // کاربر قدیمی است -> برو به فرم رمز عبور
+                isNewUser = false;
+                document.getElementById('step-password').classList.remove('hidden');
+                document.getElementById('display-phone-pass').innerText = authPhone;
+            } else {
+                // کاربر جدید است -> ارسال خودکار پیامک و نمایش فرم ثبت‌نام
+                isNewUser = true;
+                requestOtp();
+            }
+        } else {
+            showAlert('❌ ' + result.error);
+        }
+    } catch (error) {
+        showAlert('خطا در ارتباط با سرور.');
+    }
 }
 
-function handleSendOTP(event) {
+// ۲. ورود کاربر قدیمی با رمز عبور
+async function handleLoginPassword(event) {
     if (event) event.preventDefault();
-    const phoneEl = document.getElementById('otp-phone');
-    if (!phoneEl) return;
-    const phone = phoneEl.value.trim();
+    const password = document.getElementById('auth-password').value;
 
-    if (!phone || phone.length < 10) {
-        showAlert('لطفاً یک شماره موبایل معتبر وارد کنید.');
+    if (!password) {
+        showAlert('لطفاً رمز عبور را وارد کنید.');
         return;
     }
 
-    const step1 = document.getElementById('otp-step-1');
-    const step2 = document.getElementById('otp-step-2');
-    const sentPhone = document.getElementById('otp-sent-phone');
+    try {
+        const response = await fetch('/api/auth/login-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+            body: JSON.stringify({ phone: authPhone, password })
+        });
+        const result = await response.json();
 
-    if (step1) step1.classList.add('hidden');
-    if (step2) step2.classList.remove('hidden');
-    if (sentPhone) sentPhone.textContent = phone;
-    hideAlert();
-
-    startOTPTimer(119);
+        if (response.ok) {
+            showAlert('✔ ورود با موفقیت انجام شد.', 'success');
+            setTimeout(() => { window.location.href = '/profile'; }, 1500);
+        } else {
+            showAlert('❌ ' + result.error);
+        }
+    } catch (error) {
+        showAlert('خطا در ارتباط با سرور.');
+    }
 }
 
-function resetOTPStep() {
-    const step1 = document.getElementById('otp-step-1');
-    const step2 = document.getElementById('otp-step-2');
-    if (step1) step1.classList.remove('hidden');
-    if (step2) step2.classList.add('hidden');
-    if (timerInterval) clearInterval(timerInterval);
+// ۳. تغییر حالت به ورود با کد یکبار مصرف (برای کاربر قدیمی)
+function switchToOtpLogin() {
+    document.getElementById('step-password').classList.add('hidden');
+    requestOtp();
 }
 
+// ۴. درخواست ارسال پیامک (OTP)
+async function requestOtp() {
+    try {
+        const response = await fetch('/api/auth/send-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+            body: JSON.stringify({ phone: authPhone })
+        });
+        const result = await response.json();
+
+        if (response.ok) {
+            document.getElementById('step-otp').classList.remove('hidden');
+            document.getElementById('display-phone-otp').innerText = authPhone;
+
+            // اگر کاربر جدید است، فیلدهای نام و رمز عبور را نشان بده
+            if (isNewUser) {
+                document.getElementById('new-user-fields').classList.remove('hidden');
+            }
+
+            showAlert('✔ کد تایید برای شما پیامک شد.', 'success');
+            startOTPTimer(119);
+        } else {
+            showAlert('❌ ' + result.error);
+        }
+    } catch (error) {
+        showAlert('خطا در ارتباط با سرور.');
+    }
+}
+
+// ۵. تایمر شمارش معکوس پیامک
 function startOTPTimer(seconds) {
-    if (timerInterval) clearInterval(timerInterval);
+    if (typeof timerInterval !== 'undefined' && timerInterval) clearInterval(timerInterval);
     const timerEl = document.getElementById('timer-count');
     const resendBtn = document.getElementById('resend-otp-btn');
     if (resendBtn) resendBtn.disabled = true;
 
     let remaining = seconds;
-    timerInterval = setInterval(() => {
+    window.timerInterval = setInterval(() => {
         const mins = Math.floor(remaining / 60);
         const secs = remaining % 60;
         if (timerEl) timerEl.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
@@ -1018,55 +1082,47 @@ function startOTPTimer(seconds) {
     }, 1000);
 }
 
-function handleVerifyOTP() {
-    const codeEl = document.getElementById('otp-code');
-    if (!codeEl) return;
-    const code = codeEl.value.trim();
+// ۶. تایید نهایی کد پیامک (ورود یا ثبت‌نام)
+async function handleVerifyOtp(event) {
+    if (event) event.preventDefault();
+    const code = document.getElementById('auth-otp-code').value.trim();
+
+    let payload = { phone: authPhone, code: code };
+
+    // اگر ثبت‌نام است، نام و رمز هم ارسال شود
+    if (isNewUser) {
+        const fullName = document.getElementById('auth-fullname').value.trim();
+        const newPassword = document.getElementById('auth-new-password').value;
+        if (!fullName || !newPassword) {
+            showAlert('لطفاً نام و رمز عبور خود را وارد کنید.');
+            return;
+        }
+        payload.full_name = fullName;
+        payload.password = newPassword;
+    }
+
     if (code.length < 4) {
-        showAlert('لطفاً کد تایید را کامل وارد کنید.');
+        showAlert('کد تایید نامعتبر است.');
         return;
     }
 
-    showAlert('✔ شماره موبایل تایید شد. خوش آمدید!', 'success');
-    setTimeout(() => {
-        window.location.href = '/index';
-    }, 1500);
-}
+    try {
+        const response = await fetch('/api/auth/verify-otp', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+            body: JSON.stringify(payload)
+        });
+        const result = await response.json();
 
-function handleSignup(event) {
-    if (event) event.preventDefault();
-    const nameEl = document.getElementById('signup-name');
-    const phoneEl = document.getElementById('signup-phone');
-    if (!nameEl || !phoneEl) return;
-
-    const name = nameEl.value.trim();
-    const phone = phoneEl.value.trim();
-
-    if (!name || !phone) {
-        showAlert('لطفاً نام و شماره موبایل خود را وارد کنید.');
-        return;
+        if (response.ok) {
+            showAlert('✔ ' + result.message, 'success');
+            setTimeout(() => { window.location.href = isNewUser ? '/index' : '/profile'; }, 1500);
+        } else {
+            showAlert('❌ ' + result.error);
+        }
+    } catch (error) {
+        showAlert('خطا در ارتباط با سرور.');
     }
-
-    showAlert('✔ ثبت‌نام شما با موفقیت انجام شد. حساب کاربری فعال گردید.', 'success');
-    setTimeout(() => {
-        window.location.href = '/index';
-    }, 1500);
-}
-
-function handleForgot(event) {
-    if (event) event.preventDefault();
-    const phoneEl = document.getElementById('forgot-phone');
-    if (!phoneEl) return;
-    const phone = phoneEl.value.trim();
-    if (!phone) {
-        showAlert('لطفاً شماره موبایل را وارد کنید.');
-        return;
-    }
-
-    showAlert('✔ لینک بازیابی رمز عبور پیامک شد.', 'success');
-    setTimeout(() => {
-        switchTab('login');
-    }, 2000);
 }
 
 function switchProfileTab(tabId) {

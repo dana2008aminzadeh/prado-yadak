@@ -42,7 +42,7 @@ class Router
 
     private function defineRoutes()
     {
-        $this->get('/image', 'ImageController@show');
+        // === مسیرهای صفحات اصلی سایت ===
         $this->get('/', 'HomeController@index');
         $this->get('/index', 'HomeController@index');
         $this->get('/parts', 'PartController@index');
@@ -56,6 +56,16 @@ class Router
         $this->get('/profile', 'UserController@profile');
         $this->get('/checkout', 'OrderController@checkout');
         $this->post('/cart/add', 'CartController@add');
+
+        // === مسیر اختصاصی کش و نمایش تصاویر تلگرام ===
+        $this->get('/image', 'ImageController@show');
+
+        // === مسیرهای API سیستم احراز هویت یکپارچه (ورود/ثبت‌نام) ===
+        $this->post('/api/auth/check', 'AuthController@checkUser');
+        $this->post('/api/auth/login-password', 'AuthController@loginPassword');
+        $this->post('/api/auth/send-otp', 'AuthController@sendOtp');
+        $this->post('/api/auth/verify-otp', 'AuthController@verifyOtp');
+        $this->post('/api/logout', 'AuthController@logout');
     }
 
     private function abort($code = 404)
