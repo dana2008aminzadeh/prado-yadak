@@ -3,18 +3,18 @@ namespace App\models;
 
 use Core\Database;
 
-class Category
+class CarModel
 {
     public static function getAll()
     {
         $db = Database::getInstance();
-        $stmt = $db->query("SELECT slug, name FROM categories");
+        $stmt = $db->query("SELECT slug, name FROM car_models");
         $results = $stmt->fetchAll();
 
-        $categories = [];
+        $models = [];
         foreach ($results as $row) {
-            $categories[$row['slug']] = $row['name'];
+            $models[$row['slug']] = $row['name'];
         }
-        return $categories;
+        return $models;
     }
 }

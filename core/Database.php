@@ -9,7 +9,6 @@ class Database
     private static $instance = null;
     private $pdo;
 
-    // تنظیمات دیتابیس
     private $host = 'localhost';
     private $db_name = 'danasvip_pradoyadak';
     private $username = 'danasvip_pradoyadak';
@@ -21,14 +20,15 @@ class Database
         $dsn = "mysql:host={$this->host};dbname={$this->db_name};charset={$this->charset}";
         $options = [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC, // خروجی به صورت آرایه انجمنی
-            PDO::ATTR_EMULATE_PREPARES => false, // امنیت بالا برای جلوگیری از SQL Injection
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
         ];
 
         try {
             $this->pdo = new PDO($dsn, $this->username, $this->password, $options);
         } catch (PDOException $e) {
-            die("خطا در اتصال به پایگاه داده: " . $e->getMessage());
+            error_log("DB Error: " . $e->getMessage());
+            die("خطای سیستمی رخ داده است. لطفاً لحظاتی بعد تلاش کنید.");
         }
     }
 

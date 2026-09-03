@@ -2,7 +2,6 @@
 namespace App\models;
 
 use Core\Database;
-use PDO;
 
 class Setting
 {
@@ -10,8 +9,10 @@ class Setting
     {
         $db = Database::getInstance();
         $stmt = $db->query("SELECT setting_key, setting_value FROM settings");
+        $results = $stmt->fetchAll();
+
         $settings = [];
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        foreach ($results as $row) {
             $settings[$row['setting_key']] = $row['setting_value'];
         }
         return $settings;
