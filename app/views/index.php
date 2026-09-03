@@ -15,7 +15,7 @@ global $settings;
     <section id="hero" class="relative overflow-hidden text-[#2b170c]"
         style="background: linear-gradient(135deg, #f5efe9 0%, #eae0d6 50%, #f5efe9 100%);">
 
-        <!-- هاله‌های رنگی پس‌زمینه (تم قهوه‌ای/مسی) -->
+        <!-- هاله‌های رنگی پس‌زمینه (ت م قهوه‌ای/مسی) -->
         <div class="absolute -top-20 -right-20 w-96 h-96 rounded-full bg-[#815c4d]/20 pointer-events-none blur-3xl">
         </div>
         <div class="absolute -bottom-20 -left-20 w-96 h-96 rounded-full bg-[#2b170c]/15 pointer-events-none blur-3xl">
