@@ -7,7 +7,9 @@ class PartController
 {
     public function index()
     {
-        // در لود اولیه، فقط HTML صفحه لود می‌شود (بدون درگیری دیتابیس)
+        $brands = \App\models\Product::getDistinctBrands();
+        
+        // نمایش لیست قطعات
         require_once VIEWS_PATH . '/parts.php';
     }
 

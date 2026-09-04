@@ -270,42 +270,20 @@ function updateCartUI() {
 }
 
 function initFilters() {
-    const modelContainer = document.getElementById('model-filters');
-    const mobileModelContainer = document.getElementById('mobile-model-filters');
-    const catContainer = document.getElementById('category-filters');
-    const mobileCatContainer = document.getElementById('mobile-category-filters');
-
-    if (!modelContainer || !catContainer) return;
-
-    modelContainer.innerHTML = '';
-    catContainer.innerHTML = '';
-    if (mobileModelContainer) mobileModelContainer.innerHTML = '<h5 class="font-bold text-sm text-gray-200 mb-2">مدل خودرو</h5>';
-    if (mobileCatContainer) mobileCatContainer.innerHTML = '<h5 class="font-bold text-sm text-gray-200 mb-2">دسته‌بندی</h5>';
-
-    Object.keys(carModels).forEach(key => {
-        const html = `<label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer transition"><input type="checkbox" name="model" value="${key}" class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10" onchange="syncCheckboxes('model', '${key}', this.checked)">${carModels[key]}</label>`;
-        modelContainer.insertAdjacentHTML('beforeend', html);
-        if (mobileModelContainer) mobileModelContainer.insertAdjacentHTML('beforeend', html);
-    });
-
-    Object.keys(partCategories).forEach(key => {
-        const html = `<label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer transition"><input type="checkbox" name="category" value="${key}" class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10" onchange="syncCheckboxes('category', '${key}', this.checked)">${partCategories[key]}</label>`;
-        catContainer.insertAdjacentHTML('beforeend', html);
-        if (mobileCatContainer) mobileCatContainer.insertAdjacentHTML('beforeend', html);
-    });
-
-    // === ویژگی جدید: خواندن اتوماتیک جستجو از URL صفحه اصلی ===
+    // ویژگی هوشمند: خواندن اتوماتیک جستجو از URL (وقتی کاربر از صفحه اصلی سرچ می‌کند)
     const urlParams = new URLSearchParams(window.location.search);
-    
+
     if (urlParams.get('q')) {
         const s = document.getElementById('search-input');
         if (s) s.value = urlParams.get('q');
     }
+
     if (urlParams.get('model')) {
-        document.querySelectorAll(`input[name="model"][value="${urlParams.get('model')}"]`).forEach(cb => cb.checked = true);
+        syncCheckboxes('model', urlParams.get('model'), true);
     }
+
     if (urlParams.get('category')) {
-        document.querySelectorAll(`input[name="category"][value="${urlParams.get('category')}"]`).forEach(cb => cb.checked = true);
+        syncCheckboxes('category', urlParams.get('category'), true);
     }
 }
 
@@ -340,7 +318,7 @@ async function applyFilters(page = 1) {
         if (inStockOnly) params.append('inStock', 'true');
         if (sortVal) params.append('sort', sortVal);
         params.append('page', page);
-        
+
         checkedBrands.forEach(b => params.append('brand[]', b));
         checkedModels.forEach(m => params.append('model', m));
         checkedCats.forEach(c => params.append('category', c));
@@ -348,13 +326,13 @@ async function applyFilters(page = 1) {
         // واکشی زنده اطلاعات از دیتابیس
         const response = await fetch(`/api/parts?${params.toString()}`);
         const data = await response.json();
-        
+
         // به‌روزرسانی متغیر گلوبال برای دکمه "افزودن به سبد خرید"
-        partsDatabase = data.items; 
-        
+        partsDatabase = data.items;
+
         // ارسال دیتای جدید به تابع رندر HTML
         renderGrid(data.items, data.total);
-        
+
     } catch (error) {
         console.error('Error fetching parts:', error);
         grid.innerHTML = '<div class="col-span-full text-center py-10 text-rose-500 bg-rose-500/10 rounded-2xl">خطا در دریافت اطلاعات. لطفا اینترنت خود را بررسی کنید.</div>';
@@ -1266,8 +1244,8 @@ async function handleVerifyOtp(event) {
 
         if (response.ok) {
             showAlert('✔ ' + result.message, 'success');
-            setTimeout(() => { 
-                window.location.href = result.redirect || (isNewUser ? '/parts' : '/profile'); 
+            setTimeout(() => {
+                window.location.href = result.redirect || (isNewUser ? '/parts' : '/profile');
             }, 1500);
         } else {
             showAlert('❌ ' + result.error);

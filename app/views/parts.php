@@ -25,19 +25,40 @@
                         همه</button>
                 </div>
 
-                <!-- فیلتر مدل خودرو -->
                 <div>
                     <h5 class="font-bold text-sm text-gray-200 mb-3">مدل‌های تویوتا</h5>
                     <div class="space-y-2.5" id="model-filters">
-                        <!-- دکمه‌های چک‌باکس با جاوا اسکریپت رندر می‌شوند -->
+                        <?php
+                        global $car_models;
+                        if (!empty($car_models)) {
+                            foreach ($car_models as $slug => $data) {
+                                $name = is_array($data) ? $data['name'] : $data;
+                                echo '<label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer transition">
+                                        <input type="checkbox" name="model" value="'.e($slug).'" class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10" onchange="syncCheckboxes(\'model\', this.value, this.checked)">
+                                        '.e($name).'
+                                      </label>';
+                            }
+                        }
+                        ?>
                     </div>
                 </div>
 
-                <!-- فیلتر دسته‌بندی قطعات -->
+                <!-- فیلتر دسته‌بندی قطعه -->
                 <div>
                     <h5 class="font-bold text-sm text-gray-200 mb-3">دسته‌بندی قطعه</h5>
                     <div class="space-y-2.5" id="category-filters">
-                        <!-- دسته‌بندی‌ها با جاوا اسکریپت رندر می‌شوند -->
+                        <?php
+                        global $part_categories;
+                        if (!empty($part_categories)) {
+                            foreach ($part_categories as $slug => $data) {
+                                $name = is_array($data) ? $data['name'] : $data;
+                                echo '<label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer transition">
+                                        <input type="checkbox" name="category" value="'.e($slug).'" class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10" onchange="syncCheckboxes(\'category\', this.value, this.checked)">
+                                        '.e($name).'
+                                      </label>';
+                            }
+                        }
+                        ?>
                     </div>
                 </div>
 
@@ -59,56 +80,25 @@
                     <div class="space-y-2">
                         <!-- دسته‌بندی‌های کلی -->
                         <label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer">
-                            <input type="checkbox" name="brand" value="genuine"
-                                class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10"
-                                onchange="syncCheckboxes('brand', this.value, this.checked)">
+                            <input type="checkbox" name="brand" value="genuine" class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10" onchange="syncCheckboxes('brand', this.value, this.checked)">
                             تویوتا جنیون پارت (اصلی)
                         </label>
                         <label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer">
-                            <input type="checkbox" name="brand" value="oem"
-                                class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10"
-                                onchange="syncCheckboxes('brand', this.value, this.checked)">
+                            <input type="checkbox" name="brand" value="oem" class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10" onchange="syncCheckboxes('brand', this.value, this.checked)">
                             همه وارداتی‌های معتبر (OEM)
                         </label>
 
-                        <!-- برندهای اختصاصی -->
-                        <label
-                            class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer mt-3 border-t border-white/5 pt-2">
-                            <input type="checkbox" name="brand" value="aisin"
-                                class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10"
-                                onchange="syncCheckboxes('brand', this.value, this.checked)">
-                            برند Aisin (آیسین)
-                        </label>
-                        <label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer">
-                            <input type="checkbox" name="brand" value="kyb"
-                                class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10"
-                                onchange="syncCheckboxes('brand', this.value, this.checked)">
-                            برند KYB (کی‌وای‌بی)
-                        </label>
-                        <label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer">
-                            <input type="checkbox" name="brand" value="advics"
-                                class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10"
-                                onchange="syncCheckboxes('brand', this.value, this.checked)">
-                            برند Advics (ادویکس)
-                        </label>
-                        <label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer">
-                            <input type="checkbox" name="brand" value="rbi"
-                                class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10"
-                                onchange="syncCheckboxes('brand', this.value, this.checked)">
-                            برند RBI (قطعات لاستیکی)
-                        </label>
-                        <label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer">
-                            <input type="checkbox" name="brand" value="trw"
-                                class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10"
-                                onchange="syncCheckboxes('brand', this.value, this.checked)">
-                            برند TRW (ترمز و جلوبندی)
-                        </label>
-                        <label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer">
-                            <input type="checkbox" name="brand" value="fpi"
-                                class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10"
-                                onchange="syncCheckboxes('brand', this.value, this.checked)">
-                            برند FPI (قطعات بدنه)
-                        </label>
+                        <!-- برندهای اختصاصی خوانده شده از دیتابیس -->
+                        <?php if (!empty($brands)): ?>
+                            <div class="mt-3 border-t border-white/5 pt-3 space-y-2">
+                                <?php foreach ($brands as $brandName): ?>
+                                    <label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer mt-2">
+                                        <input type="checkbox" name="brand" value="<?= e(strtolower($brandName)) ?>" class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10" onchange="syncCheckboxes('brand', this.value, this.checked)">
+                                        برند <?= e($brandName) ?>
+                                    </label>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -210,12 +200,34 @@
                 </button>
             </div>
 
-            <!-- فیلترهای موبایل -->
             <div id="mobile-model-filters" class="space-y-2">
                 <h5 class="font-bold text-sm mb-2 opacity-90">مدل خودرو</h5>
+                <?php
+                if (!empty($car_models)) {
+                    foreach ($car_models as $slug => $data) {
+                        $name = is_array($data) ? $data['name'] : $data;
+                        echo '<label class="flex items-center gap-2.5 text-xs opacity-80 hover:opacity-100 cursor-pointer">
+                                <input type="checkbox" name="model" value="'.e($slug).'" class="rounded accent-brand-red w-4 h-4 bg-transparent border-gray-400" onchange="syncCheckboxes(\'model\', this.value, this.checked)">
+                                '.e($name).'
+                              </label>';
+                    }
+                }
+                ?>
             </div>
+            
             <div id="mobile-category-filters" class="space-y-2 pt-2 border-t border-black/10 dark:border-white/10">
                 <h5 class="font-bold text-sm mb-2 opacity-90">دسته‌بندی</h5>
+                <?php
+                if (!empty($part_categories)) {
+                    foreach ($part_categories as $slug => $data) {
+                        $name = is_array($data) ? $data['name'] : $data;
+                        echo '<label class="flex items-center gap-2.5 text-xs opacity-80 hover:opacity-100 cursor-pointer">
+                                <input type="checkbox" name="category" value="'.e($slug).'" class="rounded accent-brand-red w-4 h-4 bg-transparent border-gray-400" onchange="syncCheckboxes(\'category\', this.value, this.checked)">
+                                '.e($name).'
+                              </label>';
+                    }
+                }
+                ?>
             </div>
 
             <div class="space-y-2 pt-4 border-t border-black/10 dark:border-white/10">
@@ -233,20 +245,27 @@
             </div>
 
             <div class="space-y-2 pt-4 border-t border-black/10 dark:border-white/10">
-                <h5 class="font-bold text-sm mb-2 opacity-90">اصالت کالا</h5>
+                <h5 class="font-bold text-sm mb-2 opacity-90">اصالت و برند کالا</h5>
                 <div class="space-y-2">
                     <label class="flex items-center gap-2.5 text-xs opacity-80 hover:opacity-100 cursor-pointer">
-                        <input type="checkbox" name="brand" value="genuine"
-                            class="rounded accent-brand-red w-4 h-4 bg-transparent border-gray-400"
-                            onchange="syncCheckboxes('brand', this.value, this.checked)">
+                        <input type="checkbox" name="brand" value="genuine" class="rounded accent-brand-red w-4 h-4 bg-transparent border-gray-400" onchange="syncCheckboxes('brand', this.value, this.checked)">
                         تویوتا جنیون پارت (اصلی)
                     </label>
                     <label class="flex items-center gap-2.5 text-xs opacity-80 hover:opacity-100 cursor-pointer">
-                        <input type="checkbox" name="brand" value="oem"
-                            class="rounded accent-brand-red w-4 h-4 bg-transparent border-gray-400"
-                            onchange="syncCheckboxes('brand', this.value, this.checked)">
+                        <input type="checkbox" name="brand" value="oem" class="rounded accent-brand-red w-4 h-4 bg-transparent border-gray-400" onchange="syncCheckboxes('brand', this.value, this.checked)">
                         وارداتی معتبر OEM
                     </label>
+                    
+                    <?php if (!empty($brands)): ?>
+                        <div class="mt-3 border-t border-black/10 dark:border-white/10 pt-3 space-y-2">
+                            <?php foreach ($brands as $brandName): ?>
+                                <label class="flex items-center gap-2.5 text-xs opacity-80 hover:opacity-100 cursor-pointer">
+                                    <input type="checkbox" name="brand" value="<?= e(strtolower($brandName)) ?>" class="rounded accent-brand-red w-4 h-4 bg-transparent border-gray-400" onchange="syncCheckboxes('brand', this.value, this.checked)">
+                                    برند <?= e($brandName) ?>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
 

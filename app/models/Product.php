@@ -6,7 +6,6 @@ use PDO;
 
 class Product
 {
-    // این متد جایگزین getAll() قبلی می‌شود و فقط دیتاهای فیلتر شده را می‌آورد
     public static function search($filters = [], $page = 1, $perPage = 20)
     {
         $db = Database::getInstance();
@@ -122,5 +121,11 @@ class Product
             'page' => $page,
             'items' => $mapped
         ];
+    }
+    public static function getDistinctBrands()
+    {
+        $db = \Core\Database::getInstance();
+        $stmt = $db->query("SELECT DISTINCT brand FROM products WHERE brand IS NOT NULL AND brand != '' ORDER BY brand ASC");
+        return $stmt->fetchAll(\PDO::FETCH_COLUMN);
     }
 }
