@@ -59,14 +59,13 @@ global $settings;
                                 <div class="relative">
                                     <select name="model"
                                         class="w-full bg-[#f8f6f0] border border-[#a88d7c]/40 text-[#2b170c] text-sm rounded-2xl px-4 py-3.5 appearance-none focus:outline-none focus:border-[#8b533a] transition cursor-pointer font-bold">
-                                        <option value="">مدل خودروی شما (همه)</option>
+                                        <option value="">انتخاب مدل (همه)</option>
                                         <?php
                                         global $car_models;
                                         if (!empty($car_models)) {
-                                            // متغیر دوم را به $data تغییر دادیم
                                             foreach ($car_models as $key => $data) {
-                                                // حالا نام را از داخل آرایه $data می‌خوانیم
-                                                echo "<option value=\"" . e($key) . "\">" . e($data['name']) . "</option>";
+                                                $name = is_array($data) ? $data['name'] : $data;
+                                                echo "<option value=\"" . e($key) . "\">" . e($name) . "</option>";
                                             }
                                         }
                                         ?>
@@ -78,14 +77,14 @@ global $settings;
                                 <div class="relative">
                                     <select name="category"
                                         class="w-full bg-[#f8f6f0] border border-[#a88d7c]/40 text-[#2b170c] text-sm rounded-2xl px-4 py-3.5 appearance-none focus:outline-none focus:border-[#8b533a] transition cursor-pointer font-bold">
-                                        <option value="">همه دسته‌بندی‌ها (انتخاب کنید)</option>
+                                        <option value="">همه دسته‌بندی‌ها (All)</option>
                                         <?php
                                         global $part_categories;
                                         if (!empty($part_categories)) {
-                                            // متغیر دوم را به $data تغییر دادیم
                                             foreach ($part_categories as $key => $data) {
-                                                // حالا نام را از داخل آرایه $data می‌خوانیم
-                                                echo "<option value=\"" . e($key) . "\">" . e($data['name']) . "</option>";
+                                                // بررسی می‌کنیم که خروجی آرایه است یا متن ساده
+                                                $name = is_array($data) ? $data['name'] : $data;
+                                                echo "<option value=\"" . e($key) . "\">" . e($name) . "</option>";
                                             }
                                         }
                                         ?>
@@ -206,28 +205,39 @@ global $settings;
                 <div class="w-20 h-1 bg-brand-accent mx-auto mt-4 rounded-full"></div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                <?php foreach ($GLOBALS['part_categories'] as $slug => $cat): ?>
+                <?php foreach ($GLOBALS['part_categories'] as $slug => $cat):
+                    // خواندن امن مقادیر (اگر آرایه کامل از دیتابیس آمد، آن‌ها را می‌خوانیم)
+                    $catName = is_array($cat) ? ($cat['name'] ?? '') : $cat;
+                    $catIcon = is_array($cat) && !empty($cat['icon_svg']) ? $cat['icon_svg'] : '<i data-lucide="box" style="width:36px;height:36px;"></i>';
+                    $catDesc = is_array($cat) && !empty($cat['description']) ? $cat['description'] : '';
+
+                    // تبدیل رشته متنی تگ‌ها (که در دیتابیس با کاما جدا شده‌اند) به آرایه
+                    $catTags = [];
+                    if (is_array($cat) && !empty($cat['tags'])) {
+                        $catTags = explode(',', $cat['tags']);
+                    }
+                    ?>
                     <div onclick="window.location.href='/parts?category=<?= e($slug) ?>'"
                         class="cat-card bg-brand-grey rounded-2xl p-8 border border-white/5 cursor-pointer scroll-reveal">
                         <div class="relative z-10 flex flex-col h-full">
                             <div
                                 class="cat-icon w-16 h-16 bg-brand-accent/10 rounded-xl flex items-center justify-center mb-5 text-brand-accent">
-                                <?= $cat['icon'] ? $cat['icon'] : '<i data-lucide="box" style="width:36px;height:36px;"></i>' ?>
+                                <?= $catIcon ?>
                             </div>
 
-                            <h4 class="text-xl font-bold mb-2"><?= e($cat['name']) ?></h4>
+                            <h4 class="text-xl font-bold mb-2"><?= e($catName) ?></h4>
 
-                            <!-- نمایش توضیحات -->
-                            <?php if (!empty($cat['description'])): ?>
+                            <!-- توضیحات (اگر در دیتابیس وجود داشت) -->
+                            <?php if (!empty($catDesc)): ?>
                                 <p class="text-gray-400 text-sm leading-relaxed mb-4 flex-grow">
-                                    <?= e($cat['description']) ?>
+                                    <?= e($catDesc) ?>
                                 </p>
                             <?php endif; ?>
 
-                            <!-- نمایش تگ‌های کوچک -->
-                            <?php if (!empty($cat['tags'])): ?>
+                            <!-- تگ‌ها (اگر در دیتابیس وجود داشت) -->
+                            <?php if (!empty($catTags)): ?>
                                 <div class="flex flex-wrap gap-2 mb-5">
-                                    <?php foreach ($cat['tags'] as $tag): ?>
+                                    <?php foreach ($catTags as $tag): ?>
                                         <span class="bg-white/5 text-xs px-3 py-1 rounded-full text-gray-300">
                                             <?= e(trim($tag)) ?>
                                         </span>
@@ -236,7 +246,7 @@ global $settings;
                             <?php endif; ?>
 
                             <div
-                                class="flex items-center gap-2 text-brand-accent text-sm font-bold <?= empty($cat['tags']) ? 'mt-auto' : '' ?>">
+                                class="flex items-center gap-2 text-brand-accent text-sm font-bold <?= empty($catTags) ? 'mt-auto' : '' ?>">
                                 مشاهده قطعات <i data-lucide="arrow-left" style="width:16px;height:16px;"></i>
                             </div>
                         </div>
@@ -321,12 +331,14 @@ global $settings;
             <!-- گرید کارت‌های افقی -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-5">
                 <?php
-                // محدود کردن نمایش به ۳ آیتم اول
                 $count = 0;
                 if (!empty($GLOBALS['car_models'])) {
                     foreach ($GLOBALS['car_models'] as $slug => $model):
                         if ($count >= 3)
-                            break; // توقف حلقه بعد از ۳ کارت
+                            break;
+
+                        $modelName = is_array($model) ? $model['name'] : $model;
+                        $modelLogo = is_array($model) && !empty($model['logo_svg']) ? $model['logo_svg'] : '<i data-lucide="car" style="width:24px;height:24px;"></i>';
                         ?>
                         <a href="/parts?model=<?= e($slug) ?>"
                             class="group flex items-center justify-between p-4 md:p-5 bg-brand-grey rounded-2xl border border-white/5 transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-brand-accent/30 active:border-brand-accent/30 hover:shadow-[0_15px_40px_-10px_rgba(139,83,58,0.15)] active:bg-white/5 relative overflow-hidden">
@@ -340,14 +352,13 @@ global $settings;
                             <div class="flex items-center gap-3 md:gap-4 pr-1 md:pr-2 relative z-10">
                                 <div
                                     class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-brand-dark border border-white/10 flex items-center justify-center text-gray-500 group-hover:text-brand-accent group-active:text-brand-accent group-hover:bg-brand-dark transition-all duration-300 ease-out shrink-0">
-                                    <!-- نمایش لوگوی ماشین از دیتابیس -->
-                                    <?= $model['logo'] ? $model['logo'] : '<i data-lucide="car" style="width:24px;height:24px;"></i>' ?>
+                                    <?= $modelLogo ?>
                                 </div>
                                 <div class="text-right">
                                     <h4
                                         class="text-sm md:text-base font-bold text-gray-200 group-hover:text-white group-active:text-white transition-colors duration-300">
-                                        <?= e($model['name']) ?></h4>
-                                    <!-- نام انگلیسی/اسلاگ ماشین برای زیرمتن -->
+                                        <?= e($modelName) ?>
+                                    </h4>
                                     <span
                                         class="text-[9px] md:text-[10px] text-gray-500 uppercase tracking-widest mt-0.5 block font-mono group-hover:text-brand-accent/80 transition-colors duration-300">Toyota
                                         <?= e(ucwords(str_replace('-', ' ', $slug))) ?></span>
