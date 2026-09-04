@@ -2,7 +2,8 @@
 
 global $settings;
 
-// استخراج مسیر دقیق (URI) به جای نام فایل (حل مشکل سیستم Router)
+$is_logged_in = isset($_SESSION['user_id']);
+
 $current_page = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
 // حذف اسلش اضافی در انتهای آدرس (به جز صفحه اصلی)
@@ -94,9 +95,11 @@ if (!in_array($current_page, $hide_floating_buttons_on)):
                 class="h-10 sm:h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-105">
             <div class="text-center md:text-right">
                 <h1 class="text-base sm:text-lg font-extrabold leading-tight">
-                    <?= e($settings['site_title'] ?? 'پرادو یدک') ?></h1>
+                    <?= e($settings['site_title'] ?? 'پرادو یدک') ?>
+                </h1>
                 <p class="text-[9px] sm:text-[10px] text-gray-400 tracking-wider">
-                    <?= e($settings['site_subtitle'] ?? 'PRADO YADAK') ?></p>
+                    <?= e($settings['site_subtitle'] ?? 'PRADO YADAK') ?>
+                </p>
             </div>
         </a>
 

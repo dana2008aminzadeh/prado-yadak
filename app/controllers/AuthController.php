@@ -73,7 +73,13 @@ class AuthController
             $_SESSION['user_role'] = $user['role'];
             $_SESSION['is_logged_in'] = true;
 
-            echo json_encode(['message' => 'ورود با موفقیت انجام شد.']);
+            $redirectUrl = $_SESSION['redirect_after_login'] ?? '/profile';
+            unset($_SESSION['redirect_after_login']);
+
+            echo json_encode([
+                'message' => 'ورود با موفقیت انجام شد.',
+                'redirect' => $redirectUrl
+            ]);
         } else {
             http_response_code(401);
             echo json_encode(['error' => 'رمز عبور اشتباه است.']);
@@ -196,7 +202,14 @@ class AuthController
         $_SESSION['user_role'] = $role;
         $_SESSION['is_logged_in'] = true;
 
-        echo json_encode(['message' => $msg]);
+        $defaultRedirect = $user ? '/profile' : '/parts'; 
+        $redirectUrl = $_SESSION['redirect_after_login'] ?? $defaultRedirect;
+        unset($_SESSION['redirect_after_login']);
+
+        echo json_encode([
+            'message' => $msg,
+            'redirect' => $redirectUrl
+        ]);
     }
 
     public function logout()

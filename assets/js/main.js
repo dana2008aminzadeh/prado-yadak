@@ -953,7 +953,24 @@ function getCsrfToken() {
     return meta ? meta.getAttribute('content') : '';
 }
 
-// ۱. بررسی شماره موبایل کاربر
+// نمایش و مخفی کردن حالت لودینگ دکمه‌ها
+function toggleButtonLoading(btn, isLoading, originalText) {
+    if (!btn) return;
+    if (isLoading) {
+        btn.disabled = true;
+        btn.dataset.originalText = btn.innerHTML; // ذخیره متن اصلی دکمه
+        // قرار دادن آیکون در حال چرخش (spinner) و تغییر متن
+        btn.innerHTML = `<div class="flex items-center justify-center gap-2"><i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i><span>لطفاً صبر کنید...</span></div>`;
+        btn.classList.add('opacity-70', 'cursor-not-allowed');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    } else {
+        btn.disabled = false;
+        btn.innerHTML = btn.dataset.originalText || originalText; // بازگرداندن متن قبلی
+        btn.classList.remove('opacity-70', 'cursor-not-allowed');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    }
+}
+
 async function handleCheckPhone(event) {
     if (event) event.preventDefault();
     const phoneInput = document.getElementById('auth-phone');
@@ -965,6 +982,9 @@ async function handleCheckPhone(event) {
         return;
     }
 
+    const btn = document.querySelector('#step-phone button');
+    toggleButtonLoading(btn, true); // ⏳ روشن کردن لودینگ و غیرفعال کردن دکمه
+
     try {
         const response = await fetch('/api/auth/check', {
             method: 'POST',
@@ -973,17 +993,17 @@ async function handleCheckPhone(event) {
         });
         const result = await response.json();
 
+        toggleButtonLoading(btn, false, 'مرحله بعد'); // ⏳ خاموش کردن لودینگ
+
         if (response.ok) {
             hideAlert();
             document.getElementById('step-phone').classList.add('hidden');
 
             if (result.exists) {
-                // کاربر قدیمی است -> برو به فرم رمز عبور
                 isNewUser = false;
                 document.getElementById('step-password').classList.remove('hidden');
                 document.getElementById('display-phone-pass').innerText = authPhone;
             } else {
-                // کاربر جدید است -> ارسال خودکار پیامک و نمایش فرم ثبت‌نام
                 isNewUser = true;
                 requestOtp();
             }
@@ -991,11 +1011,11 @@ async function handleCheckPhone(event) {
             showAlert('❌ ' + result.error);
         }
     } catch (error) {
-        showAlert('خطا در ارتباط با سرور.');
+        toggleButtonLoading(btn, false, 'مرحله بعد'); // ⏳ خاموش کردن لودینگ
+        showAlert('خطا در ارتباط با سرور. لطفاً اینترنت خود را بررسی کنید.');
     }
 }
 
-// ۲. ورود کاربر قدیمی با رمز عبور
 async function handleLoginPassword(event) {
     if (event) event.preventDefault();
     const password = document.getElementById('auth-password').value;
@@ -1005,6 +1025,9 @@ async function handleLoginPassword(event) {
         return;
     }
 
+    const btn = document.querySelector('#step-password button.bg-brand-red');
+    toggleButtonLoading(btn, true); // ⏳ روشن کردن لودینگ
+
     try {
         const response = await fetch('/api/auth/login-password', {
             method: 'POST',
@@ -1013,14 +1036,17 @@ async function handleLoginPassword(event) {
         });
         const result = await response.json();
 
+        toggleButtonLoading(btn, false, 'ورود به حساب'); // ⏳ خاموش کردن لودینگ
+
         if (response.ok) {
             showAlert('✔ ورود با موفقیت انجام شد.', 'success');
-            setTimeout(() => { window.location.href = '/profile'; }, 1500);
+            setTimeout(() => { window.location.href = result.redirect || '/profile'; }, 1500);
         } else {
             showAlert('❌ ' + result.error);
         }
     } catch (error) {
-        showAlert('خطا در ارتباط با سرور.');
+        toggleButtonLoading(btn, false, 'ورود به حساب'); // ⏳ خاموش کردن لودینگ
+        showAlert('خطا در ارتباط با سرور. لطفاً اینترنت خود را بررسی کنید.');
     }
 }
 
@@ -1082,7 +1108,6 @@ function startOTPTimer(seconds) {
     }, 1000);
 }
 
-// ۶. تایید نهایی کد پیامک (ورود یا ثبت‌نام)
 async function handleVerifyOtp(event) {
     if (event) event.preventDefault();
     const code = document.getElementById('auth-otp-code').value.trim();
@@ -1106,6 +1131,9 @@ async function handleVerifyOtp(event) {
         return;
     }
 
+    const btn = document.querySelector('#step-otp button.bg-brand-red');
+    toggleButtonLoading(btn, true); // ⏳ روشن کردن لودینگ
+
     try {
         const response = await fetch('/api/auth/verify-otp', {
             method: 'POST',
@@ -1114,14 +1142,19 @@ async function handleVerifyOtp(event) {
         });
         const result = await response.json();
 
+        toggleButtonLoading(btn, false, 'تایید و ادامه'); // ⏳ خاموش کردن لودینگ
+
         if (response.ok) {
             showAlert('✔ ' + result.message, 'success');
-            setTimeout(() => { window.location.href = isNewUser ? '/index' : '/profile'; }, 1500);
+            setTimeout(() => { 
+                window.location.href = result.redirect || (isNewUser ? '/parts' : '/profile'); 
+            }, 1500);
         } else {
             showAlert('❌ ' + result.error);
         }
     } catch (error) {
-        showAlert('خطا در ارتباط با سرور.');
+        toggleButtonLoading(btn, false, 'تایید و ادامه'); // ⏳ خاموش کردن لودینگ
+        showAlert('خطا در ارتباط با سرور. لطفاً اینترنت خود را بررسی کنید.');
     }
 }
 
