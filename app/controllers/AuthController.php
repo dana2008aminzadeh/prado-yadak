@@ -83,10 +83,10 @@ class AuthController
     // متد اختصاصی اتصال به پنل sms.ir
     private function sendSmsIr($mobile, $code)
     {
-        $api_key = 'rPyOycfmesAuqqRHlk1UV8fYfXvl7bvktcgtcgyYFnBxWsst';
+        $api_key = '6yvodOobNXvR0bKclRjAAZTffumOuyQmeIOGJXKdEMO0JkHD';
 
         // شما باید در پنل sms.ir یک قالب (Template) بسازید و آیدی آن را اینجا قرار دهید
-        $template_id = 100000; // این عدد را با شناسه قالب خودتان جایگزین کنید
+        $template_id = 219706; // این عدد را با شناسه قالب خودتان جایگزین کنید
 
         $data = [
             "mobile" => $mobile,

@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="fa" dir="rtl" class="scroll-smooth">
-
+ 
 <head>
     <?php include 'assets/php/head.php'; ?>
 </head>
