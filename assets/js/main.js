@@ -283,26 +283,146 @@ function initFilters() {
     if (mobileCatContainer) mobileCatContainer.innerHTML = '<h5 class="font-bold text-sm text-gray-200 mb-2">دسته‌بندی</h5>';
 
     Object.keys(carModels).forEach(key => {
-        const html = `
-            <label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer transition">
-                <input type="checkbox" name="model" value="${key}" class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10" onchange="syncCheckboxes('model', '${key}', this.checked)">
-                ${carModels[key]}
-            </label>
-        `;
+        const html = `<label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer transition"><input type="checkbox" name="model" value="${key}" class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10" onchange="syncCheckboxes('model', '${key}', this.checked)">${carModels[key]}</label>`;
         modelContainer.insertAdjacentHTML('beforeend', html);
         if (mobileModelContainer) mobileModelContainer.insertAdjacentHTML('beforeend', html);
     });
 
     Object.keys(partCategories).forEach(key => {
-        const html = `
-            <label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer transition">
-                <input type="checkbox" name="category" value="${key}" class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10" onchange="syncCheckboxes('category', '${key}', this.checked)">
-                ${partCategories[key]}
-            </label>
-        `;
+        const html = `<label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer transition"><input type="checkbox" name="category" value="${key}" class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10" onchange="syncCheckboxes('category', '${key}', this.checked)">${partCategories[key]}</label>`;
         catContainer.insertAdjacentHTML('beforeend', html);
         if (mobileCatContainer) mobileCatContainer.insertAdjacentHTML('beforeend', html);
     });
+
+    // === ویژگی جدید: خواندن اتوماتیک جستجو از URL صفحه اصلی ===
+    const urlParams = new URLSearchParams(window.location.search);
+    
+    if (urlParams.get('q')) {
+        const s = document.getElementById('search-input');
+        if (s) s.value = urlParams.get('q');
+    }
+    if (urlParams.get('model')) {
+        document.querySelectorAll(`input[name="model"][value="${urlParams.get('model')}"]`).forEach(cb => cb.checked = true);
+    }
+    if (urlParams.get('category')) {
+        document.querySelectorAll(`input[name="category"][value="${urlParams.get('category')}"]`).forEach(cb => cb.checked = true);
+    }
+}
+
+// جایگزین کردن تابع applyFilters با نسخه سرور ساید (AJAX)
+async function applyFilters(page = 1) {
+    const grid = document.getElementById('parts-grid');
+    if (!grid) return;
+
+    const searchInput = document.getElementById('search-input');
+    const searchQuery = searchInput ? searchInput.value.trim() : '';
+    const priceSlider = document.getElementById('price-slider');
+    const maxPrice = priceSlider ? priceSlider.value : 25000000;
+    const inStockToggle = document.getElementById('in-stock-toggle');
+    const inStockOnly = inStockToggle ? inStockToggle.checked : false;
+    const sortSelect = document.getElementById('sort-select');
+    const sortVal = sortSelect ? sortSelect.value : 'newest';
+
+    const checkedBrands = Array.from(document.querySelectorAll('input[name="brand"]:checked')).map(el => el.value);
+    const checkedModels = Array.from(document.querySelectorAll('input[name="model"]:checked')).map(el => el.value);
+    const checkedCats = Array.from(document.querySelectorAll('input[name="category"]:checked')).map(el => el.value);
+
+    // نمایش لودینگ گرافیکی روی گرید تا زمان برگشت جواب از سرور
+    grid.classList.remove('hidden');
+    grid.innerHTML = '<div class="col-span-full text-center py-16"><i data-lucide="loader-2" class="w-10 h-10 animate-spin mx-auto text-brand-red mb-3"></i><p class="text-gray-400 text-xs">در حال جستجو در انبار قطعات...</p></div>';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    try {
+        // ساخت پارامترهای GET برای ارسال به API
+        const params = new URLSearchParams();
+        if (searchQuery) params.append('q', searchQuery);
+        if (maxPrice) params.append('maxPrice', maxPrice);
+        if (inStockOnly) params.append('inStock', 'true');
+        if (sortVal) params.append('sort', sortVal);
+        params.append('page', page);
+        
+        checkedBrands.forEach(b => params.append('brand[]', b));
+        checkedModels.forEach(m => params.append('model', m));
+        checkedCats.forEach(c => params.append('category', c));
+
+        // واکشی زنده اطلاعات از دیتابیس
+        const response = await fetch(`/api/parts?${params.toString()}`);
+        const data = await response.json();
+        
+        // به‌روزرسانی متغیر گلوبال برای دکمه "افزودن به سبد خرید"
+        partsDatabase = data.items; 
+        
+        // ارسال دیتای جدید به تابع رندر HTML
+        renderGrid(data.items, data.total);
+        
+    } catch (error) {
+        console.error('Error fetching parts:', error);
+        grid.innerHTML = '<div class="col-span-full text-center py-10 text-rose-500 bg-rose-500/10 rounded-2xl">خطا در دریافت اطلاعات. لطفا اینترنت خود را بررسی کنید.</div>';
+    }
+}
+
+// آپدیت کردن تابع renderGrid برای دریافت تعداد کل از سرور
+function renderGrid(parts, totalCount = 0) {
+    const grid = document.getElementById('parts-grid');
+    const emptyState = document.getElementById('empty-state');
+    const countText = document.getElementById('results-count');
+
+    if (!grid) return;
+
+    grid.innerHTML = '';
+    // نمایش تعداد کل یافت شده در دیتابیس
+    if (countText) countText.textContent = `یافت شده: ${totalCount} قطعه`;
+
+    if (parts.length === 0) {
+        grid.classList.add('hidden');
+        if (emptyState) emptyState.classList.remove('hidden');
+        return;
+    }
+
+    grid.classList.remove('hidden');
+    if (emptyState) emptyState.classList.add('hidden');
+
+    parts.forEach(part => {
+        const stockBadge = part.inStock
+            ? '<span class="bg-emerald-500/10 text-emerald-400 text-[10px] px-2 py-1 rounded-md font-bold">موجود در انبار</span>'
+            : '<span class="bg-rose-500/10 text-rose-400 text-[10px] px-2 py-1 rounded-md font-bold">ناموجود</span>';
+
+        const brandBadge = part.isGenuine
+            ? '<span class="bg-brand-red/10 text-brand-red text-[10px] px-2 py-1 rounded-md font-bold">اصلی Genuine</span>'
+            : '<span class="bg-gray-400/10 text-gray-300 text-[10px] px-2 py-1 rounded-md font-bold">ژاپنی OEM</span>';
+
+        const iconName = part.imageIcon || (part.images && part.images[0]) || 'disc';
+        const cardHtml = `
+            <div class="bg-brand-grey border border-white/5 hover:border-brand-red/30 p-5 rounded-2xl flex flex-col justify-between transition duration-300 hover:shadow-[0_10px_35px_rgba(225,6,0,0.12)]">
+                <div>
+                    <div class="flex items-center justify-between mb-4">
+                        ${stockBadge}
+                        ${brandBadge}
+                    </div>
+                    <div onclick="window.location.href='/product?id=${part.id}'" class="w-full h-40 bg-brand-dark rounded-xl flex items-center justify-center mb-4 text-brand-red relative group overflow-hidden border border-white/5 cursor-pointer">
+                        ${renderMediaHTML(iconName, "w-12 h-12 transition transform group-hover:scale-125 duration-300")}
+                        <span class="absolute bottom-2 left-2 text-[10px] text-gray-500 bg-brand-dark/80 px-2 py-0.5 rounded" style="direction: ltr;">OEM: ${part.oem}</span>
+                    </div>
+                    <h4 class="font-bold text-sm text-white leading-relaxed line-clamp-2 hover:text-brand-red cursor-pointer transition" onclick="window.location.href='/product?id=${part.id}'">${part.name}</h4>
+                    <p class="text-xs text-gray-400 mt-2 flex items-center gap-1.5">
+                        <i data-lucide="car" style="width:13px;height:13px;"></i>
+                        سازگار با: ${(carModels[part.model] || part.model).split(' ')[0]}
+                    </p>
+                </div>
+                <div class="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
+                    <div>
+                        <span class="text-[10px] text-gray-500 block mb-0.5">قیمت مصرف‌کننده:</span>
+                        <span class="font-black text-sm text-brand-red">${part.price.toLocaleString('fa-IR')} تومان</span>
+                    </div>
+                    <button ${part.inStock ? `onclick="addToCart(${part.id})"` : 'disabled'} class="p-2.5 rounded-xl transition ${part.inStock ? 'bg-brand-red hover:bg-red-700 text-white shadow-[0_4px_15px_rgba(225,6,0,0.2)]' : 'bg-white/5 text-gray-500 cursor-not-allowed'}">
+                        <i data-lucide="shopping-cart" style="width:18px;height:18px;"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        grid.insertAdjacentHTML('beforeend', cardHtml);
+    });
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function updatePriceLabel(value) {

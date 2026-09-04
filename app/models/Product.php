@@ -2,23 +2,105 @@
 namespace App\models;
 
 use Core\Database;
+use PDO;
 
 class Product
 {
-    public static function getAll()
+    // این متد جایگزین getAll() قبلی می‌شود و فقط دیتاهای فیلتر شده را می‌آورد
+    public static function search($filters = [], $page = 1, $perPage = 20)
     {
         $db = Database::getInstance();
-        // امنیت: فقط محصولات موجود یا فعال واکشی شوند
-        $stmt = $db->query("SELECT p.*, c.slug as category_slug 
-                            FROM products p 
-                            LEFT JOIN categories c ON p.category_id = c.id");
+        $conditions = ["1=1"];
+        $params = [];
+
+        // ۱. جستجوی متنی (نام یا کد قطعه)
+        if (!empty($filters['q'])) {
+            $conditions[] = "(p.name LIKE ? OR p.oem_code LIKE ?)";
+            $params[] = '%' . $filters['q'] . '%';
+            $params[] = '%' . $filters['q'] . '%';
+        }
+
+        // ۲. فیلتر دسته‌بندی
+        if (!empty($filters['category'])) {
+            $conditions[] = "c.slug = ?";
+            $params[] = $filters['category'];
+        }
+
+        // ۳. فیلتر مدل خودرو
+        if (!empty($filters['model'])) {
+            $conditions[] = "p.car_model = ?";
+            $params[] = $filters['model'];
+        }
+
+        // ۴. فیلتر حداکثر قیمت
+        if (!empty($filters['maxPrice'])) {
+            $conditions[] = "p.price <= ?";
+            $params[] = (float)$filters['maxPrice'];
+        }
+
+        // ۵. فیلتر موجودی انبار
+        if (!empty($filters['inStock']) && $filters['inStock'] === 'true') {
+            $conditions[] = "p.in_stock = 1";
+        }
+
+        // ۶. فیلتر اصالت و برندها
+        if (!empty($filters['brands']) && is_array($filters['brands'])) {
+            $brandConditions = [];
+            foreach ($filters['brands'] as $brand) {
+                if ($brand === 'genuine') {
+                    $brandConditions[] = "p.is_genuine = 1";
+                } elseif ($brand === 'oem') {
+                    $brandConditions[] = "p.is_genuine = 0";
+                } else {
+                    $brandConditions[] = "LOWER(p.brand) = ?";
+                    $params[] = strtolower(trim($brand));
+                }
+            }
+            if (!empty($brandConditions)) {
+                $conditions[] = "(" . implode(" OR ", $brandConditions) . ")";
+            }
+        }
+
+        $whereClause = implode(" AND ", $conditions);
+
+        // واکشی تعداد کل (برای نمایش "یافت شده: X قطعه")
+        $countSql = "SELECT COUNT(p.id) FROM products p LEFT JOIN categories c ON p.category_id = c.id WHERE $whereClause";
+        $stmtCount = $db->prepare($countSql);
+        $stmtCount->execute($params);
+        $totalCount = $stmtCount->fetchColumn();
+
+        // مرتب‌سازی (ایمن شده با لیست مجاز برای جلوگیری از SQL Injection)
+        $sort = $filters['sort'] ?? 'newest';
+        $orderBy = "p.id DESC"; // پیش‌فرض: جدیدترین
+        
+        if ($sort === 'price-asc') {
+            $orderBy = "p.price ASC";
+        } elseif ($sort === 'price-desc') {
+            $orderBy = "p.price DESC";
+        } elseif ($sort === 'popular') {
+            $orderBy = "p.id ASC"; // می‌توانید با فیلد بازدید جایگزین کنید
+        }
+
+        // صفحه‌بندی (Pagination)
+        $page = max(1, (int)$page);
+        $perPage = max(1, (int)$perPage);
+        $offset = ($page - 1) * $perPage;
+
+        $sql = "SELECT p.*, c.slug as category_slug 
+                FROM products p 
+                LEFT JOIN categories c ON p.category_id = c.id 
+                WHERE $whereClause 
+                ORDER BY $orderBy 
+                LIMIT $perPage OFFSET $offset";
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
         $results = $stmt->fetchAll();
 
+        // مپ کردن خروجی
         $mapped = [];
         foreach ($results as $r) {
-            // تبدیل JSON تلگرام به آرایه (نکته دیتابیس بالا اینجا اعمال شده)
             $images = !empty($r['telegram_photo_id']) ? json_decode($r['telegram_photo_id'], true) : [];
-            
             $mapped[] = [
                 'id' => (int) $r['id'],
                 'name' => $r['name'],
@@ -34,6 +116,11 @@ class Product
                 'images' => is_array($images) ? $images : []
             ];
         }
-        return $mapped;
+
+        return [
+            'total' => (int)$totalCount,
+            'page' => $page,
+            'items' => $mapped
+        ];
     }
 }
