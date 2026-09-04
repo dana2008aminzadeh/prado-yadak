@@ -52,7 +52,6 @@ try {
     $GLOBALS['settings'] = \App\models\Setting::getAll();
     $GLOBALS['part_categories'] = \App\models\Category::getAll();
     $GLOBALS['car_models'] = \App\models\CarModel::getAll();
-    $GLOBALS['parts_database'] = \App\models\Product::getAll();
 } catch (Exception $e) {
     // در صورت قطعی دیتابیس، می‌توان اینجا کاربر را به صفحه خطای 500 ارجاع داد
 }

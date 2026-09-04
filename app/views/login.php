@@ -1,9 +1,4 @@
 <?php
-// اگر کاربر از قبل لاگین است، مستقیم به پروفایل برود
-if (isset($_SESSION['user_id'])) {
-    header("Location: /profile");
-    exit;
-}
 $current_page = '/login';
 ?>
 <!doctype html>

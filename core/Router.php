@@ -5,14 +5,21 @@ class Router
 {
     protected $routes = [];
 
-    public function get($uri, $controller)
+    // اضافه شدن پارامتر سوم برای پذیرش Middleware
+    public function get($uri, $controller, $middleware = [])
     {
-        $this->routes['GET'][$uri] = $controller;
+        $this->routes['GET'][$uri] = [
+            'controller' => $controller,
+            'middleware' => $middleware
+        ];
     }
 
-    public function post($uri, $controller)
+    public function post($uri, $controller, $middleware = [])
     {
-        $this->routes['POST'][$uri] = $controller;
+        $this->routes['POST'][$uri] = [
+            'controller' => $controller,
+            'middleware' => $middleware
+        ];
     }
 
     public function dispatch($uri)
@@ -22,16 +29,23 @@ class Router
         $this->defineRoutes();
 
         if (array_key_exists($uri, $this->routes[$method])) {
-            $controllerAction = $this->routes[$method][$uri];
+            $route = $this->routes[$method][$uri];
 
-            list($controller, $action) = explode('@', $controllerAction);
+            // === اجرای Middleware ها قبل از ورود به کنترلر ===
+            foreach ($route['middleware'] as $mw) {
+                // نام کلاس را بر اساس نام داده شده می‌سازیم (مثلا Auth یا Guest)
+                $middlewareClass = "Core\\Middleware\\" . ucfirst($mw);
+                if (class_exists($middlewareClass)) {
+                    (new $middlewareClass)->handle();
+                }
+            }
 
+            list($controller, $action) = explode('@', $route['controller']);
             $controllerClass = "App\\controllers\\" . $controller;
 
             if (class_exists($controllerClass)) {
                 $controllerInstance = new $controllerClass();
                 if (method_exists($controllerInstance, $action)) {
-
                     return $controllerInstance->$action();
                 }
             }
@@ -42,25 +56,25 @@ class Router
 
     private function defineRoutes()
     {
-        // === مسیرهای صفحات اصلی سایت ===
+        // مسیرهای عمومی (بدون محدودیت)
         $this->get('/', 'HomeController@index');
         $this->get('/index', 'HomeController@index');
         $this->get('/parts', 'PartController@index');
         $this->get('/product', 'PartController@show');
-
         $this->get('/blog', 'BlogController@index');
         $this->get('/blog-detail', 'BlogController@show');
-
         $this->get('/terms', 'HomeController@terms');
-        $this->get('/login', 'AuthController@loginForm');
-        $this->get('/profile', 'UserController@profile');
-        $this->get('/checkout', 'OrderController@checkout');
-        $this->post('/cart/add', 'CartController@add');
-
-        // === مسیر اختصاصی کش و نمایش تصاویر تلگرام ===
         $this->get('/image', 'ImageController@show');
 
-        // === مسیرهای API سیستم احراز هویت یکپارچه (ورود/ثبت‌نام) ===
+        // === مسیرهای Guest (فقط کاربران لاگین‌نکرده) ===
+        $this->get('/login', 'AuthController@loginForm', ['guest']);
+        
+        // === مسیرهای Auth (فقط کاربران لاگین‌کرده) ===
+        $this->get('/profile', 'UserController@profile', ['auth']);
+        $this->get('/checkout', 'OrderController@checkout', ['auth']);
+
+        // مسیرهای API (می‌توانید برای این‌ها هم بعداً middleware تعیین کنید)
+        $this->post('/cart/add', 'CartController@add');
         $this->post('/api/auth/check', 'AuthController@checkUser');
         $this->post('/api/auth/login-password', 'AuthController@loginPassword');
         $this->post('/api/auth/send-otp', 'AuthController@sendOtp');
