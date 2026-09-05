@@ -19,25 +19,23 @@ class PartController
         require_once VIEWS_PATH . '/product-detail.php';
     }
 
-    // === این متد API وظیفه فیلتر و جستجوی زنده را دارد ===
     public function apiList()
     {
         header('Content-Type: application/json; charset=utf-8');
         
         $filters = [
             'q' => trim($_GET['q'] ?? ''),
-            'category' => trim($_GET['category'] ?? ''),
-            'model' => trim($_GET['model'] ?? ''),
+            'categories' => $_GET['category'] ?? [], // تغییر کرد تا آرایه بگیرد
+            'models' => $_GET['model'] ?? [],       // تغییر کرد تا آرایه بگیرد
             'maxPrice' => $_GET['maxPrice'] ?? null,
             'inStock' => $_GET['inStock'] ?? '',
-            'brands' => $_GET['brand'] ?? [], // آرایه‌ای از برندهای تیک‌خورده
+            'brands' => $_GET['brand'] ?? [], 
             'sort' => $_GET['sort'] ?? 'newest'
         ];
         
         $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
         
-        // واکشی امن قطعات از دیتابیس
-        $data = Product::search($filters, $page, 20); // 20 قطعه در هر صفحه
+        $data = \App\models\Product::search($filters, $page, 20);
         
         echo json_encode($data);
         exit;

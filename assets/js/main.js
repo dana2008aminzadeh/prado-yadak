@@ -1,6 +1,6 @@
 const carModels = window.dynamicCarModels || {};
 const partCategories = window.dynamicPartCategories || {};
-const partsDatabase = window.dynamicPartsDatabase || [];
+let partsDatabase = window.dynamicPartsDatabase || [];
 
 const dynamic = window.dynamicSettings || {};
 
@@ -269,8 +269,16 @@ function updateCartUI() {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+let filterTimeout;
+
+function triggerFilter() {
+    clearTimeout(filterTimeout);
+    filterTimeout = setTimeout(() => {
+        applyFilters();
+    }, 500);
+}
+
 function initFilters() {
-    // ویژگی هوشمند: خواندن اتوماتیک جستجو از URL (وقتی کاربر از صفحه اصلی سرچ می‌کند)
     const urlParams = new URLSearchParams(window.location.search);
 
     if (urlParams.get('q')) {
@@ -287,7 +295,6 @@ function initFilters() {
     }
 }
 
-// جایگزین کردن تابع applyFilters با نسخه سرور ساید (AJAX)
 async function applyFilters(page = 1) {
     const grid = document.getElementById('parts-grid');
     if (!grid) return;
@@ -305,41 +312,38 @@ async function applyFilters(page = 1) {
     const checkedModels = Array.from(document.querySelectorAll('input[name="model"]:checked')).map(el => el.value);
     const checkedCats = Array.from(document.querySelectorAll('input[name="category"]:checked')).map(el => el.value);
 
-    // نمایش لودینگ گرافیکی روی گرید تا زمان برگشت جواب از سرور
+    // ۱. اصلاح لودینگ: وسط‌چین کردن کامل در دسکتاپ و موبایل
     grid.classList.remove('hidden');
-    grid.innerHTML = '<div class="col-span-full text-center py-16"><i data-lucide="loader-2" class="w-10 h-10 animate-spin mx-auto text-brand-red mb-3"></i><p class="text-gray-400 text-xs">در حال جستجو در انبار قطعات...</p></div>';
+    grid.innerHTML = '<div class="col-span-full w-full flex flex-col items-center justify-center py-20"><i data-lucide="loader-2" class="w-12 h-12 animate-spin text-brand-red mb-4"></i><p class="text-gray-400 text-sm font-bold">در حال ارتباط با انبار قطعات...</p></div>';
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
     try {
-        // ساخت پارامترهای GET برای ارسال به API
         const params = new URLSearchParams();
         if (searchQuery) params.append('q', searchQuery);
         if (maxPrice) params.append('maxPrice', maxPrice);
         if (inStockOnly) params.append('inStock', 'true');
         if (sortVal) params.append('sort', sortVal);
         params.append('page', page);
-
+        
+        // ۲. اصلاح ارسال: اضافه کردن [] به نام متغیرها برای ارسال چندتایی
         checkedBrands.forEach(b => params.append('brand[]', b));
-        checkedModels.forEach(m => params.append('model', m));
-        checkedCats.forEach(c => params.append('category', c));
+        checkedModels.forEach(m => params.append('model[]', m));
+        checkedCats.forEach(c => params.append('category[]', c));
 
-        // واکشی زنده اطلاعات از دیتابیس
         const response = await fetch(`/api/parts?${params.toString()}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        
         const data = await response.json();
-
-        // به‌روزرسانی متغیر گلوبال برای دکمه "افزودن به سبد خرید"
-        partsDatabase = data.items;
-
-        // ارسال دیتای جدید به تابع رندر HTML
-        renderGrid(data.items, data.total);
-
+        
+        partsDatabase = data.items || []; 
+        renderGrid(partsDatabase, data.total || 0);
+        
     } catch (error) {
-        console.error('Error fetching parts:', error);
-        grid.innerHTML = '<div class="col-span-full text-center py-10 text-rose-500 bg-rose-500/10 rounded-2xl">خطا در دریافت اطلاعات. لطفا اینترنت خود را بررسی کنید.</div>';
+        console.error('API Fetch Error:', error);
+        grid.innerHTML = '<div class="col-span-full w-full flex flex-col items-center justify-center py-10"><div class="text-rose-500 bg-rose-500/10 border border-rose-500/20 rounded-2xl p-6 font-bold">خطا در دریافت اطلاعات. لطفا اتصال اینترنت خود را بررسی کنید.</div></div>';
     }
 }
 
-// آپدیت کردن تابع renderGrid برای دریافت تعداد کل از سرور
 function renderGrid(parts, totalCount = 0) {
     const grid = document.getElementById('parts-grid');
     const emptyState = document.getElementById('empty-state');
@@ -348,7 +352,7 @@ function renderGrid(parts, totalCount = 0) {
     if (!grid) return;
 
     grid.innerHTML = '';
-    // نمایش تعداد کل یافت شده در دیتابیس
+    // نمایش تعداد کل پیدا شده از دیتابیس (عدد واقعی سرور)
     if (countText) countText.textContent = `یافت شده: ${totalCount} قطعه`;
 
     if (parts.length === 0) {
@@ -362,14 +366,19 @@ function renderGrid(parts, totalCount = 0) {
 
     parts.forEach(part => {
         const stockBadge = part.inStock
-            ? '<span class="bg-emerald-500/10 text-emerald-400 text-[10px] px-2 py-1 rounded-md font-bold">موجود در انبار</span>'
-            : '<span class="bg-rose-500/10 text-rose-400 text-[10px] px-2 py-1 rounded-md font-bold">ناموجود</span>';
+            ? '<span class="bg-emerald-500/10 text-emerald-400 text-[10px] px-2 py-1 rounded-md font-bold border border-emerald-500/20">موجود در انبار</span>'
+            : '<span class="bg-rose-500/10 text-rose-400 text-[10px] px-2 py-1 rounded-md font-bold border border-rose-500/20">ناموجود</span>';
 
         const brandBadge = part.isGenuine
-            ? '<span class="bg-brand-red/10 text-brand-red text-[10px] px-2 py-1 rounded-md font-bold">اصلی Genuine</span>'
-            : '<span class="bg-gray-400/10 text-gray-300 text-[10px] px-2 py-1 rounded-md font-bold">ژاپنی OEM</span>';
+            ? '<span class="bg-brand-red/10 text-brand-red text-[10px] px-2 py-1 rounded-md font-bold border border-brand-red/20">اصلی Genuine</span>'
+            : '<span class="bg-gray-400/10 text-gray-300 text-[10px] px-2 py-1 rounded-md font-bold border border-gray-400/20">وارداتی OEM</span>';
 
+        // این خط اصلاح شده تا اگر آیکون از سمت دیتابیس نیامد خطا ندهد
         const iconName = part.imageIcon || (part.images && part.images[0]) || 'disc';
+
+        // اطمینان از وجود متغیر carModels
+        const carModelName = typeof carModels !== 'undefined' && carModels[part.model] ? carModels[part.model] : part.model;
+
         const cardHtml = `
             <div class="bg-brand-grey border border-white/5 hover:border-brand-red/30 p-5 rounded-2xl flex flex-col justify-between transition duration-300 hover:shadow-[0_10px_35px_rgba(225,6,0,0.12)]">
                 <div>
@@ -379,12 +388,12 @@ function renderGrid(parts, totalCount = 0) {
                     </div>
                     <div onclick="window.location.href='/product?id=${part.id}'" class="w-full h-40 bg-brand-dark rounded-xl flex items-center justify-center mb-4 text-brand-red relative group overflow-hidden border border-white/5 cursor-pointer">
                         ${renderMediaHTML(iconName, "w-12 h-12 transition transform group-hover:scale-125 duration-300")}
-                        <span class="absolute bottom-2 left-2 text-[10px] text-gray-500 bg-brand-dark/80 px-2 py-0.5 rounded" style="direction: ltr;">OEM: ${part.oem}</span>
+                        <span class="absolute bottom-2 left-2 text-[10px] text-gray-500 bg-brand-dark/80 px-2 py-0.5 rounded border border-white/10" style="direction: ltr;">OEM: ${part.oem}</span>
                     </div>
                     <h4 class="font-bold text-sm text-white leading-relaxed line-clamp-2 hover:text-brand-red cursor-pointer transition" onclick="window.location.href='/product?id=${part.id}'">${part.name}</h4>
                     <p class="text-xs text-gray-400 mt-2 flex items-center gap-1.5">
                         <i data-lucide="car" style="width:13px;height:13px;"></i>
-                        سازگار با: ${(carModels[part.model] || part.model).split(' ')[0]}
+                        سازگار با: ${carModelName.split(' ')[0]}
                     </p>
                 </div>
                 <div class="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
@@ -417,121 +426,6 @@ function updatePriceLabel(value) {
     if (mobileSlider) mobileSlider.value = value;
 
     applyFilters();
-}
-
-function applyFilters() {
-    const grid = document.getElementById('parts-grid');
-    if (!grid) return;
-
-    const searchInput = document.getElementById('search-input');
-    const searchQuery = searchInput ? searchInput.value.toLowerCase().trim() : '';
-    const priceSlider = document.getElementById('price-slider');
-    const maxPrice = priceSlider ? parseFloat(priceSlider.value) : 25000000;
-    const inStockToggle = document.getElementById('in-stock-toggle');
-    const inStockOnly = inStockToggle ? inStockToggle.checked : false;
-    const sortSelect = document.getElementById('sort-select');
-    const sortVal = sortSelect ? sortSelect.value : 'newest';
-
-    const checkedBrands = Array.from(document.querySelectorAll('input[name="brand"]:checked')).map(el => el.value);
-    const checkedModels = Array.from(document.querySelectorAll('input[name="model"]:checked')).map(el => el.value);
-    const checkedCats = Array.from(document.querySelectorAll('input[name="category"]:checked')).map(el => el.value);
-
-    let filteredParts = partsDatabase.filter(part => {
-        const matchesSearch = part.name.toLowerCase().includes(searchQuery) || part.oem.toLowerCase().includes(searchQuery);
-        const matchesPrice = part.price <= maxPrice;
-        const matchesStock = !inStockOnly || part.inStock;
-        const matchesModel = checkedModels.length === 0 || checkedModels.includes(part.model);
-        const matchesCategory = checkedCats.length === 0 || checkedCats.includes(part.category);
-
-        let matchesBrand = true;
-        if (checkedBrands.length > 0) {
-            // ۱. بررسی اصالت کلی (genuine یا oem)
-            const status = part.isGenuine ? 'genuine' : 'oem';
-            const matchesStatus = checkedBrands.includes(status);
-
-            // ۲. بررسی برند خاص (مثل kyb, aisin و ...)
-            const matchesSpecificBrand = part.brand && checkedBrands.includes(part.brand.toLowerCase());
-
-            // اگر کاربر دسته کلی را انتخاب کرده بود یا برند خاص را، محصول نمایش داده شود
-            matchesBrand = matchesStatus || matchesSpecificBrand;
-        }
-
-        return matchesSearch && matchesPrice && matchesStock && matchesModel && matchesCategory && matchesBrand;
-    });
-
-    if (sortVal === 'price-asc') {
-        filteredParts.sort((a, b) => a.price - b.price);
-    } else if (sortVal === 'price-desc') {
-        filteredParts.sort((a, b) => b.price - a.price);
-    } else if (sortVal === 'popular') {
-        filteredParts.sort((a, b) => (b.id % 2) - (a.id % 2));
-    } else {
-        filteredParts.sort((a, b) => b.id - a.id);
-    }
-
-    renderGrid(filteredParts);
-}
-
-function renderGrid(parts) {
-    const grid = document.getElementById('parts-grid');
-    const emptyState = document.getElementById('empty-state');
-    const countText = document.getElementById('results-count');
-
-    if (!grid) return;
-
-    grid.innerHTML = '';
-    if (countText) countText.textContent = `یافت شده: ${parts.length} قطعه`;
-
-    if (parts.length === 0) {
-        grid.classList.add('hidden');
-        if (emptyState) emptyState.classList.remove('hidden');
-        return;
-    }
-
-    grid.classList.remove('hidden');
-    if (emptyState) emptyState.classList.add('hidden');
-
-    parts.forEach(part => {
-        const stockBadge = part.inStock
-            ? '<span class="bg-emerald-500/10 text-emerald-400 text-[10px] px-2 py-1 rounded-md font-bold">موجود در انبار</span>'
-            : '<span class="bg-rose-500/10 text-rose-400 text-[10px] px-2 py-1 rounded-md font-bold">ناموجود</span>';
-
-        const brandBadge = part.isGenuine
-            ? '<span class="bg-brand-red/10 text-brand-red text-[10px] px-2 py-1 rounded-md font-bold">اصلی Genuine</span>'
-            : '<span class="bg-gray-400/10 text-gray-300 text-[10px] px-2 py-1 rounded-md font-bold">ژاپنی OEM</span>';
-
-        const iconName = part.imageIcon || (part.images && part.images[0]) || 'disc';
-        const cardHtml = `
-            <div class="bg-brand-grey border border-white/5 hover:border-brand-red/30 p-5 rounded-2xl flex flex-col justify-between transition duration-300 hover:shadow-[0_10px_35px_rgba(225,6,0,0.12)]">
-                <div>
-                    <div class="flex items-center justify-between mb-4">
-                        ${stockBadge}
-                        ${brandBadge}
-                    </div>
-                    <div onclick="window.location.href='/product?id=${part.id}'" class="w-full h-40 bg-brand-dark rounded-xl flex items-center justify-center mb-4 text-brand-red relative group overflow-hidden border border-white/5 cursor-pointer">
-                        <i data-lucide="${iconName}" style="width:52px;height:52px;" class="transition transform group-hover:scale-125 duration-300"></i>
-                        <span class="absolute bottom-2 left-2 text-[10px] text-gray-500 bg-brand-dark/80 px-2 py-0.5 rounded" style="direction: ltr;">OEM: ${part.oem}</span>
-                    </div>
-                    <h4 class="font-bold text-sm text-white leading-relaxed line-clamp-2 hover:text-brand-red cursor-pointer transition" onclick="window.location.href='/product?id=${part.id}'">${part.name}</h4>
-                    <p class="text-xs text-gray-400 mt-2 flex items-center gap-1.5">
-                        <i data-lucide="car" style="width:13px;height:13px;"></i>
-                        سازگار با: ${(carModels[part.model] || part.model).split(' ')[0]}
-                    </p>
-                </div>
-                <div class="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
-                    <div>
-                        <span class="text-[10px] text-gray-500 block mb-0.5">قیمت مصرف‌کننده:</span>
-                        <span class="font-black text-sm text-brand-red">${part.price.toLocaleString('fa-IR')} تومان</span>
-                    </div>
-                    <button ${part.inStock ? `onclick="addToCart(${part.id})"` : 'disabled'} class="p-2.5 rounded-xl transition ${part.inStock ? 'bg-brand-red hover:bg-red-700 text-white shadow-[0_4px_15px_rgba(225,6,0,0.2)]' : 'bg-white/5 text-gray-500 cursor-not-allowed'}">
-                        <i data-lucide="shopping-cart" style="width:18px;height:18px;"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-        grid.insertAdjacentHTML('beforeend', cardHtml);
-    });
-    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function resetFilters() {

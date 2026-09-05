@@ -66,6 +66,8 @@ class Router
         $this->get('/terms', 'HomeController@terms');
         $this->get('/image', 'ImageController@show');
 
+        $this->get('/api/parts', 'PartController@apiList');
+
         // === مسیرهای Guest (فقط کاربران لاگین‌نکرده) ===
         $this->get('/login', 'AuthController@loginForm', ['guest']);
         
@@ -80,8 +82,6 @@ class Router
         $this->post('/api/auth/send-otp', 'AuthController@sendOtp');
         $this->post('/api/auth/verify-otp', 'AuthController@verifyOtp');
         $this->post('/api/logout', 'AuthController@logout');
-
-        $this->get('/api/parts', 'PartController@apiList');
     }
 
     private function abort($code = 404)

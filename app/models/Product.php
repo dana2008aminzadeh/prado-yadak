@@ -19,25 +19,27 @@ class Product
             $params[] = '%' . $filters['q'] . '%';
         }
 
-        // ۲. فیلتر دسته‌بندی
-        if (!empty($filters['category'])) {
-            $conditions[] = "c.slug = ?";
-            $params[] = $filters['category'];
+        if (!empty($filters['categories']) && is_array($filters['categories'])) {
+            $placeholders = implode(',', array_fill(0, count($filters['categories']), '?'));
+            $conditions[] = "c.slug IN ($placeholders)";
+            foreach ($filters['categories'] as $cat) {
+                $params[] = $cat;
+            }
         }
 
-        // ۳. فیلتر مدل خودرو
-        if (!empty($filters['model'])) {
-            $conditions[] = "p.car_model = ?";
-            $params[] = $filters['model'];
+        if (!empty($filters['models']) && is_array($filters['models'])) {
+            $placeholders = implode(',', array_fill(0, count($filters['models']), '?'));
+            $conditions[] = "p.car_model IN ($placeholders)";
+            foreach ($filters['models'] as $model) {
+                $params[] = $model;
+            }
         }
 
-        // ۴. فیلتر حداکثر قیمت
         if (!empty($filters['maxPrice'])) {
             $conditions[] = "p.price <= ?";
             $params[] = (float)$filters['maxPrice'];
         }
 
-        // ۵. فیلتر موجودی انبار
         if (!empty($filters['inStock']) && $filters['inStock'] === 'true') {
             $conditions[] = "p.in_stock = 1";
         }
@@ -68,7 +70,6 @@ class Product
         $stmtCount->execute($params);
         $totalCount = $stmtCount->fetchColumn();
 
-        // مرتب‌سازی (ایمن شده با لیست مجاز برای جلوگیری از SQL Injection)
         $sort = $filters['sort'] ?? 'newest';
         $orderBy = "p.id DESC"; // پیش‌فرض: جدیدترین
         
