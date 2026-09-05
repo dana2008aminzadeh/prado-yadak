@@ -224,23 +224,17 @@ function updateCartUI() {
 
         const icon = (item.product.images && item.product.images[0]) || item.product.imageIcon || 'disc';
 
-        // تغییرات در HTML داینامیک هر آیتم
         const itemHtml = `
             <div class="relative flex gap-3 bg-black/30 p-3 rounded-xl border border-white/5 items-center transition hover:border-brand-red/50 group">
-                
-                <!-- دکمه ضربدر برای حذف کامل -->
                 <button onclick="removeFromCart(${item.product.id})" class="absolute top-2 left-2 z-10 p-1 text-gray-500 hover:text-brand-red hover:bg-brand-red/10 rounded-md transition" title="حذف از سبد">
                     <i data-lucide="x" style="width:16px;height:16px;"></i>
                 </button>
 
-                <!-- آیکون تصویر (لینک‌دار) -->
                 <a href="/product?id=${item.product.id}" class="w-14 h-14 bg-brand-dark rounded-lg flex items-center justify-center border border-white/10 text-brand-red flex-shrink-0 p-2 hover:scale-105 transition-transform">
                     ${renderMediaHTML(icon, "w-6 h-6")}
                 </a>
                 
-                <!-- کلاس pl-6 اضافه شد تا متن زیر دکمه ضربدر نرود -->
                 <div class="flex-1 min-w-0 pl-6"> 
-                    <!-- عنوان قطعه (لینک‌دار) -->
                     <a href="/product?id=${item.product.id}" class="block transition-colors hover:opacity-80">
                         <h5 class="text-xs font-bold text-white truncate">${item.product.name}</h5>
                     </a>
@@ -274,8 +268,8 @@ let filterTimeout;
 function triggerFilter() {
     clearTimeout(filterTimeout);
     filterTimeout = setTimeout(() => {
-        applyFilters();
-    }, 500);
+        applyFilters(1);
+    }, 400);
 }
 
 function initFilters() {
@@ -295,9 +289,79 @@ function initFilters() {
     }
 }
 
+// === تنظیمات اسکرول بی‌نهایت (Pagination) ===
+let currentPage = 1;
+let isLoadingMore = false;
+let hasMorePages = true;
+let infiniteObserver = null;
+let isInitialLoaded = false;
+
+function buildProductCardHTML(part) {
+    const stockBadge = part.inStock
+        ? '<span class="bg-emerald-500/10 text-emerald-400 text-[10px] px-2 py-1 rounded-md font-bold border border-emerald-500/20">موجود در انبار</span>'
+        : '<span class="bg-rose-500/10 text-rose-400 text-[10px] px-2 py-1 rounded-md font-bold border border-rose-500/20">ناموجود</span>';
+
+    const brandBadge = part.isGenuine
+        ? '<span class="bg-brand-red/10 text-brand-red text-[10px] px-2 py-1 rounded-md font-bold border border-brand-red/20">اصلی Genuine</span>'
+        : '<span class="bg-gray-400/10 text-gray-300 text-[10px] px-2 py-1 rounded-md font-bold border border-gray-400/20">وارداتی OEM</span>';
+
+    const iconName = part.imageIcon || (part.images && part.images[0]) || 'disc';
+    const carModelName = typeof carModels !== 'undefined' && carModels[part.model] ? carModels[part.model] : part.model;
+
+    return `
+        <div class="bg-brand-grey border border-white/5 hover:border-brand-red/30 p-5 rounded-2xl flex flex-col justify-between transition duration-300 hover:shadow-[0_10px_35px_rgba(225,6,0,0.12)]">
+            <div>
+                <div class="flex items-center justify-between mb-4">
+                    ${stockBadge}
+                    ${brandBadge}
+                </div>
+                <div onclick="window.location.href='/product?id=${part.id}'" class="w-full h-40 bg-brand-dark rounded-xl flex items-center justify-center mb-4 text-brand-red relative group overflow-hidden border border-white/5 cursor-pointer">
+                    ${renderMediaHTML(iconName, "w-12 h-12 transition transform group-hover:scale-125 duration-300")}
+                    <span class="absolute bottom-2 left-2 text-[10px] text-gray-500 bg-brand-dark/80 px-2 py-0.5 rounded border border-white/10" style="direction: ltr;">OEM: ${part.oem}</span>
+                </div>
+                <h4 class="font-bold text-sm text-white leading-relaxed line-clamp-2 hover:text-brand-red cursor-pointer transition" onclick="window.location.href='/product?id=${part.id}'">${part.name}</h4>
+                <p class="text-xs text-gray-400 mt-2 flex items-center gap-1.5">
+                    <i data-lucide="car" style="width:13px;height:13px;"></i>
+                    سازگار با: ${carModelName ? carModelName.split(' ')[0] : ''}
+                </p>
+            </div>
+            <div class="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
+                <div>
+                    <span class="text-[10px] text-gray-500 block mb-0.5">قیمت مصرف‌کننده:</span>
+                    <span class="font-black text-sm text-brand-red">${part.price.toLocaleString('fa-IR')} تومان</span>
+                </div>
+                <button ${part.inStock ? `onclick="addToCart(${part.id})"` : 'disabled'} class="p-2.5 rounded-xl transition ${part.inStock ? 'bg-brand-red hover:bg-red-700 text-white shadow-[0_4px_15px_rgba(225,6,0,0.2)]' : 'bg-white/5 text-gray-500 cursor-not-allowed'}">
+                    <i data-lucide="shopping-cart" style="width:18px;height:18px;"></i>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
 async function applyFilters(page = 1) {
     const grid = document.getElementById('parts-grid');
+    const bottomLoader = document.getElementById('infinite-loader');
+    const endNotice = document.getElementById('end-of-catalog');
+    const emptyState = document.getElementById('empty-state');
+    const countText = document.getElementById('results-count');
+
     if (!grid) return;
+
+    if (isLoadingMore) return;
+    isLoadingMore = true;
+
+    if (page === 1) {
+        currentPage = 1;
+        hasMorePages = true;
+        isInitialLoaded = false;
+        if (endNotice) endNotice.classList.add('hidden');
+        if (emptyState) emptyState.classList.add('hidden');
+        grid.classList.remove('hidden');
+        grid.innerHTML = '<div class="col-span-full w-full flex flex-col items-center justify-center py-20"><i data-lucide="loader-2" class="w-12 h-12 animate-spin text-brand-red mb-4"></i><p class="text-gray-400 text-sm font-bold">در حال جستجو در انبار قطعات...</p></div>';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    } else {
+        if (bottomLoader) bottomLoader.classList.remove('hidden');
+    }
 
     const searchInput = document.getElementById('search-input');
     const searchQuery = searchInput ? searchInput.value.trim() : '';
@@ -312,11 +376,6 @@ async function applyFilters(page = 1) {
     const checkedModels = Array.from(document.querySelectorAll('input[name="model"]:checked')).map(el => el.value);
     const checkedCats = Array.from(document.querySelectorAll('input[name="category"]:checked')).map(el => el.value);
 
-    // ۱. اصلاح لودینگ: وسط‌چین کردن کامل در دسکتاپ و موبایل
-    grid.classList.remove('hidden');
-    grid.innerHTML = '<div class="col-span-full w-full flex flex-col items-center justify-center py-20"><i data-lucide="loader-2" class="w-12 h-12 animate-spin text-brand-red mb-4"></i><p class="text-gray-400 text-sm font-bold">در حال ارتباط با انبار قطعات...</p></div>';
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-
     try {
         const params = new URLSearchParams();
         if (searchQuery) params.append('q', searchQuery);
@@ -324,92 +383,81 @@ async function applyFilters(page = 1) {
         if (inStockOnly) params.append('inStock', 'true');
         if (sortVal) params.append('sort', sortVal);
         params.append('page', page);
-        
-        // ۲. اصلاح ارسال: اضافه کردن [] به نام متغیرها برای ارسال چندتایی
+
         checkedBrands.forEach(b => params.append('brand[]', b));
         checkedModels.forEach(m => params.append('model[]', m));
         checkedCats.forEach(c => params.append('category[]', c));
 
         const response = await fetch(`/api/parts?${params.toString()}`);
-        if (!response.ok) throw new Error('Network response was not ok');
-        
+        if (!response.ok) throw new Error('خطا در ارتباط با سرور');
+
         const data = await response.json();
-        
-        partsDatabase = data.items || []; 
-        renderGrid(partsDatabase, data.total || 0);
-        
+        const items = data.items || [];
+        const total = data.total || 0;
+
+        if (countText) countText.textContent = `یافت شده: ${total} قطعه`;
+
+        if (page === 1) {
+            grid.innerHTML = '';
+            partsDatabase = items;
+
+            if (items.length === 0) {
+                grid.classList.add('hidden');
+                if (emptyState) emptyState.classList.remove('hidden');
+                hasMorePages = false;
+                return;
+            }
+        } else {
+            partsDatabase = partsDatabase.concat(items);
+        }
+
+        let htmlBuffer = '';
+        items.forEach(part => {
+            htmlBuffer += buildProductCardHTML(part);
+        });
+        grid.insertAdjacentHTML('beforeend', htmlBuffer);
+
+        if (items.length === 0 || partsDatabase.length >= total) {
+            hasMorePages = false;
+            if (endNotice && total > 0) endNotice.classList.remove('hidden');
+        } else {
+            currentPage = page;
+        }
+
     } catch (error) {
-        console.error('API Fetch Error:', error);
-        grid.innerHTML = '<div class="col-span-full w-full flex flex-col items-center justify-center py-10"><div class="text-rose-500 bg-rose-500/10 border border-rose-500/20 rounded-2xl p-6 font-bold">خطا در دریافت اطلاعات. لطفا اتصال اینترنت خود را بررسی کنید.</div></div>';
+        console.error('Pagination Error:', error);
+        if (page === 1) {
+            grid.innerHTML = '<div class="col-span-full w-full flex flex-col items-center justify-center py-10"><div class="text-rose-500 bg-rose-500/10 border border-rose-500/20 rounded-2xl p-6 font-bold">خطا در بارگذاری قطعات. لطفاً اتصال اینترنت خود را چک کنید.</div></div>';
+        }
+    } finally {
+        isLoadingMore = false;
+        isInitialLoaded = true;
+        if (bottomLoader) bottomLoader.classList.add('hidden');
+        if (typeof lucide !== 'undefined') lucide.createIcons();
     }
 }
 
-function renderGrid(parts, totalCount = 0) {
-    const grid = document.getElementById('parts-grid');
-    const emptyState = document.getElementById('empty-state');
-    const countText = document.getElementById('results-count');
+function setupInfiniteScroll() {
+    const sentinel = document.getElementById('scroll-sentinel');
+    if (!sentinel) return;
 
-    if (!grid) return;
-
-    grid.innerHTML = '';
-    // نمایش تعداد کل پیدا شده از دیتابیس (عدد واقعی سرور)
-    if (countText) countText.textContent = `یافت شده: ${totalCount} قطعه`;
-
-    if (parts.length === 0) {
-        grid.classList.add('hidden');
-        if (emptyState) emptyState.classList.remove('hidden');
-        return;
+    if (infiniteObserver) {
+        infiniteObserver.disconnect();
     }
 
-    grid.classList.remove('hidden');
-    if (emptyState) emptyState.classList.add('hidden');
-
-    parts.forEach(part => {
-        const stockBadge = part.inStock
-            ? '<span class="bg-emerald-500/10 text-emerald-400 text-[10px] px-2 py-1 rounded-md font-bold border border-emerald-500/20">موجود در انبار</span>'
-            : '<span class="bg-rose-500/10 text-rose-400 text-[10px] px-2 py-1 rounded-md font-bold border border-rose-500/20">ناموجود</span>';
-
-        const brandBadge = part.isGenuine
-            ? '<span class="bg-brand-red/10 text-brand-red text-[10px] px-2 py-1 rounded-md font-bold border border-brand-red/20">اصلی Genuine</span>'
-            : '<span class="bg-gray-400/10 text-gray-300 text-[10px] px-2 py-1 rounded-md font-bold border border-gray-400/20">وارداتی OEM</span>';
-
-        // این خط اصلاح شده تا اگر آیکون از سمت دیتابیس نیامد خطا ندهد
-        const iconName = part.imageIcon || (part.images && part.images[0]) || 'disc';
-
-        // اطمینان از وجود متغیر carModels
-        const carModelName = typeof carModels !== 'undefined' && carModels[part.model] ? carModels[part.model] : part.model;
-
-        const cardHtml = `
-            <div class="bg-brand-grey border border-white/5 hover:border-brand-red/30 p-5 rounded-2xl flex flex-col justify-between transition duration-300 hover:shadow-[0_10px_35px_rgba(225,6,0,0.12)]">
-                <div>
-                    <div class="flex items-center justify-between mb-4">
-                        ${stockBadge}
-                        ${brandBadge}
-                    </div>
-                    <div onclick="window.location.href='/product?id=${part.id}'" class="w-full h-40 bg-brand-dark rounded-xl flex items-center justify-center mb-4 text-brand-red relative group overflow-hidden border border-white/5 cursor-pointer">
-                        ${renderMediaHTML(iconName, "w-12 h-12 transition transform group-hover:scale-125 duration-300")}
-                        <span class="absolute bottom-2 left-2 text-[10px] text-gray-500 bg-brand-dark/80 px-2 py-0.5 rounded border border-white/10" style="direction: ltr;">OEM: ${part.oem}</span>
-                    </div>
-                    <h4 class="font-bold text-sm text-white leading-relaxed line-clamp-2 hover:text-brand-red cursor-pointer transition" onclick="window.location.href='/product?id=${part.id}'">${part.name}</h4>
-                    <p class="text-xs text-gray-400 mt-2 flex items-center gap-1.5">
-                        <i data-lucide="car" style="width:13px;height:13px;"></i>
-                        سازگار با: ${carModelName.split(' ')[0]}
-                    </p>
-                </div>
-                <div class="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
-                    <div>
-                        <span class="text-[10px] text-gray-500 block mb-0.5">قیمت مصرف‌کننده:</span>
-                        <span class="font-black text-sm text-brand-red">${part.price.toLocaleString('fa-IR')} تومان</span>
-                    </div>
-                    <button ${part.inStock ? `onclick="addToCart(${part.id})"` : 'disabled'} class="p-2.5 rounded-xl transition ${part.inStock ? 'bg-brand-red hover:bg-red-700 text-white shadow-[0_4px_15px_rgba(225,6,0,0.2)]' : 'bg-white/5 text-gray-500 cursor-not-allowed'}">
-                        <i data-lucide="shopping-cart" style="width:18px;height:18px;"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-        grid.insertAdjacentHTML('beforeend', cardHtml);
+    infiniteObserver = new IntersectionObserver((entries) => {
+        const target = entries[0];
+        // جلوگیری از لود خودکار قبل از اتمام بارگذاری صفحه اول
+        if (target.isIntersecting && hasMorePages && !isLoadingMore && isInitialLoaded) {
+            applyFilters(currentPage + 1);
+        }
+    }, {
+        root: null,
+        rootMargin: '250px',
+        threshold: 0.1
     });
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    infiniteObserver.observe(sentinel);
 }
 
 function updatePriceLabel(value) {
@@ -425,7 +473,7 @@ function updatePriceLabel(value) {
     if (mobileVal) mobileVal.textContent = `تا ${formatted} میلیون`;
     if (mobileSlider) mobileSlider.value = value;
 
-    applyFilters();
+    triggerFilter();
 }
 
 function resetFilters() {
@@ -449,7 +497,7 @@ function resetFilters() {
 
     document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => checkbox.checked = false);
 
-    applyFilters();
+    applyFilters(1);
 }
 
 function showProductDetails(id) {
@@ -490,7 +538,7 @@ function syncCheckboxes(name, value, isChecked) {
     document.querySelectorAll(`input[name="${name}"][value="${value}"]`).forEach(cb => {
         cb.checked = isChecked;
     });
-    applyFilters();
+    applyFilters(1);
 }
 
 function toggleInStock(isChecked) {
@@ -498,7 +546,7 @@ function toggleInStock(isChecked) {
     const mobileStock = document.getElementById('mobile-in-stock-toggle');
     if (stockToggle) stockToggle.checked = isChecked;
     if (mobileStock) mobileStock.checked = isChecked;
-    applyFilters();
+    applyFilters(1);
 }
 
 let currentImgSource = '';
@@ -936,7 +984,6 @@ function togglePasswordVisibility(inputId, btn) {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-// --- شروع کدهای سیستم احراز هویت یکپارچه ---
 let authPhone = '';
 let isNewUser = false;
 
@@ -945,19 +992,17 @@ function getCsrfToken() {
     return meta ? meta.getAttribute('content') : '';
 }
 
-// نمایش و مخفی کردن حالت لودینگ دکمه‌ها
 function toggleButtonLoading(btn, isLoading, originalText) {
     if (!btn) return;
     if (isLoading) {
         btn.disabled = true;
-        btn.dataset.originalText = btn.innerHTML; // ذخیره متن اصلی دکمه
-        // قرار دادن آیکون در حال چرخش (spinner) و تغییر متن
+        btn.dataset.originalText = btn.innerHTML;
         btn.innerHTML = `<div class="flex items-center justify-center gap-2"><i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i><span>لطفاً صبر کنید...</span></div>`;
         btn.classList.add('opacity-70', 'cursor-not-allowed');
         if (typeof lucide !== 'undefined') lucide.createIcons();
     } else {
         btn.disabled = false;
-        btn.innerHTML = btn.dataset.originalText || originalText; // بازگرداندن متن قبلی
+        btn.innerHTML = btn.dataset.originalText || originalText;
         btn.classList.remove('opacity-70', 'cursor-not-allowed');
         if (typeof lucide !== 'undefined') lucide.createIcons();
     }
@@ -975,7 +1020,7 @@ async function handleCheckPhone(event) {
     }
 
     const btn = document.querySelector('#step-phone button');
-    toggleButtonLoading(btn, true); // ⏳ روشن کردن لودینگ و غیرفعال کردن دکمه
+    toggleButtonLoading(btn, true);
 
     try {
         const response = await fetch('/api/auth/check', {
@@ -985,7 +1030,7 @@ async function handleCheckPhone(event) {
         });
         const result = await response.json();
 
-        toggleButtonLoading(btn, false, 'مرحله بعد'); // ⏳ خاموش کردن لودینگ
+        toggleButtonLoading(btn, false, 'مرحله بعد');
 
         if (response.ok) {
             hideAlert();
@@ -1003,7 +1048,7 @@ async function handleCheckPhone(event) {
             showAlert('❌ ' + result.error);
         }
     } catch (error) {
-        toggleButtonLoading(btn, false, 'مرحله بعد'); // ⏳ خاموش کردن لودینگ
+        toggleButtonLoading(btn, false, 'مرحله بعد');
         showAlert('خطا در ارتباط با سرور. لطفاً اینترنت خود را بررسی کنید.');
     }
 }
@@ -1018,7 +1063,7 @@ async function handleLoginPassword(event) {
     }
 
     const btn = document.querySelector('#step-password button.bg-brand-red');
-    toggleButtonLoading(btn, true); // ⏳ روشن کردن لودینگ
+    toggleButtonLoading(btn, true);
 
     try {
         const response = await fetch('/api/auth/login-password', {
@@ -1028,7 +1073,7 @@ async function handleLoginPassword(event) {
         });
         const result = await response.json();
 
-        toggleButtonLoading(btn, false, 'ورود به حساب'); // ⏳ خاموش کردن لودینگ
+        toggleButtonLoading(btn, false, 'ورود به حساب');
 
         if (response.ok) {
             showAlert('✔ ورود با موفقیت انجام شد.', 'success');
@@ -1037,18 +1082,16 @@ async function handleLoginPassword(event) {
             showAlert('❌ ' + result.error);
         }
     } catch (error) {
-        toggleButtonLoading(btn, false, 'ورود به حساب'); // ⏳ خاموش کردن لودینگ
+        toggleButtonLoading(btn, false, 'ورود به حساب');
         showAlert('خطا در ارتباط با سرور. لطفاً اینترنت خود را بررسی کنید.');
     }
 }
 
-// ۳. تغییر حالت به ورود با کد یکبار مصرف (برای کاربر قدیمی)
 function switchToOtpLogin() {
     document.getElementById('step-password').classList.add('hidden');
     requestOtp();
 }
 
-// ۴. درخواست ارسال پیامک (OTP)
 async function requestOtp() {
     try {
         const response = await fetch('/api/auth/send-otp', {
@@ -1062,7 +1105,6 @@ async function requestOtp() {
             document.getElementById('step-otp').classList.remove('hidden');
             document.getElementById('display-phone-otp').innerText = authPhone;
 
-            // اگر کاربر جدید است، فیلدهای نام و رمز عبور را نشان بده
             if (isNewUser) {
                 document.getElementById('new-user-fields').classList.remove('hidden');
             }
@@ -1077,7 +1119,6 @@ async function requestOtp() {
     }
 }
 
-// ۵. تایمر شمارش معکوس پیامک
 function startOTPTimer(seconds) {
     if (typeof timerInterval !== 'undefined' && timerInterval) clearInterval(timerInterval);
     const timerEl = document.getElementById('timer-count');
@@ -1106,7 +1147,6 @@ async function handleVerifyOtp(event) {
 
     let payload = { phone: authPhone, code: code };
 
-    // اگر ثبت‌نام است، نام و رمز هم ارسال شود
     if (isNewUser) {
         const fullName = document.getElementById('auth-fullname').value.trim();
         const newPassword = document.getElementById('auth-new-password').value;
@@ -1124,7 +1164,7 @@ async function handleVerifyOtp(event) {
     }
 
     const btn = document.querySelector('#step-otp button.bg-brand-red');
-    toggleButtonLoading(btn, true); // ⏳ روشن کردن لودینگ
+    toggleButtonLoading(btn, true);
 
     try {
         const response = await fetch('/api/auth/verify-otp', {
@@ -1134,7 +1174,7 @@ async function handleVerifyOtp(event) {
         });
         const result = await response.json();
 
-        toggleButtonLoading(btn, false, 'تایید و ادامه'); // ⏳ خاموش کردن لودینگ
+        toggleButtonLoading(btn, false, 'تایید و ادامه');
 
         if (response.ok) {
             showAlert('✔ ' + result.message, 'success');
@@ -1145,7 +1185,7 @@ async function handleVerifyOtp(event) {
             showAlert('❌ ' + result.error);
         }
     } catch (error) {
-        toggleButtonLoading(btn, false, 'تایید و ادامه'); // ⏳ خاموش کردن لودینگ
+        toggleButtonLoading(btn, false, 'تایید و ادامه');
         showAlert('خطا در ارتباط با سرور. لطفاً اینترنت خود را بررسی کنید.');
     }
 }
@@ -1157,7 +1197,6 @@ function switchProfileTab(tabId) {
     });
 
     document.querySelectorAll('.tab-btn').forEach(btn => {
-        // کلاس‌های حالت غیرفعال با حاشیه شفاف (برای جلوگیری از پرش)
         btn.className = "tab-btn w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all duration-300 text-gray-400 hover:text-brand-red hover:bg-brand-red/5 font-bold text-sm border border-transparent";
     });
 
@@ -1170,7 +1209,6 @@ function switchProfileTab(tabId) {
     }
 
     if (targetNav) {
-        // کلاس‌های حالت فعال (پس‌زمینه ملایم و حاشیه رنگی)
         targetNav.className = "tab-btn w-full flex items-center justify-between px-4 py-3.5 rounded-2xl transition-all duration-300 text-brand-red bg-brand-red/10 border border-brand-red/30 font-bold text-sm";
     }
 }
@@ -1189,30 +1227,24 @@ function switchTab(tabId) {
 }
 
 function filterOrders(status, event = null) {
-    // ۱. تغییر رنگ دکمه‌ها (بدون دست زدن به سایز و پدینگ)
     if (event) {
         const buttons = document.querySelectorAll('.order-filter-btn');
 
         buttons.forEach(btn => {
-            // حذف رنگ حالت فعال (قرمز) و اضافه کردن رنگ غیرفعال (خاکستری)
             btn.classList.remove('bg-brand-red', 'text-white');
             btn.classList.add('text-gray-400', 'hover:text-white');
         });
 
-        // پیدا کردن دکمه‌ای که کلیک شده و دادن رنگ فعال به آن
         const clickedBtn = event.currentTarget || event.target;
         clickedBtn.classList.remove('text-gray-400', 'hover:text-white');
         clickedBtn.classList.add('bg-brand-red', 'text-white');
     }
 
-    // ۲. نمایش یا مخفی کردن کارت‌های سفارش
     const cards = document.querySelectorAll('.order-card');
     cards.forEach(card => {
         if (status === 'all' || card.getAttribute('data-status') === status) {
-            // نمایش کارت (اگر از flex استفاده میکنید اینجا به جای block کلمه flex را بنویسید)
             card.style.display = 'block';
         } else {
-            // مخفی کردن کارت
             card.style.display = 'none';
         }
     });
@@ -1367,20 +1399,20 @@ function handleSaveSettings(event) {
     alert('✔ مشخصات حساب کاربری با موفقیت به‌روزرسانی شد.');
 }
 
+// مقداردهی اولیه پس از بارگذاری DOM
 document.addEventListener("DOMContentLoaded", function () {
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
     }
 
     initScrollReveal();
-
     initElementSdk();
-
     updateCartUI();
 
     if (document.getElementById('parts-grid')) {
+        setupInfiniteScroll();
         initFilters();
-        applyFilters();
+        applyFilters(1);
     }
 
     if (document.getElementById('product-container')) {

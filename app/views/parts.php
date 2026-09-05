@@ -34,8 +34,8 @@
                             foreach ($car_models as $slug => $data) {
                                 $name = is_array($data) ? $data['name'] : $data;
                                 echo '<label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer transition">
-                                        <input type="checkbox" name="model" value="'.e($slug).'" class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10" onchange="syncCheckboxes(\'model\', this.value, this.checked)">
-                                        '.e($name).'
+                                        <input type="checkbox" name="model" value="' . e($slug) . '" class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10" onchange="syncCheckboxes(\'model\', this.value, this.checked)">
+                                        ' . e($name) . '
                                       </label>';
                             }
                         }
@@ -53,8 +53,8 @@
                             foreach ($part_categories as $slug => $data) {
                                 $name = is_array($data) ? $data['name'] : $data;
                                 echo '<label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer transition">
-                                        <input type="checkbox" name="category" value="'.e($slug).'" class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10" onchange="syncCheckboxes(\'category\', this.value, this.checked)">
-                                        '.e($name).'
+                                        <input type="checkbox" name="category" value="' . e($slug) . '" class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10" onchange="syncCheckboxes(\'category\', this.value, this.checked)">
+                                        ' . e($name) . '
                                       </label>';
                             }
                         }
@@ -80,11 +80,15 @@
                     <div class="space-y-2">
                         <!-- دسته‌بندی‌های کلی -->
                         <label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer">
-                            <input type="checkbox" name="brand" value="genuine" class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10" onchange="syncCheckboxes('brand', this.value, this.checked)">
+                            <input type="checkbox" name="brand" value="genuine"
+                                class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10"
+                                onchange="syncCheckboxes('brand', this.value, this.checked)">
                             تویوتا جنیون پارت (اصلی)
                         </label>
                         <label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer">
-                            <input type="checkbox" name="brand" value="oem" class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10" onchange="syncCheckboxes('brand', this.value, this.checked)">
+                            <input type="checkbox" name="brand" value="oem"
+                                class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10"
+                                onchange="syncCheckboxes('brand', this.value, this.checked)">
                             همه وارداتی‌های معتبر (OEM)
                         </label>
 
@@ -92,8 +96,11 @@
                         <?php if (!empty($brands)): ?>
                             <div class="mt-3 border-t border-white/5 pt-3 space-y-2">
                                 <?php foreach ($brands as $brandName): ?>
-                                    <label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer mt-2">
-                                        <input type="checkbox" name="brand" value="<?= e(strtolower($brandName)) ?>" class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10" onchange="syncCheckboxes('brand', this.value, this.checked)">
+                                    <label
+                                        class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer mt-2">
+                                        <input type="checkbox" name="brand" value="<?= e(strtolower($brandName)) ?>"
+                                            class="rounded accent-brand-red w-4 h-4 bg-brand-dark border-white/10"
+                                            onchange="syncCheckboxes('brand', this.value, this.checked)">
                                         برند <?= e($brandName) ?>
                                     </label>
                                 <?php endforeach; ?>
@@ -158,7 +165,18 @@
 
                 <!-- گرید نمایش قطعات -->
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="parts-grid">
-                    <!-- کارت‌های محصولات با موتور جاوا اسکریپت در زیر تزریق می‌شوند -->
+                </div>
+
+                <div id="scroll-sentinel" class="w-full h-8"></div>
+
+                <div id="infinite-loader" class="hidden w-full py-8 flex flex-col items-center justify-center gap-3">
+                    <div class="w-8 h-8 border-4 border-white/10 border-t-brand-red rounded-full animate-spin"></div>
+                    <span class="text-xs font-bold text-gray-400">در حال بارگذاری قطعات بیشتر...</span>
+                </div>
+
+                <div id="end-of-catalog"
+                    class="hidden w-full text-center py-8 text-xs font-bold text-gray-500 border-t border-white/5 my-4">
+                    به پایان کاتالوگ قطعات رسیدید.
                 </div>
 
                 <!-- نمای وضعیت خالی بودن لیست (Empty State) -->
@@ -207,14 +225,14 @@
                     foreach ($car_models as $slug => $data) {
                         $name = is_array($data) ? $data['name'] : $data;
                         echo '<label class="flex items-center gap-2.5 text-xs opacity-80 hover:opacity-100 cursor-pointer">
-                                <input type="checkbox" name="model" value="'.e($slug).'" class="rounded accent-brand-red w-4 h-4 bg-transparent border-gray-400" onchange="syncCheckboxes(\'model\', this.value, this.checked)">
-                                '.e($name).'
+                                <input type="checkbox" name="model" value="' . e($slug) . '" class="rounded accent-brand-red w-4 h-4 bg-transparent border-gray-400" onchange="syncCheckboxes(\'model\', this.value, this.checked)">
+                                ' . e($name) . '
                               </label>';
                     }
                 }
                 ?>
             </div>
-            
+
             <div id="mobile-category-filters" class="space-y-2 pt-2 border-t border-black/10 dark:border-white/10">
                 <h5 class="font-bold text-sm mb-2 opacity-90">دسته‌بندی</h5>
                 <?php
@@ -222,8 +240,8 @@
                     foreach ($part_categories as $slug => $data) {
                         $name = is_array($data) ? $data['name'] : $data;
                         echo '<label class="flex items-center gap-2.5 text-xs opacity-80 hover:opacity-100 cursor-pointer">
-                                <input type="checkbox" name="category" value="'.e($slug).'" class="rounded accent-brand-red w-4 h-4 bg-transparent border-gray-400" onchange="syncCheckboxes(\'category\', this.value, this.checked)">
-                                '.e($name).'
+                                <input type="checkbox" name="category" value="' . e($slug) . '" class="rounded accent-brand-red w-4 h-4 bg-transparent border-gray-400" onchange="syncCheckboxes(\'category\', this.value, this.checked)">
+                                ' . e($name) . '
                               </label>';
                     }
                 }
@@ -248,19 +266,25 @@
                 <h5 class="font-bold text-sm mb-2 opacity-90">اصالت و برند کالا</h5>
                 <div class="space-y-2">
                     <label class="flex items-center gap-2.5 text-xs opacity-80 hover:opacity-100 cursor-pointer">
-                        <input type="checkbox" name="brand" value="genuine" class="rounded accent-brand-red w-4 h-4 bg-transparent border-gray-400" onchange="syncCheckboxes('brand', this.value, this.checked)">
+                        <input type="checkbox" name="brand" value="genuine"
+                            class="rounded accent-brand-red w-4 h-4 bg-transparent border-gray-400"
+                            onchange="syncCheckboxes('brand', this.value, this.checked)">
                         تویوتا جنیون پارت (اصلی)
                     </label>
                     <label class="flex items-center gap-2.5 text-xs opacity-80 hover:opacity-100 cursor-pointer">
-                        <input type="checkbox" name="brand" value="oem" class="rounded accent-brand-red w-4 h-4 bg-transparent border-gray-400" onchange="syncCheckboxes('brand', this.value, this.checked)">
+                        <input type="checkbox" name="brand" value="oem"
+                            class="rounded accent-brand-red w-4 h-4 bg-transparent border-gray-400"
+                            onchange="syncCheckboxes('brand', this.value, this.checked)">
                         وارداتی معتبر OEM
                     </label>
-                    
+
                     <?php if (!empty($brands)): ?>
                         <div class="mt-3 border-t border-black/10 dark:border-white/10 pt-3 space-y-2">
                             <?php foreach ($brands as $brandName): ?>
                                 <label class="flex items-center gap-2.5 text-xs opacity-80 hover:opacity-100 cursor-pointer">
-                                    <input type="checkbox" name="brand" value="<?= e(strtolower($brandName)) ?>" class="rounded accent-brand-red w-4 h-4 bg-transparent border-gray-400" onchange="syncCheckboxes('brand', this.value, this.checked)">
+                                    <input type="checkbox" name="brand" value="<?= e(strtolower($brandName)) ?>"
+                                        class="rounded accent-brand-red w-4 h-4 bg-transparent border-gray-400"
+                                        onchange="syncCheckboxes('brand', this.value, this.checked)">
                                     برند <?= e($brandName) ?>
                                 </label>
                             <?php endforeach; ?>
