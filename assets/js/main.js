@@ -263,6 +263,7 @@ function updateCartUI() {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
+// === منطق فیلتر و اسکرول بی‌نهایت کاتالوگ قطعات ===
 let filterTimeout;
 
 function triggerFilter() {
@@ -281,15 +282,16 @@ function initFilters() {
     }
 
     if (urlParams.get('model')) {
-        syncCheckboxes('model', urlParams.get('model'), true);
+        const modelVal = urlParams.get('model');
+        document.querySelectorAll(`input[name="model"][value="${modelVal}"]`).forEach(cb => cb.checked = true);
     }
 
     if (urlParams.get('category')) {
-        syncCheckboxes('category', urlParams.get('category'), true);
+        const catVal = urlParams.get('category');
+        document.querySelectorAll(`input[name="category"][value="${catVal}"]`).forEach(cb => cb.checked = true);
     }
 }
 
-// === تنظیمات اسکرول بی‌نهایت (Pagination) ===
 let currentPage = 1;
 let isLoadingMore = false;
 let hasMorePages = true;
@@ -372,9 +374,10 @@ async function applyFilters(page = 1) {
     const sortSelect = document.getElementById('sort-select');
     const sortVal = sortSelect ? sortSelect.value : 'newest';
 
-    const checkedBrands = Array.from(document.querySelectorAll('input[name="brand"]:checked')).map(el => el.value);
-    const checkedModels = Array.from(document.querySelectorAll('input[name="model"]:checked')).map(el => el.value);
-    const checkedCats = Array.from(document.querySelectorAll('input[name="category"]:checked')).map(el => el.value);
+    // یکتا سازی مقادیر با Set برای جلوگیری از تکرار مقادیر دسکتاپ و موبایل
+    const checkedBrands = [...new Set(Array.from(document.querySelectorAll('input[name="brand"]:checked')).map(el => el.value))];
+    const checkedModels = [...new Set(Array.from(document.querySelectorAll('input[name="model"]:checked')).map(el => el.value))];
+    const checkedCats = [...new Set(Array.from(document.querySelectorAll('input[name="category"]:checked')).map(el => el.value))];
 
     try {
         const params = new URLSearchParams();
@@ -447,13 +450,12 @@ function setupInfiniteScroll() {
 
     infiniteObserver = new IntersectionObserver((entries) => {
         const target = entries[0];
-        // جلوگیری از لود خودکار قبل از اتمام بارگذاری صفحه اول
         if (target.isIntersecting && hasMorePages && !isLoadingMore && isInitialLoaded) {
             applyFilters(currentPage + 1);
         }
     }, {
         root: null,
-        rootMargin: '250px',
+        rootMargin: '300px',
         threshold: 0.1
     });
 
@@ -500,10 +502,6 @@ function resetFilters() {
     applyFilters(1);
 }
 
-function showProductDetails(id) {
-    window.location.href = `/product?id=${id}`;
-}
-
 function toggleMobileFilters(open) {
     const drawer = document.getElementById('mobile-filter-drawer');
     const overlay = document.getElementById('mobile-filter-overlay');
@@ -516,21 +514,6 @@ function toggleMobileFilters(open) {
         overlay.classList.remove('opacity-100');
         drawer.classList.add('translate-x-full');
         setTimeout(() => { overlay.classList.add('hidden'); drawer.classList.add('hidden'); }, 300);
-    }
-}
-
-function toggleDetailModal(open) {
-    const overlay = document.getElementById('detail-modal-overlay');
-    const modal = document.getElementById('detail-modal');
-    if (!overlay || !modal) return;
-    if (open) {
-        overlay.classList.remove('hidden');
-        overlay.classList.add('flex');
-        setTimeout(() => { overlay.classList.add('opacity-100'); modal.classList.remove('scale-95', 'opacity-0'); }, 20);
-    } else {
-        overlay.classList.remove('opacity-100');
-        modal.classList.add('scale-95', 'opacity-0');
-        setTimeout(() => { overlay.classList.add('hidden'); overlay.classList.remove('flex'); }, 300);
     }
 }
 
@@ -549,6 +532,7 @@ function toggleInStock(isChecked) {
     applyFilters(1);
 }
 
+// === توابع کمکی رسانه و جزئیات محصول ===
 let currentImgSource = '';
 
 function getProductIdFromURL() {

@@ -133,7 +133,7 @@
                         <input type="text" id="search-input"
                             placeholder="نام قطعه یا شماره فنی آن را جستجو کنید... (مثلا: لنت ترمز)"
                             class="w-full bg-brand-dark border border-white/10 rounded-xl pr-12 pl-4 py-3 text-sm text-white focus:outline-none focus:border-brand-red transition"
-                            oninput="applyFilters()">
+                            oninput="triggerFilter()">
                     </div>
                     <div class="flex w-full sm:w-auto gap-2">
                         <!-- دکمه فیلتر مخصوص موبایل -->
@@ -163,17 +163,21 @@
                     <span>ضمانت تطابق قطعه با شماره شاسی خودرو (VIN)</span>
                 </div>
 
-                <!-- گرید نمایش قطعات -->
+                <!-- گرید نمایش قطعات (فقط یک بار) -->
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="parts-grid">
+                    <!-- کارت‌های محصولات به صورت پویا با جاوااسکریپت تزریق می‌شوند -->
                 </div>
 
+                <!-- نشانگر نامرئی اسکرول بی‌نهایت -->
                 <div id="scroll-sentinel" class="w-full h-8"></div>
 
+                <!-- لودینگ چرخان انتهای صفحه -->
                 <div id="infinite-loader" class="hidden w-full py-8 flex flex-col items-center justify-center gap-3">
                     <div class="w-8 h-8 border-4 border-white/10 border-t-brand-red rounded-full animate-spin"></div>
-                    <span class="text-xs font-bold text-gray-400">در حال بارگذاری قطعات بیشتر...</span>
+                    <span class="text-xs font-bold text-gray-400">در حال دریافت قطعات بیشتر...</span>
                 </div>
 
+                <!-- پیام پایان کل محصولات انبار -->
                 <div id="end-of-catalog"
                     class="hidden w-full text-center py-8 text-xs font-bold text-gray-500 border-t border-white/5 my-4">
                     به پایان کاتالوگ قطعات رسیدید.
