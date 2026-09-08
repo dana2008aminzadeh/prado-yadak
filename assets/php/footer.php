@@ -137,12 +137,11 @@ if (!isset($current_page)) {
                 <div class="flex gap-3 mt-4">
                     <div
                         class="bg-white p-2.5 rounded-2xl shadow-sm hover:shadow-md hover:scale-105 transition-all duration-300 flex items-center justify-center border border-[#a88d7c]/40">
-                        <a referrerpolicy='origin' target='_blank'
+                        <a target='_blank'
                             href='https://trustseal.enamad.ir/?id=7637197&Code=Z0gnlYX2EU7bKlNDMfUC288y4RGBGgHR'>
-                            <img referrerpolicy='origin'
-                                src='https://trustseal.enamad.ir/logo.aspx?id=7637197&Code=Z0gnlYX2EU7bKlNDMfUC288y4RGBGgHR'
-                                alt='نماد اعتماد الکترونیکی' class='h-16 sm:h-20 w-auto cursor-pointer object-contain'
-                                code='Z0gnlYX2EU7bKlNDMfUC288y4RGBGgHR'>
+                            <!-- آدرس عکس را به پوشه سایت خودتان تغییر دادیم -->
+                            <img src='assets/logo/enamad.webp' alt='نماد اعتماد الکترونیکی'
+                                class='h-16 sm:h-20 w-auto cursor-pointer object-contain'>
                         </a>
                     </div>
                 </div>
