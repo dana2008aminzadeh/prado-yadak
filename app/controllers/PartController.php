@@ -20,30 +20,40 @@ class PartController
             header("Location: /404");
             exit;
         }
-
         $product = \App\models\Product::findById($id);
         if (!$product) {
             header("Location: /404");
             exit;
         }
-
-        // دریافت قطعات مشابه (هم‌دسته)
         $similar_parts_data = \App\models\Product::search(['categories' => [$product['category']]], 1, 4);
         $similar_parts = $similar_parts_data['items'];
-
-        // دریافت جدیدترین قطعات
         $newest_parts_data = \App\models\Product::search([], 1, 4);
         $newest_parts = $newest_parts_data['items'];
-
-        // دریافت نظرات تایید شده محصول
+        
         $comments = [];
+        $can_comment = false; // متغیر جدید برای دسترسی ثبت نظر
+        
         try {
             $db = \Core\Database::getInstance();
             $stmt = $db->prepare("SELECT * FROM product_comments WHERE product_id = ? AND status = 'approved' ORDER BY created_at DESC");
             $stmt->execute([$id]);
             $comments = $stmt->fetchAll();
-        } catch (\Exception $e) { }
 
+            // بررسی اینکه آیا کاربر این قطعه را خریده است و به دستش رسیده (وضعیت تحویل شده)
+            if (isset($_SESSION['user_id'])) {
+                // فرض بر این است که جدول orders و order_items را در دیتابیس دارید
+                $stmtCheck = $db->prepare("
+                    SELECT 1 FROM orders o 
+                    JOIN order_items oi ON o.id = oi.order_id 
+                    WHERE o.user_id = ? AND oi.product_id = ? AND o.status = 'delivered' LIMIT 1
+                ");
+                $stmtCheck->execute([$_SESSION['user_id'], $id]);
+                if ($stmtCheck->fetch()) {
+                    $can_comment = true;
+                }
+            }
+        } catch (\Exception $e) { }
+        
         require_once VIEWS_PATH . '/product-detail.php';
     }
 
@@ -81,19 +91,40 @@ class PartController
 
     public function submitComment()
     {
+        if (session_status() == PHP_SESSION_NONE) session_start();
         header('Content-Type: application/json; charset=utf-8');
+        
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['status' => 'error', 'message' => 'برای ثبت نظر ابتدا باید وارد حساب کاربری شوید.']);
+            exit;
+        }
+
         $product_id = $_POST['product_id'] ?? 0;
         $name = $_POST['name'] ?? '';
         $text = $_POST['text'] ?? '';
         $rating = $_POST['rating'] ?? 5;
-
+        
         if (empty($name) || empty($text) || !$product_id) {
             echo json_encode(['status' => 'error', 'message' => 'اطلاعات ناقص است.']);
             exit;
         }
-
+        
         try {
             $db = \Core\Database::getInstance();
+            
+            // بررسی مجدد امنیتی در سمت بک‌اند برای جلوگیری از تقلب
+            $stmtCheck = $db->prepare("
+                SELECT 1 FROM orders o 
+                JOIN order_items oi ON o.id = oi.order_id 
+                WHERE o.user_id = ? AND oi.product_id = ? AND o.status = 'delivered' LIMIT 1
+            ");
+            $stmtCheck->execute([$_SESSION['user_id'], $product_id]);
+            
+            if (!$stmtCheck->fetch()) {
+                echo json_encode(['status' => 'error', 'message' => 'تنها خریداران این محصول مجاز به ثبت نظر هستند.']);
+                exit;
+            }
+
             $stmt = $db->prepare("INSERT INTO product_comments (product_id, name, rating, comment_text, status) VALUES (?, ?, ?, ?, 'pending')");
             $stmt->execute([$product_id, $name, $rating, $text]);
             echo json_encode(['status' => 'success', 'message' => 'نظر شما با موفقیت ثبت شد و پس از تایید مدیریت نمایش داده می‌شود.']);

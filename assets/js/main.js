@@ -585,45 +585,35 @@ function toggleZoomModal(open) {
     }
 }
 
-function checkAuthenticity() {
-    const input = document.getElementById('authenticity-code');
-    const result = document.getElementById('authenticity-result');
-    if (!input || !result) return;
-
-    const code = input.value.trim();
-    result.className = "text-xs p-3 rounded-xl border mt-3 transition-all duration-300";
-
-    if (!code) {
-        result.innerHTML = '⚠️ لطفا کد یا بارکد ۱۰ رقمی قطعه را وارد کنید.';
-        result.classList.add('bg-amber-500/10', 'text-amber-400', 'border-amber-500/20', 'block');
-        return;
-    }
-
-    if (code.toLowerCase().includes('toy')) {
-        result.innerHTML = '✔ <b>تایید اصالت: قطعه اصلی (Toyota Genuine Parts) است.</b> این کالا تحت پلمپ کمپانی مادر و گارانتی اصالت کتبی فروشگاه پرادو یدک قرار دارد.';
-        result.classList.add('bg-emerald-500/10', 'text-emerald-400', 'border-emerald-500/20', 'block');
-    } else {
-        result.innerHTML = '❌ <b>کد نامعتبر!</b> بارکد وارد شده در شبکه توزیع قطعات اورجینال پرادو یدک یافت نشد. احتمال تقلبی بودن کالا وجود دارد.';
-        result.classList.add('bg-rose-500/10', 'text-rose-400', 'border-rose-500/20', 'block');
-    }
-}
-
 function trackOrder() {
-    const input = document.getElementById('tracking-code');
-    const result = document.getElementById('tracking-result');
-    if (!input || !result) return;
-
-    const code = input.value.trim();
-    result.className = "text-xs p-3 rounded-xl border mt-3 transition-all duration-300";
-
+    const code = document.getElementById('tracking-code').value;
+    const resDiv = document.getElementById('tracking-result');
     if (!code) {
-        result.innerHTML = '⚠️ لطفا کد سفارش یا شماره موبایل خرید را وارد کنید.';
-        result.classList.add('bg-amber-500/10', 'text-amber-400', 'border-amber-500/20', 'block');
+        resDiv.className = 'text-xs p-3 rounded-xl border transition-all duration-300 block mt-3 bg-rose-500/10 text-rose-400 border-rose-500/20';
+        resDiv.innerHTML = 'لطفا کد رهگیری را وارد کنید.';
         return;
     }
 
-    result.innerHTML = `📦 <b>وضعیت مرسوله (#${code}):</b> تحویل به هاب تیپاکس<br><span class="text-[10px] text-gray-400 block mt-1">کد رهگیری تیپاکس: ۲۹۳۸۱۷۲۳۹۱۸۲<br>آخرین وضعیت: خروج از تهران به سمت مرکز توزیع مقصد</span>`;
-    result.classList.add('bg-brand-dark/60', 'text-gray-200', 'border-white/10', 'block');
+    resDiv.className = 'text-xs p-3 rounded-xl border transition-all duration-300 block mt-3 bg-brand-dark text-gray-400 border-white/10';
+    resDiv.innerHTML = '<div class="flex items-center gap-2"><i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> در حال رهگیری...</div>';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
+    fetch('/api/track-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'code=' + encodeURIComponent(code)
+    })
+    .then(r => r.json())
+    .then(data => {
+        let colorClass = data.status === 'success' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+            (data.status === 'warning' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                'bg-rose-500/10 text-rose-400 border-rose-500/20');
+        resDiv.className = 'text-xs p-3 rounded-xl border transition-all duration-300 block mt-3 ' + colorClass;
+        resDiv.innerHTML = data.message;
+    }).catch(() => {
+        resDiv.className = 'text-xs p-3 rounded-xl border transition-all duration-300 block mt-3 bg-rose-500/10 text-rose-400 border-rose-500/20';
+        resDiv.innerHTML = 'خطا در ارتباط با سرور.';
+    });
 }
 
 function loadProductDetails() {
@@ -751,16 +741,18 @@ const defaultComments = [
 ];
 
 let selectedRating = 5;
-
 function setStarRating(rating) {
     selectedRating = rating;
-    const stars = document.querySelectorAll('#star-picker button');
-    stars.forEach(star => {
-        const starVal = parseInt(star.getAttribute('data-star'));
+    const buttons = document.querySelectorAll('#star-picker button');
+    buttons.forEach(btn => {
+        let starVal = parseInt(btn.getAttribute('data-star'));
+        let icon = btn.querySelector('i');
         if (starVal <= rating) {
-            star.classList.add('text-amber-400');
+            btn.classList.add('text-amber-400');
+            icon.style.fill = 'currentColor';
         } else {
-            star.classList.remove('text-amber-400');
+            btn.classList.remove('text-amber-400');
+            icon.style.fill = 'none';
         }
     });
 }
@@ -829,30 +821,42 @@ function updateRatingSummary(avg, count) {
     }
 }
 
-function submitComment(event) {
-    if (event) event.preventDefault();
-    const nameInput = document.getElementById('comment-name');
-    const textInput = document.getElementById('comment-text');
-    if (!nameInput || !textInput) return;
+function submitProductComment(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    const msgBox = document.getElementById('comment-msg');
+    const name = document.getElementById('comment-name').value;
+    const text = document.getElementById('comment-text').value;
+    const pid = document.getElementById('comment-product-id').value;
 
-    const partId = getProductIdFromURL();
-    let localComments = JSON.parse(localStorage.getItem('part_comments')) || defaultComments;
+    btn.disabled = true;
+    btn.innerHTML = '<div class="flex items-center justify-center gap-2"><i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> در حال ثبت...</div>';
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 
-    localComments.unshift({
-        id: Date.now(),
-        partId: partId,
-        name: nameInput.value.trim(),
-        rating: selectedRating,
-        text: textInput.value.trim(),
-        date: new Date().toLocaleDateString('fa-IR')
+    fetch('/api/submit-comment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `product_id=${pid}&name=${encodeURIComponent(name)}&text=${encodeURIComponent(text)}&rating=${selectedRating}`
+    })
+    .then(r => r.json())
+    .then(data => {
+        msgBox.className = 'text-xs font-bold p-3 rounded-lg text-center mb-4 block ' +
+            (data.status === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20');
+        msgBox.innerHTML = data.message;
+
+        if (data.status === 'success') {
+            document.getElementById('comment-form').reset();
+            setStarRating(5);
+        }
+    })
+    .catch(() => {
+        msgBox.className = 'text-xs font-bold p-3 rounded-lg text-center mb-4 block bg-rose-500/10 text-rose-400 border border-rose-500/20';
+        msgBox.innerHTML = 'خطا در برقراری ارتباط با سرور.';
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = 'ثبت و ارسال نظر';
     });
-
-    localStorage.setItem('part_comments', JSON.stringify(localComments));
-    nameInput.value = '';
-    textInput.value = '';
-    setStarRating(5);
-    loadComments();
-    alert('نظر شما به عنوان خریدار قطعه با موفقیت تایید و ثبت شد.');
 }
 
 function filterBlog(category) {
@@ -936,22 +940,38 @@ function switchLoginTab(tab) {
 }
 
 function showAlert(message, type = 'danger') {
-    const box = document.getElementById('alert-box');
-    if (!box) return;
-    box.classList.remove('hidden', 'bg-rose-500/10', 'text-rose-400', 'border-rose-500/20', 'bg-emerald-500/10', 'text-emerald-400', 'border-emerald-500/20');
-
-    if (type === 'danger') {
-        box.classList.add('bg-rose-500/10', 'text-rose-400', 'border', 'border-rose-500/20');
-    } else {
-        box.classList.add('bg-emerald-500/10', 'text-emerald-400', 'border', 'border-emerald-500/20');
+    let container = document.getElementById('toast-container');
+    
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'fixed top-5 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-3 w-[90%] max-w-sm pointer-events-none';
+        document.body.appendChild(container);
     }
-
-    box.innerHTML = message;
+    
+    const toast = document.createElement('div');
+    const colorClass = type === 'danger' 
+        ? 'bg-rose-600 border border-rose-500 shadow-rose-500/30' 
+        : 'bg-emerald-600 border border-emerald-500 shadow-emerald-500/30';
+        
+    toast.className = `p-4 rounded-2xl shadow-xl text-white text-xs text-center font-bold transform transition-all duration-300 -translate-y-10 opacity-0 ${colorClass}`;
+    toast.innerHTML = message;
+    
+    container.appendChild(toast);
+    
+    requestAnimationFrame(() => {
+        toast.classList.remove('-translate-y-10', 'opacity-0');
+        toast.classList.add('translate-y-0', 'opacity-100');
+    });
+    
+    setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('-translate-y-10', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
 }
 
 function hideAlert() {
-    const box = document.getElementById('alert-box');
-    if (box) box.classList.add('hidden');
 }
 
 function togglePasswordVisibility(inputId, btn) {
