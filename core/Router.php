@@ -67,15 +67,16 @@ class Router
         $this->get('/image', 'ImageController@show');
 
         $this->get('/api/parts', 'PartController@apiList');
+        $this->get('/api/product', 'PartController@apiShow');
+        $this->post('/api/check-authenticity', 'PartController@checkAuthenticity');
+        $this->post('/api/submit-comment', 'PartController@submitComment');
+        $this->post('/api/track-order', 'OrderController@trackOrder');
 
-        // === مسیرهای Guest (فقط کاربران لاگین‌نکرده) ===
         $this->get('/login', 'AuthController@loginForm', ['guest']);
         
-        // === مسیرهای Auth (فقط کاربران لاگین‌کرده) ===
         $this->get('/profile', 'UserController@profile', ['auth']);
         $this->get('/checkout', 'OrderController@checkout', ['auth']);
 
-        // مسیرهای API (می‌توانید برای این‌ها هم بعداً middleware تعیین کنید)
         $this->post('/cart/add', 'CartController@add');
         $this->post('/api/auth/check', 'AuthController@checkUser');
         $this->post('/api/auth/login-password', 'AuthController@loginPassword');

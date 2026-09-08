@@ -12,11 +12,15 @@ class Product
         $conditions = ["1=1"];
         $params = [];
 
-        // ۱. جستجوی متنی (نام یا کد قطعه)
         if (!empty($filters['q'])) {
             $conditions[] = "(p.name LIKE ? OR p.oem_code LIKE ?)";
             $params[] = '%' . $filters['q'] . '%';
             $params[] = '%' . $filters['q'] . '%';
+        }
+
+        if (!empty($filters['id'])) {
+            $conditions[] = "p.id = ?";
+            $params[] = (int) $filters['id'];
         }
 
         if (!empty($filters['categories']) && is_array($filters['categories'])) {
@@ -128,5 +132,11 @@ class Product
         $db = \Core\Database::getInstance();
         $stmt = $db->query("SELECT DISTINCT brand FROM products WHERE brand IS NOT NULL AND brand != '' ORDER BY brand ASC");
         return $stmt->fetchAll(\PDO::FETCH_COLUMN);
+    }
+
+    public static function findById($id)
+    {
+        $data = self::search(['id' => $id], 1, 1);
+        return !empty($data['items']) ? $data['items'][0] : null;
     }
 }

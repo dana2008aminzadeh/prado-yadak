@@ -7,4 +7,37 @@ class OrderController
     {
         require_once VIEWS_PATH . '/checkout.php';
     }
+
+    public function trackOrder()
+    {
+        header('Content-Type: application/json; charset=utf-8');
+        $code = $_POST['code'] ?? '';
+
+        if (empty($code)) {
+            echo json_encode(['status' => 'error', 'message' => 'کد رهگیری را وارد کنید.']);
+            exit;
+        }
+
+        $db = \Core\Database::getInstance();
+        $stmt = $db->prepare("SELECT status FROM orders WHERE tracking_code = ? LIMIT 1");
+        $stmt->execute([$code]);
+        $order = $stmt->fetch();
+
+        if ($order) {
+            $statusMap = [
+                'processing' => 'در حال پردازش و بسته‌بندی در انبار',
+                'shipped' => 'تحویل شده به شرکت پست / تیپاکس',
+                'delivered' => 'با موفقیت تحویل مشتری شده است',
+                'cancelled' => 'لغو شده'
+            ];
+            $msg = $statusMap[$order['status']] ?? 'وضعیت نامشخص';
+            
+            $color = $order['status'] === 'delivered' ? 'success' : ($order['status'] === 'cancelled' ? 'error' : 'warning');
+            
+            echo json_encode(['status' => $color, 'message' => "وضعیت سفارش شما: " . $msg]);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'سفارشی با این کد رهگیری در سیستم یافت نشد.']);
+        }
+        exit;
+    }
 }
