@@ -616,124 +616,6 @@ function trackOrder() {
     });
 }
 
-function loadProductDetails() {
-    const container = document.getElementById('product-container');
-    if (!container) return;
-
-    const productId = getProductIdFromURL();
-    const part = partsDatabase.find(p => p.id === productId);
-
-    if (!part) {
-        container.innerHTML = `<div class="text-center py-12"><h3 class="text-xl font-bold">قطعه یافت نشد!</h3></div>`;
-        return;
-    }
-
-    const imgs = part.images || [part.imageIcon || 'disc'];
-    currentImgSource = imgs[0];
-
-    let thumbnailsHtml = '';
-    imgs.forEach((img, index) => {
-        const isActive = index === 0 ? 'border-brand-red bg-brand-dark' : 'border-white/5 bg-brand-dark/40';
-        thumbnailsHtml += `
-            <div onclick="changeMainImage('${img}', this)" class="thumb-btn h-16 sm:h-20 border rounded-xl flex items-center justify-center text-brand-red/80 cursor-pointer transition duration-200 hover:border-brand-red/50 p-2 ${isActive}">
-                ${renderMediaHTML(img, "w-6 h-6 sm:w-8 sm:h-8")}
-            </div>
-        `;
-    });
-
-    container.innerHTML = `
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            <div class="lg:col-span-5 space-y-4 w-full">
-                <div id="main-product-image" onclick="toggleZoomModal(true)" 
-                    class="w-full h-64 sm:h-80 bg-brand-dark border border-white/5 rounded-2xl flex items-center justify-center text-brand-red relative overflow-hidden cursor-zoom-in group">
-                    <div id="main-product-inner" class="w-full h-full flex items-center justify-center p-6">
-                        ${renderMediaHTML(imgs[0])}
-                    </div>
-                    <div class="absolute top-3 right-3 bg-brand-grey/80 border border-white/10 p-2 rounded-xl opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <i data-lucide="zoom-in" style="width:16px;height:16px;" class="text-white"></i>
-                    </div>
-                </div>
-                <div class="grid grid-cols-5 gap-2 sm:gap-3">
-                    ${thumbnailsHtml}
-                </div>
-            </div>
-
-            <div class="lg:col-span-7 space-y-6 w-full">
-                <div>
-                    <div class="flex flex-wrap gap-2 mb-3">
-                        <span class="bg-brand-red/10 text-brand-red text-xs px-3 py-1 rounded-full font-bold">${part.isGenuine ? "اصلی جنیون پارت" : "وارداتی OEM معتبر"}</span>
-                        <span class="${part.inStock ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'} text-xs px-3 py-1 rounded-full font-bold">${part.inStock ? 'موجود در انبار' : 'ناموجود'}</span>
-                    </div>
-                    <h2 class="text-lg sm:text-2xl font-black text-white leading-snug">${part.name}</h2>
-                </div>
-
-                <div class="red-line"></div>
-
-                <div class="space-y-2">
-                    <h4 class="text-xs sm:text-sm font-bold text-gray-400 flex items-center gap-2"><i data-lucide="file-text" style="width:16px;height:16px;"></i> بررسی تخصصی قطعه</h4>
-                    <p class="text-gray-300 text-xs sm:text-sm leading-relaxed text-justify">${part.desc}</p>
-                </div>
-
-                <div class="space-y-3">
-                    <h4 class="text-xs sm:text-sm font-bold text-gray-400 flex items-center gap-2"><i data-lucide="info" style="width:16px;height:16px;"></i> مشخصات فنی</h4>
-                    <div class="border border-white/10 rounded-xl overflow-hidden text-xs sm:text-sm">
-                        <div class="grid grid-cols-2 bg-black/20 p-3 border-b border-white/5"><span class="text-gray-400">شماره فنی (OEM)</span><span class="font-mono text-white text-left" style="direction: ltr;">${part.oem}</span></div>
-                        <div class="grid grid-cols-2 p-3 border-b border-white/5"><span class="text-gray-400">خودرو سازگار</span><span class="text-white font-bold">${carModels[part.model] || part.model}</span></div>
-                        <div class="grid grid-cols-2 bg-black/20 p-3 border-b border-white/5"><span class="text-gray-400">دسته‌بندی</span><span class="text-white">${partCategories[part.category] || part.category}</span></div>
-                    </div>
-                </div>
-
-                <div class="bg-brand-dark/50 border border-white/5 p-4 sm:p-5 rounded-xl sm:rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div class="text-center sm:text-right w-full sm:w-auto">
-                        <span class="text-[11px] text-gray-500 block mb-1">قیمت نهایی قطعه:</span>
-                        <span class="font-black text-xl sm:text-2xl text-brand-red">${part.price.toLocaleString('fa-IR')} <span class="text-xs font-normal text-white">تومان</span></span>
-                    </div>
-                    <button ${part.inStock ? '' : 'disabled'} onclick="addToCartFromDetail()" class="w-full sm:w-auto bg-brand-red hover:bg-red-700 disabled:bg-white/5 disabled:text-gray-500 text-white font-black px-6 sm:px-8 py-3.5 rounded-xl transition flex items-center justify-center gap-3 shadow-[0_5px_20px_rgba(225,6,0,0.3)] text-sm">
-                        <i data-lucide="shopping-cart" style="width:18px;height:18px;"></i> افزودن به سبد خرید
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-
-    renderSimilarParts(part);
-    renderNewestParts();
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-    loadComments();
-}
-
-function renderSimilarParts(currentPart) {
-    const grid = document.getElementById('similar-parts-grid');
-    if (!grid) return;
-    const shuffled = partsDatabase.filter(p => p.id !== currentPart.id && (p.category === currentPart.category || p.model === currentPart.model));
-    grid.innerHTML = shuffled.slice(0, 4).map(p => generateMiniCard(p)).join('');
-}
-
-function renderNewestParts() {
-    const grid = document.getElementById('newest-parts-grid');
-    if (!grid) return;
-    const newest = [...partsDatabase].sort((a, b) => b.id - a.id).slice(0, 4);
-    grid.innerHTML = newest.map(p => generateMiniCard(p)).join('');
-}
-
-function generateMiniCard(p) {
-    const img = (p.images && p.images[0]) || p.imageIcon || 'disc';
-    return `
-        <div class="bg-brand-grey border border-white/5 hover:border-brand-red/30 p-4 rounded-xl flex flex-col justify-between transition duration-300">
-            <div>
-                <div onclick="window.location.href='/product?id=${p.id}'" class="w-full h-32 bg-brand-dark rounded-xl flex items-center justify-center text-brand-red mb-3 cursor-pointer group overflow-hidden border border-white/5 p-4">
-                    <div class="w-10 h-10 flex items-center justify-center transition transform group-hover:scale-110 duration-200">${renderMediaHTML(img, "")}</div>
-                </div>
-                <h4 onclick="window.location.href='/product?id=${p.id}'" class="font-bold text-xs text-white line-clamp-2 hover:text-brand-red cursor-pointer transition h-8 mb-2">${p.name}</h4>
-            </div>
-            <div class="flex items-center justify-between mt-2 pt-2 border-t border-white/5">
-                <span class="font-black text-xs text-brand-red">${p.price.toLocaleString('fa-IR')} تومان</span>
-                <span class="text-[10px] text-gray-500">${(carModels[p.model] || p.model).split(' ')[0]}</span>
-            </div>
-        </div>
-    `;
-}
-
 const defaultComments = [
     { id: 1, partId: 1, name: "مهران رضایی", rating: 5, text: "روی کمری ۲۰۱۴ بستم، کاملاً بی‌صدا هست و گیرایی فوق‌العاده‌ای داره. بسته‌بندی پلمپ جنیون پارت بود.", date: "۱۴۰۵/۰۲/۱۵" },
     { id: 2, partId: 1, name: "جواد کاظمی", rating: 4, text: "کیفیت لنت عالیه، فقط زمان ارسال به مشهد سه روز طول کشید که جا داره سریع‌تر بشه. در کل راضیم.", date: "۱۴۰۵/۰۳/۰۲" },
@@ -755,53 +637,6 @@ function setStarRating(rating) {
             icon.style.fill = 'none';
         }
     });
-}
-
-function loadComments() {
-    const container = document.getElementById('comments-list-container');
-    if (!container) return;
-
-    const partId = getProductIdFromURL();
-    let localComments = JSON.parse(localStorage.getItem('part_comments')) || defaultComments;
-    const filtered = localComments.filter(c => c.partId === partId);
-    container.innerHTML = '';
-
-    if (filtered.length === 0) {
-        container.innerHTML = `<div class="text-center py-12 text-gray-500 text-xs">هنوز نظری برای این قطعه ثبت نشده است. اولین خریدار باشید که نظر می‌دهد!</div>`;
-        updateRatingSummary(0, 0);
-        return;
-    }
-
-    let totalRating = 0;
-    filtered.forEach(c => {
-        totalRating += c.rating;
-        let starsHtml = '';
-        for (let i = 1; i <= 5; i++) {
-            starsHtml += `<i data-lucide="star" style="width:14px;height:14px;" class="${i <= c.rating ? 'text-amber-400 fill-amber-400' : 'text-gray-600'}"></i>`;
-        }
-
-        container.insertAdjacentHTML('beforeend', `
-            <div class="bg-brand-dark/20 border border-white/5 p-4 sm:p-5 rounded-2xl space-y-3">
-                <div class="flex justify-between items-start gap-2">
-                    <div class="space-y-1">
-                        <div class="flex flex-wrap items-center gap-2">
-                            <span class="font-bold text-sm text-white">${c.name}</span>
-                            <span class="bg-emerald-500/10 text-emerald-400 text-[9px] sm:text-[10px] px-2 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1">
-                                <i data-lucide="check-circle" style="width:10px;height:10px;"></i> خریدار (تحویل شده)
-                            </span>
-                        </div>
-                        <span class="text-[10px] text-gray-500 block">${c.date}</span>
-                    </div>
-                    <div class="flex gap-0.5 direction-ltr shrink-0">${starsHtml}</div>
-                </div>
-                <p class="text-xs text-gray-300 leading-relaxed">${c.text}</p>
-            </div>
-        `);
-    });
-
-    const avg = (totalRating / filtered.length).toFixed(1);
-    updateRatingSummary(avg, filtered.length);
-    if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
 function updateRatingSummary(avg, count) {
@@ -1417,9 +1252,5 @@ document.addEventListener("DOMContentLoaded", function () {
         setupInfiniteScroll();
         initFilters();
         applyFilters(1);
-    }
-
-    if (document.getElementById('product-container')) {
-        loadProductDetails();
     }
 });
