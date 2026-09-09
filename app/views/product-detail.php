@@ -143,7 +143,6 @@
             </div>
         </div>
 
-        <!-- پیگیری سفارش -->
         <section class="max-w-2xl mx-auto">
             <div class="bg-brand-grey border border-white/10 rounded-2xl p-5 sm:p-6 space-y-4 shadow-lg">
                 <h3 class="text-base sm:text-lg font-extrabold flex items-center gap-2.5">
