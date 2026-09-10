@@ -22,6 +22,37 @@ function e($string)
     return htmlspecialchars($string ?? '', ENT_QUOTES, 'UTF-8');
 }
 
+function toShamsi($dateString)
+{
+    // بررسی اینکه آیا ورودی خودش تایم‌استمپ است یا رشته متنی
+    $timestamp = is_numeric($dateString) ? $dateString : strtotime($dateString);
+    if (!$timestamp)
+        return 'نامشخص';
+
+    $gy = (int) date('Y', $timestamp);
+    $gm = (int) date('m', $timestamp);
+    $gd = (int) date('d', $timestamp);
+
+    $g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+    $gy2 = ($gm > 2) ? ($gy + 1) : $gy;
+    $days = 355666 + (365 * $gy) + (int) (($gy2 + 3) / 4) - (int) (($gy2 + 99) / 100) + (int) (($gy2 + 399) / 400) + $gd + $g_d_m[$gm - 1];
+
+    $jy = -1595 + 33 * (int) ($days / 12053);
+    $days %= 12053;
+    $jy += 4 * (int) ($days / 1461);
+    $days %= 1461;
+
+    if ($days > 365) {
+        $jy += (int) (($days - 1) / 365);
+        $days = ($days - 1) % 365;
+    }
+
+    $jm = ($days < 186) ? 1 + (int) ($days / 31) : 7 + (int) (($days - 186) / 30);
+    $jd = 1 + (($days < 186) ? ($days % 31) : (($days - 186) % 30));
+
+    return sprintf('%04d/%02d/%02d', $jy, $jm, $jd);
+}
+
 define('BASE_PATH', __DIR__);
 define('APP_PATH', BASE_PATH . '/app');
 define('CORE_PATH', BASE_PATH . '/core');

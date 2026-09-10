@@ -1,34 +1,41 @@
 <?php
-// ۱. تشخیص نام فایلی که در حال اجراست
-$current_file = basename($_SERVER['PHP_SELF']);
+global $settings;
+$site_name = $settings['site_title'] ?? 'پرادو یدک';
 
-// ۲. تنظیم خودکار تایتل‌ها بر اساس نام فایل‌ها
-$titles = [
-    '/index' => 'پرادو یدک',
-    '/parts' => 'جستجو و خرید قطعات تویوتا | پرادو یدک',
-    '/product' => 'جزئیات قطعه | پرادو یدک',
-    '/blog' => 'وبلاگ و راهنمای فنی تویوتا | پرادو یدک',
-    '/blog-detail' => 'جزئیات مقاله | وبلاگ فنی پرادو یدک',
-    '/login' => 'ورود / ثبت‌نام | پرادو یدک',
-    '/profile' => 'پنل کاربری و پروفایل | پرادو یدک',
-    '/terms' => 'قوانین، مقررات و ضمانت اصالت | پرادو یدک',
-    '/checkout' => 'صفحه پرداخت | پرادو یدک',
-    '/404' => 'صفحه مورد نظر پیدا نشد (خطای ۴۰۴) | پرادو یدک'
-];
+// اگر متغیر pageTitle از سمت کنترلر (Controller) مقداردهی نشده بود، بر اساس آدرس (URI) آن را تنظیم کن
+if (!isset($pageTitle)) {
+    $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    if ($uri !== '/' && substr($uri, -1) === '/') {
+        $uri = rtrim($uri, '/');
+    }
 
-// ۳. گرفتن تایتل مربوطه (اگر فایلی در لیست نبود، تایتل پیش‌فرض قرار می‌گیرد)
-$pageTitle = isset($titles[$current_file]) ? $titles[$current_file] : 'پرادو یدک';
+    $defaultTitles = [
+        '/' => $site_name,
+        '/index' => $site_name,
+        '/parts' => 'جستجو و خرید قطعات تویوتا | ' . $site_name,
+        '/blog' => 'وبلاگ و راهنمای فنی تویوتا | ' . $site_name,
+        '/login' => 'ورود / ثبت‌نام | ' . $site_name,
+        '/profile' => 'پنل کاربری و پروفایل | ' . $site_name,
+        '/terms' => 'قوانین، مقررات و ضمانت اصالت | ' . $site_name,
+        '/checkout' => 'تسویه حساب | ' . $site_name,
+        '/404' => 'صفحه پیدا نشد | ' . $site_name
+    ];
+
+    $pageTitle = $defaultTitles[$uri] ?? $site_name;
+}
 ?>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="csrf-token" content="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
-<title><?php echo $pageTitle; ?></title>
+<title><?php echo e($pageTitle); ?></title>
 
-<script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js" defer></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
 
 <?php
-if ($current_file === '/index'):
-    global $settings, $car_models, $part_categories, $parts_database;
+$uri_for_scripts = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+if ($uri_for_scripts === '/' || $uri_for_scripts === '/index'):
+    global $car_models, $part_categories, $parts_database;
     ?>
     <script>
         window.dynamicSettings = <?php echo json_encode($settings ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
@@ -39,6 +46,6 @@ if ($current_file === '/index'):
     <script src="/_sdk/element_sdk.js"></script>
     <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
 <?php endif; ?>
-<link rel="icon" type="image/webp" href="assets/logo/logo.webp">
 
+<link rel="icon" type="image/webp" href="assets/logo/logo.webp">
 <link rel="stylesheet" href="assets/css/style.css">

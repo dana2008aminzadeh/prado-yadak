@@ -92,7 +92,7 @@ class AuthController
         $api_key = '6yvodOobNXvR0bKclRjAAZTffumOuyQmeIOGJXKdEMO0JkHD';
 
         // شما باید در پنل sms.ir یک قالب (Template) بسازید و آیدی آن را اینجا قرار دهید
-        $template_id = 219706; // این عدد را با شناسه قالب خودتان جایگزین کنید
+        $template_id = 424335; // این عدد را با شناسه قالب خودتان جایگزین کنید
 
         $data = [
             "mobile" => $mobile,

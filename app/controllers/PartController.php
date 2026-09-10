@@ -25,26 +25,28 @@ class PartController
             header("Location: /404");
             exit;
         }
+
+        global $settings;
+        $site_name = $settings['site_title'] ?? 'پرادو یدک';
+        $pageTitle = $product['name'] . ' | ' . $site_name;
+        // ----------------------------------------------
+
         $similar_parts_data = \App\models\Product::search(['categories' => [$product['category']]], 1, 4);
         $similar_parts = $similar_parts_data['items'];
         $newest_parts_data = \App\models\Product::search([], 1, 4);
         $newest_parts = $newest_parts_data['items'];
-        
+
         $comments = [];
-        $can_comment = false; // متغیر جدید برای دسترسی ثبت نظر
-        
+        $can_comment = false;
         try {
             $db = \Core\Database::getInstance();
             $stmt = $db->prepare("SELECT * FROM product_comments WHERE product_id = ? AND status = 'approved' ORDER BY created_at DESC");
             $stmt->execute([$id]);
             $comments = $stmt->fetchAll();
-
-            // بررسی اینکه آیا کاربر این قطعه را خریده است و به دستش رسیده (وضعیت تحویل شده)
             if (isset($_SESSION['user_id'])) {
-                // فرض بر این است که جدول orders و order_items را در دیتابیس دارید
                 $stmtCheck = $db->prepare("
-                    SELECT 1 FROM orders o 
-                    JOIN order_items oi ON o.id = oi.order_id 
+                    SELECT 1 FROM orders o
+                    JOIN order_items oi ON o.id = oi.order_id
                     WHERE o.user_id = ? AND oi.product_id = ? AND o.status = 'delivered' LIMIT 1
                 ");
                 $stmtCheck->execute([$_SESSION['user_id'], $id]);
@@ -52,8 +54,9 @@ class PartController
                     $can_comment = true;
                 }
             }
-        } catch (\Exception $e) { }
-        
+        } catch (\Exception $e) {
+        }
+
         require_once VIEWS_PATH . '/product-detail.php';
     }
 
@@ -61,7 +64,7 @@ class PartController
     {
         header('Content-Type: application/json; charset=utf-8');
         $code = $_POST['code'] ?? '';
-        
+
         if (empty($code)) {
             echo json_encode(['status' => 'error', 'message' => 'لطفاً کد اصالت یا OEM را وارد کنید.']);
             exit;
@@ -91,9 +94,10 @@ class PartController
 
     public function submitComment()
     {
-        if (session_status() == PHP_SESSION_NONE) session_start();
+        if (session_status() == PHP_SESSION_NONE)
+            session_start();
         header('Content-Type: application/json; charset=utf-8');
-        
+
         if (!isset($_SESSION['user_id'])) {
             echo json_encode(['status' => 'error', 'message' => 'برای ثبت نظر ابتدا باید وارد حساب کاربری شوید.']);
             exit;
@@ -103,15 +107,15 @@ class PartController
         $name = $_POST['name'] ?? '';
         $text = $_POST['text'] ?? '';
         $rating = $_POST['rating'] ?? 5;
-        
+
         if (empty($name) || empty($text) || !$product_id) {
             echo json_encode(['status' => 'error', 'message' => 'اطلاعات ناقص است.']);
             exit;
         }
-        
+
         try {
             $db = \Core\Database::getInstance();
-            
+
             // بررسی مجدد امنیتی در سمت بک‌اند برای جلوگیری از تقلب
             $stmtCheck = $db->prepare("
                 SELECT 1 FROM orders o 
@@ -119,7 +123,7 @@ class PartController
                 WHERE o.user_id = ? AND oi.product_id = ? AND o.status = 'delivered' LIMIT 1
             ");
             $stmtCheck->execute([$_SESSION['user_id'], $product_id]);
-            
+
             if (!$stmtCheck->fetch()) {
                 echo json_encode(['status' => 'error', 'message' => 'تنها خریداران این محصول مجاز به ثبت نظر هستند.']);
                 exit;

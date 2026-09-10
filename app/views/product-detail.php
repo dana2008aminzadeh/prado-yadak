@@ -114,13 +114,15 @@
                         <div class="border border-white/10 rounded-xl overflow-hidden text-sm">
                             <div class="grid grid-cols-2 bg-black/5 p-3.5 border-b border-white/5">
                                 <span class="text-gray-500">خودرو سازگار</span>
-                                <span
-                                    class="text-white font-bold"><?= e($GLOBALS['car_models'][$product['model']] ?? $product['model']) ?></span>
+                                <span class="text-white font-bold"><?= $modelData = $GLOBALS['car_models'][$product['model']] ?? $product['model'];
+                                $modelName = is_array($modelData) ? ($modelData['name'] ?? $product['model']) : $modelData;
+                                echo e($modelName); ?></span>
                             </div>
                             <div class="grid grid-cols-2 p-3.5 border-b border-white/5">
                                 <span class="text-gray-500">دسته‌بندی</span>
-                                <span
-                                    class="text-white"><?= e($GLOBALS['part_categories'][$product['category']]['name'] ?? $product['category']) ?></span>
+                                <span class="text-white"><?= $catData = $GLOBALS['part_categories'][$product['category']] ?? $product['category'];
+                                $catName = is_array($catData) ? ($catData['name'] ?? $product['category']) : $catData;
+                                echo e($catName); ?></span>
                             </div>
                             <div class="grid grid-cols-2 bg-black/5 p-3.5">
                                 <span class="text-gray-500">برند قطعه</span>
@@ -280,7 +282,7 @@
                                             </span>
                                         </div>
                                         <span
-                                            class="text-[10px] text-gray-500 block"><?= e(\jdf\jdate('Y/m/d', strtotime($c['created_at'] ?? 'now'))) ?? 'ثبت شده' ?></span>
+                                            class="text-[10px] text-gray-500 block"><?= e(toShamsi($c['created_at'] ?? '')) ?></span>
                                     </div>
                                     <div class="flex gap-0.5 direction-ltr shrink-0 text-amber-400">
                                         <?php for ($i = 1; $i <= 5; $i++): ?>
