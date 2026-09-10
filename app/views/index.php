@@ -346,7 +346,7 @@ global $settings;
                                 class="absolute inset-0 bg-gradient-to-r from-brand-accent/0 via-transparent to-brand-accent/10 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-300 ease-out pointer-events-none">
                             </div>
                             <div
-                                class="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-0 md:group-hover:h-full bg-brand-accent transition-all duration-300 ease-out rounded-l-full pointer-events-none">
+                                class="absolute right-0 inset-y-0 w-1 bg-brand-accent scale-y-0 md:group-hover:scale-y-100 transition-transform duration-300 ease-out rounded-l-full origin-center pointer-events-none">
                             </div>
 
                             <div class="flex items-center gap-3 md:gap-4 pr-1 md:pr-2 relative z-10">

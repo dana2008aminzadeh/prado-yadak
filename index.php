@@ -10,8 +10,7 @@ if (empty($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-// === سیستم لاگ و نمایش ارور (مخصوص دیباگ) ===
-ini_set('display_errors', 1);           // نمایش ارور روی صفحه
+ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);   // نمایش خطاهای استارت‌آپ
 error_reporting(E_ALL);                 // گزارش‌گیری از تمام خطاها، هشدارها و نوتیس‌ها
 ini_set('log_errors', 1);               // روشن کردن لاگ در فایل
