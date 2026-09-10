@@ -62,15 +62,14 @@
                     </div>
                 </div>
 
-                <!-- فیلتر قیمت -->
                 <div>
                     <h5 class="font-bold text-sm text-gray-200 mb-3">حدود قیمت (تومان)</h5>
-                    <input type="range" id="price-slider" min="0" max="25000000" step="500000" value="25000000"
+                    <input type="range" id="price-slider" min="0" max="300000000" step="1000000" value="300000000"
                         class="w-full h-1 bg-brand-dark rounded-lg appearance-none cursor-pointer"
                         oninput="updatePriceLabel(this.value)">
                     <div class="flex justify-between items-center text-xs text-gray-400 mt-2">
                         <span>از ۱۰۰,۰۰۰</span>
-                        <span id="price-val" class="font-bold text-white text-sm">تا ۲۵ میلیون</span>
+                        <span id="price-val" class="font-bold text-white text-sm">تا ۳۰۰ میلیون</span>
                     </div>
                 </div>
 
@@ -109,14 +108,19 @@
                     </div>
                 </div>
 
-                <!-- فقط کالاهای موجود -->
+                <!-- فقط کالاهای موجود (نسخه دسکتاپ) -->
                 <div class="pt-4 border-t border-white/10 flex items-center justify-between">
                     <span class="text-sm text-gray-300">فقط کالاهای موجود</span>
-                    <label class="relative inline-flex items-center cursor-pointer">
+                    <label class="relative inline-flex items-center cursor-pointer shrink-0">
                         <input type="checkbox" id="in-stock-toggle" class="sr-only peer"
                             onchange="toggleInStock(this.checked)">
+                        <!-- پس‌زمینه سوییچ -->
                         <div
-                            class="w-11 h-6 bg-brand-dark rounded-full peer peer-focus:ring-0 peer-checked:bg-brand-red after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:-translate-x-full peer-checked:after:border-white">
+                            class="w-11 h-6 bg-gray-400/50 rounded-full peer-checked:bg-brand-red transition-colors duration-300">
+                        </div>
+                        <!-- دایره سوییچ -->
+                        <div
+                            class="absolute right-[2px] top-[2px] w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 peer-checked:-translate-x-[20px]">
                         </div>
                     </label>
                 </div>
@@ -127,32 +131,38 @@
                 <!-- نوار جستجو و دکمه فیلتر موبایل -->
                 <div
                     class="bg-brand-grey border border-white/10 rounded-2xl p-4 flex flex-col sm:flex-row gap-3 items-center">
+
+                    <!-- فیلد جستجو -->
                     <div class="relative w-full flex-1">
-                        <i data-lucide="search" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
-                            style="width:20px;height:20px;"></i>
+                        <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+                            <i data-lucide="search" class="text-gray-400 w-5 h-5"></i>
+                        </div>
                         <input type="text" id="search-input"
                             placeholder="نام قطعه یا شماره فنی آن را جستجو کنید... (مثلا: لنت ترمز)"
                             class="w-full bg-brand-dark border border-white/10 rounded-xl pr-12 pl-4 py-3 text-sm text-white focus:outline-none focus:border-brand-red transition"
                             oninput="triggerFilter()">
                     </div>
+
                     <div class="flex w-full sm:w-auto gap-2">
                         <!-- دکمه فیلتر مخصوص موبایل -->
                         <button onclick="toggleMobileFilters(true)"
                             class="lg:hidden flex flex-1 items-center justify-center gap-2 border border-white/10 hover:border-brand-red px-5 py-3 rounded-xl text-sm font-bold bg-brand-dark/50 transition">
                             <i data-lucide="sliders-horizontal" style="width:16px;height:16px;"></i> فیلترها
                         </button>
+
                         <!-- انتخاب مرتب‌سازی -->
                         <div class="relative flex-1 sm:flex-none">
                             <select id="sort-select" onchange="applyFilters()"
-                                class="w-full bg-brand-dark border border-white/10 rounded-xl pr-4 pl-8 pr-1 py-3 text-sm text-gray-300 appearance-none focus:outline-none focus:border-brand-red transition cursor-pointer">
+                                class="w-full bg-brand-dark border border-white/10 rounded-xl pr-4 pl-10 py-3 text-sm text-gray-300 appearance-none focus:outline-none focus:border-brand-red transition cursor-pointer">
                                 <option value="newest">جدیدترین قطعات</option>
                                 <option value="price-asc">ارزان‌ترین</option>
                                 <option value="price-desc">گران‌ترین</option>
                                 <option value="popular">محبوب‌ترین</option>
                             </select>
-                            <!-- آیکون فلش با فاصله تنظیم شده از سمت چپ -->
-                            <i data-lucide="chevron-down"
-                                class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none w-4 h-4"></i>
+                            <!-- آیکون فلش (سمت چپ) -->
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <i data-lucide="chevron-down" class="text-gray-400 w-4 h-4"></i>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -254,15 +264,12 @@
 
             <div class="space-y-2 pt-4 border-t border-black/10 dark:border-white/10">
                 <h5 class="font-bold text-sm mb-2 opacity-90">حدود قیمت (تومان)</h5>
-
-                <!-- تنظیم ضخامت با h-2، رنگ نوار با bg-gray-200 و رنگ دایره با accent-brand-red -->
-                <input type="range" id="mobile-price-slider" min="0" max="25000000" step="500000" value="25000000"
+                <input type="range" id="mobile-price-slider" min="0" max="300000000" step="1000000" value="300000000"
                     class="w-full h-1 bg-brand-dark rounded-lg appearance-none cursor-pointer"
                     oninput="updatePriceLabel(this.value)">
-
                 <div class="flex justify-between items-center text-xs opacity-70 mt-2">
                     <span>از ۱۰۰,۰۰۰</span>
-                    <span id="mobile-price-val" class="font-bold text-sm">تا ۲۵ میلیون</span>
+                    <span id="mobile-price-val" class="font-bold text-sm">تا ۳۰۰ میلیون</span>
                 </div>
             </div>
 
@@ -297,14 +304,18 @@
                 </div>
             </div>
 
-            <!-- ۴. افزایش فاصله از پایین با اضافه کردن pb-12 -->
             <div class="pt-4 pb-12 border-t border-black/10 dark:border-white/10 flex items-center justify-between">
                 <span class="text-sm opacity-90">فقط کالاهای موجود</span>
-                <label class="relative inline-flex items-center cursor-pointer">
+                <label class="relative inline-flex items-center cursor-pointer shrink-0">
                     <input type="checkbox" id="mobile-in-stock-toggle" class="sr-only peer"
                         onchange="toggleInStock(this.checked)">
+                    <!-- پس‌زمینه سوییچ -->
                     <div
-                        class="w-11 h-6 bg-gray-300 dark:bg-brand-dark rounded-full peer peer-focus:ring-0 peer-checked:bg-brand-red after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:-translate-x-full peer-checked:after:border-white">
+                        class="w-11 h-6 bg-gray-400/50 rounded-full peer-checked:bg-brand-red transition-colors duration-300">
+                    </div>
+                    <!-- دایره سوییچ -->
+                    <div
+                        class="absolute right-[2px] top-[2px] w-5 h-5 bg-white border border-gray-200 rounded-full shadow-md transition-transform duration-300 peer-checked:-translate-x-[20px]">
                     </div>
                 </label>
             </div>
