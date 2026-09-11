@@ -114,15 +114,19 @@
                         <div class="border border-white/10 rounded-xl overflow-hidden text-sm">
                             <div class="grid grid-cols-2 bg-black/5 p-3.5 border-b border-white/5">
                                 <span class="text-gray-500">خودرو سازگار</span>
-                                <span class="text-white font-bold"><?= $modelData = $GLOBALS['car_models'][$product['model']] ?? $product['model'];
+                                <span class="text-white font-bold"><?php
+                                $modelData = $GLOBALS['car_models'][$product['model']] ?? $product['model'];
                                 $modelName = is_array($modelData) ? ($modelData['name'] ?? $product['model']) : $modelData;
-                                echo e($modelName); ?></span>
+                                echo e($modelName);
+                                ?></span>
                             </div>
                             <div class="grid grid-cols-2 p-3.5 border-b border-white/5">
                                 <span class="text-gray-500">دسته‌بندی</span>
-                                <span class="text-white"><?= $catData = $GLOBALS['part_categories'][$product['category']] ?? $product['category'];
+                                <span class="text-white"><?php
+                                $catData = $GLOBALS['part_categories'][$product['category']] ?? $product['category'];
                                 $catName = is_array($catData) ? ($catData['name'] ?? $product['category']) : $catData;
-                                echo e($catName); ?></span>
+                                echo e($catName);
+                                ?></span>
                             </div>
                             <div class="grid grid-cols-2 bg-black/5 p-3.5">
                                 <span class="text-gray-500">برند قطعه</span>
@@ -377,6 +381,14 @@
         <div id="zoom-modal-content"
             class="scale-95 transition-transform duration-300 flex items-center justify-center w-full h-full"></div>
     </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            if (typeof partsDatabase !== 'undefined') {
+                partsDatabase.push(<?= json_encode($product, JSON_UNESCAPED_UNICODE) ?>);
+            }
+        });
+    </script>
 
     <?php include 'assets/php/footer.php'; ?>
 

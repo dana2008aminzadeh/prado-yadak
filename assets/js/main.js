@@ -603,17 +603,17 @@ function trackOrder() {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'code=' + encodeURIComponent(code)
     })
-    .then(r => r.json())
-    .then(data => {
-        let colorClass = data.status === 'success' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-            (data.status === 'warning' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
-                'bg-rose-500/10 text-rose-400 border-rose-500/20');
-        resDiv.className = 'text-xs p-3 rounded-xl border transition-all duration-300 block mt-3 ' + colorClass;
-        resDiv.innerHTML = data.message;
-    }).catch(() => {
-        resDiv.className = 'text-xs p-3 rounded-xl border transition-all duration-300 block mt-3 bg-rose-500/10 text-rose-400 border-rose-500/20';
-        resDiv.innerHTML = 'خطا در ارتباط با سرور.';
-    });
+        .then(r => r.json())
+        .then(data => {
+            let colorClass = data.status === 'success' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                (data.status === 'warning' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
+                    'bg-rose-500/10 text-rose-400 border-rose-500/20');
+            resDiv.className = 'text-xs p-3 rounded-xl border transition-all duration-300 block mt-3 ' + colorClass;
+            resDiv.innerHTML = data.message;
+        }).catch(() => {
+            resDiv.className = 'text-xs p-3 rounded-xl border transition-all duration-300 block mt-3 bg-rose-500/10 text-rose-400 border-rose-500/20';
+            resDiv.innerHTML = 'خطا در ارتباط با سرور.';
+        });
 }
 
 const defaultComments = [
@@ -673,25 +673,25 @@ function submitProductComment(e) {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: `product_id=${pid}&name=${encodeURIComponent(name)}&text=${encodeURIComponent(text)}&rating=${selectedRating}`
     })
-    .then(r => r.json())
-    .then(data => {
-        msgBox.className = 'text-xs font-bold p-3 rounded-lg text-center mb-4 block ' +
-            (data.status === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20');
-        msgBox.innerHTML = data.message;
+        .then(r => r.json())
+        .then(data => {
+            msgBox.className = 'text-xs font-bold p-3 rounded-lg text-center mb-4 block ' +
+                (data.status === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20');
+            msgBox.innerHTML = data.message;
 
-        if (data.status === 'success') {
-            document.getElementById('comment-form').reset();
-            setStarRating(5);
-        }
-    })
-    .catch(() => {
-        msgBox.className = 'text-xs font-bold p-3 rounded-lg text-center mb-4 block bg-rose-500/10 text-rose-400 border border-rose-500/20';
-        msgBox.innerHTML = 'خطا در برقراری ارتباط با سرور.';
-    })
-    .finally(() => {
-        btn.disabled = false;
-        btn.innerHTML = 'ثبت و ارسال نظر';
-    });
+            if (data.status === 'success') {
+                document.getElementById('comment-form').reset();
+                setStarRating(5);
+            }
+        })
+        .catch(() => {
+            msgBox.className = 'text-xs font-bold p-3 rounded-lg text-center mb-4 block bg-rose-500/10 text-rose-400 border border-rose-500/20';
+            msgBox.innerHTML = 'خطا در برقراری ارتباط با سرور.';
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = 'ثبت و ارسال نظر';
+        });
 }
 
 function filterBlog(category) {
@@ -776,37 +776,40 @@ function switchLoginTab(tab) {
 
 function showAlert(message, type = 'danger') {
     let container = document.getElementById('toast-container');
-    
     if (!container) {
         container = document.createElement('div');
         container.id = 'toast-container';
-        container.className = 'fixed top-5 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-3 w-[90%] max-w-sm pointer-events-none';
+        // اصلاح نحوه چینش برای قرارگیری دقیق در مرکز صفحه (فارغ از جهت RTL/LTR)
+        container.className = 'fixed top-6 inset-x-0 mx-auto z-[9999] flex flex-col items-center gap-3 w-[90%] max-w-sm pointer-events-none px-4';
         document.body.appendChild(container);
     }
-    
     const toast = document.createElement('div');
-    const colorClass = type === 'danger' 
-        ? 'bg-rose-600 border border-rose-500 shadow-rose-500/30' 
+    const colorClass = type === 'danger'
+        ? 'bg-rose-600 border border-rose-500 shadow-rose-500/30'
         : 'bg-emerald-600 border border-emerald-500 shadow-emerald-500/30';
-        
-    toast.className = `p-4 rounded-2xl shadow-xl text-white text-xs text-center font-bold transform transition-all duration-300 -translate-y-10 opacity-0 ${colorClass}`;
+
+    toast.className = `pointer-events-auto p-4 rounded-2xl shadow-2xl text-white text-xs text-center font-bold transform transition-all duration-300 -translate-y-4 opacity-0 ${colorClass} w-full`;
     toast.innerHTML = message;
-    
     container.appendChild(toast);
-    
+
     requestAnimationFrame(() => {
-        toast.classList.remove('-translate-y-10', 'opacity-0');
+        toast.classList.remove('-translate-y-4', 'opacity-0');
         toast.classList.add('translate-y-0', 'opacity-100');
     });
-    
+
     setTimeout(() => {
         toast.classList.remove('translate-y-0', 'opacity-100');
-        toast.classList.add('-translate-y-10', 'opacity-0');
+        toast.classList.add('-translate-y-4', 'opacity-0');
         setTimeout(() => toast.remove(), 300);
     }, 4000);
 }
 
 function hideAlert() {
+    const alertBox = document.getElementById('alert-box');
+    if (alertBox) {
+        alertBox.classList.add('hidden');
+        alertBox.innerHTML = '';
+    }
 }
 
 function togglePasswordVisibility(inputId, btn) {
