@@ -17,7 +17,7 @@ if (!isset($current_page)) {
             <!-- ستون ۱: معرفی مجموعه -->
             <div class="md:col-span-1">
                 <a href="/index" class="flex items-center gap-3 mb-4">
-                    <img src="assets/logo/logo.webp" alt="پرادو یدک"
+                    <img src="/assets/logo/logo.webp" alt="پرادو یدک"
                         class="h-10 sm:h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-105">
                     <div>
                         <h4 class="font-bold text-white" id="footer-title">
@@ -145,7 +145,7 @@ if (!isset($current_page)) {
                         <a target='_blank'
                             href='https://trustseal.enamad.ir/?id=7637197&Code=Z0gnlYX2EU7bKlNDMfUC288y4RGBGgHR'>
                             <!-- آدرس عکس را به پوشه سایت خودتان تغییر دادیم -->
-                            <img src='assets/logo/enamad.webp' alt='نماد اعتماد الکترونیکی'
+                            <img src='/assets/logo/enamad.webp' alt='نماد اعتماد الکترونیکی'
                                 class='h-16 sm:h-20 w-auto cursor-pointer object-contain'>
                         </a>
                     </div>

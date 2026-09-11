@@ -18,10 +18,7 @@ class OrderController
             exit;
         }
 
-        $db = \Core\Database::getInstance();
-        $stmt = $db->prepare("SELECT status FROM orders WHERE tracking_code = ? LIMIT 1");
-        $stmt->execute([$code]);
-        $order = $stmt->fetch();
+        $order = \App\models\Order::findByTrackingCode($code);
 
         if ($order) {
             $statusMap = [
@@ -31,9 +28,7 @@ class OrderController
                 'cancelled' => 'لغو شده'
             ];
             $msg = $statusMap[$order['status']] ?? 'وضعیت نامشخص';
-            
             $color = $order['status'] === 'delivered' ? 'success' : ($order['status'] === 'cancelled' ? 'error' : 'warning');
-            
             echo json_encode(['status' => $color, 'message' => "وضعیت سفارش شما: " . $msg]);
         } else {
             echo json_encode(['status' => 'error', 'message' => 'سفارشی با این کد رهگیری در سیستم یافت نشد.']);

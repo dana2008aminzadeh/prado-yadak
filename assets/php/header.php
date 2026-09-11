@@ -91,7 +91,7 @@ if (!in_array($current_page, $hide_floating_buttons_on)):
 
         <!-- لوگو و برند -->
         <a href="/index" class="flex items-center gap-2.5 sm:gap-3 order-2 md:order-1">
-            <img src="assets/logo/logo.webp" alt="<?= e($settings['site_title'] ?? 'پرادو یدک') ?>"
+            <img src="/assets/logo/logo.webp" alt="<?= e($settings['site_title'] ?? 'پرادو یدک') ?>"
                 class="h-10 sm:h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-105">
             <div class="text-center md:text-right">
                 <h1 class="text-base sm:text-lg font-extrabold leading-tight">

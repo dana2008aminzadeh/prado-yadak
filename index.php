@@ -21,6 +21,12 @@ function e($string)
     return htmlspecialchars($string ?? '', ENT_QUOTES, 'UTF-8');
 }
 
+function clean_html($html)
+{
+    $allowed_tags = '<div><span><p><br><hr><h1><h2><h3><h4><h5><h6><strong><b><i><em><u><a><ul><ol><li><blockquote><code><pre>';
+    return strip_tags($html ?? '', $allowed_tags);
+}
+
 function toShamsi($dateString)
 {
     // بررسی اینکه آیا ورودی خودش تایم‌استمپ است یا رشته متنی
@@ -83,7 +89,6 @@ try {
     $GLOBALS['part_categories'] = \App\models\Category::getAll();
     $GLOBALS['car_models'] = \App\models\CarModel::getAll();
 } catch (Exception $e) {
-    // در صورت قطعی دیتابیس، می‌توان اینجا کاربر را به صفحه خطای 500 ارجاع داد
 }
 
 $router = new Router();

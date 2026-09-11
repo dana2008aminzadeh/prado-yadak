@@ -41,7 +41,7 @@
                         class="w-full bg-brand-dark rounded-2xl p-6 sm:p-8 border border-white/5 relative flex items-center justify-center cursor-zoom-in group h-64 sm:h-80 overflow-hidden">
                         <?php
                         $images = $product['images'] ?? [];
-                        $mainImage = !empty($images) ? "/image?id=" . e($images[0]) : "assets/logo/logo.webp";
+                        $mainImage = !empty($images) ? "/image?id=" . e($images[0]) : "/assets/logo/logo.webp";
                         ?>
                         <div id="main-product-inner" class="w-full h-full flex items-center justify-center">
                             <img src="<?= $mainImage ?>" alt="<?= e($product['name']) ?>"
@@ -103,7 +103,7 @@
                             <i data-lucide="file-text" style="width:18px;height:18px;"></i> بررسی تخصصی قطعه
                         </h4>
                         <p class="text-gray-300 text-sm leading-loose text-justify">
-                            <?= e($product['desc']) ?>
+                            <?= clean_html($product['desc']) ?>
                         </p>
                     </div>
 
@@ -307,14 +307,15 @@
         <?php
         function renderProductCardHTML($p)
         {
-            $img = !empty($p['images']) ? "/image?id=" . e($p['images'][0]) : "assets/logo/logo.webp";
+            $safeSlug = urlencode($p['slug']);
+            $img = !empty($p['images']) ? "/image?id=" . e($p['images'][0]) : "/assets/logo/logo.webp";
             $price = number_format($p['price']);
             $genuineBadge = $p['isGenuine'] ? '<span class="absolute top-3 right-3 bg-emerald-500/10 text-emerald-500 text-[10px] font-bold px-2 py-1 rounded border border-emerald-500/20 shadow-sm backdrop-blur-md">جنیون پارت</span>' : '';
             $stockBtn = $p['inStock']
                 ? "<button onclick=\"addToCart({$p['id']}); event.preventDefault();\" class=\"w-10 h-10 bg-brand-dark border border-white/10 hover:border-brand-red text-gray-400 hover:text-white rounded-xl flex items-center justify-center transition shrink-0\"><i data-lucide=\"shopping-cart\" style=\"width:18px;height:18px;\"></i></button>"
                 : "<span class=\"text-[10px] text-gray-500 font-bold bg-brand-dark px-2 py-2 rounded-lg border border-white/5\">ناموجود</span>";
             return "
-            <a href=\"/product?id={$p['id']}\" class=\"bg-brand-grey border border-white/5 rounded-2xl overflow-hidden group hover:border-brand-red/30 transition duration-300 flex flex-col justify-between relative shadow-sm\">
+            <a href=\"/product/{$safeSlug}\" class=\"bg-brand-grey border border-white/5 rounded-2xl overflow-hidden group hover:border-brand-red/30 transition duration-300 flex flex-col justify-between relative shadow-sm\">
                 $genuineBadge
                 <div class=\"h-48 bg-brand-dark flex items-center justify-center p-4 border-b border-white/5 relative overflow-hidden\">
                     <img src=\"$img\" alt=\"{$p['name']}\" class=\"max-w-full max-h-full object-contain group-hover:scale-110 transition duration-500 drop-shadow-lg\">
@@ -392,7 +393,7 @@
 
     <?php include 'assets/php/footer.php'; ?>
 
-    <script src="assets/js/main.js"></script>
+    <script src="/assets/js/main.js"></script>
 </body>
 
 </html>

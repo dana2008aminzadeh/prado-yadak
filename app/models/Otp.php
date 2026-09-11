@@ -26,4 +26,19 @@ class Otp
         $stmt = $db->prepare("DELETE FROM otp_codes WHERE phone = ?");
         return $stmt->execute([$phone]);
     }
+
+    public static function checkRateLimits($phone)
+    {
+        $db = Database::getInstance();
+        
+        $stmt = $db->prepare("SELECT COUNT(*) FROM otp_codes WHERE phone = ? AND expires_at > NOW()");
+        $stmt->execute([$phone]);
+        if ($stmt->fetchColumn() > 0) return 'wait_2_min';
+
+        $stmt = $db->prepare("SELECT COUNT(*) FROM otp_codes WHERE phone = ? AND expires_at > DATE_SUB(NOW(), INTERVAL 58 MINUTE)");
+        $stmt->execute([$phone]);
+        if ($stmt->fetchColumn() >= 5) return 'hourly_limit';
+
+        return 'ok';
+    }
 }

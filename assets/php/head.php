@@ -42,10 +42,15 @@ if ($uri_for_scripts === '/' || $uri_for_scripts === '/index'):
         window.dynamicCarModels = <?php echo json_encode($car_models ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
         window.dynamicPartCategories = <?php echo json_encode($part_categories ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
         window.dynamicPartsDatabase = <?php echo json_encode($parts_database ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+        window.isLoggedIn = <?= isset($_SESSION['user_id']) ? 'true' : 'false' ?>;
     </script>
     <script src="/_sdk/element_sdk.js"></script>
     <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
 <?php endif; ?>
 
-<link rel="icon" type="image/webp" href="assets/logo/logo.webp">
-<link rel="stylesheet" href="assets/css/style.css">
+<?php if (isset($schemaMarkup)): ?>
+    <?= $schemaMarkup ?>
+<?php endif; ?>
+
+<link rel="icon" type="image/webp" href="/assets/logo/logo.webp">
+<link rel="stylesheet" href="/assets/css/style.css">

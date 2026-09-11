@@ -25,28 +25,26 @@ class Router
     public function dispatch($uri)
     {
         $method = $_SERVER['REQUEST_METHOD'];
-
         $this->defineRoutes();
 
         if (array_key_exists($uri, $this->routes[$method])) {
-            $route = $this->routes[$method][$uri];
+            $this->executeRoute($this->routes[$method][$uri]);
+            return;
+        }
 
-            // === اجرای Middleware ها قبل از ورود به کنترلر ===
-            foreach ($route['middleware'] as $mw) {
-                // نام کلاس را بر اساس نام داده شده می‌سازیم (مثلا Auth یا Guest)
-                $middlewareClass = "Core\\Middleware\\" . ucfirst($mw);
-                if (class_exists($middlewareClass)) {
-                    (new $middlewareClass)->handle();
-                }
-            }
+        foreach ($this->routes[$method] as $routeUri => $route) {
+            if (strpos($routeUri, '{') !== false) {
+                $pattern = preg_replace('/\{([a-zA-Z0-9_]+)\}/', '(?P<\1>[a-zA-Z0-9_\-\x{0600}-\x{06FF}\s%]+)', $routeUri);
+                $pattern = "@^" . $pattern . "$@u";
 
-            list($controller, $action) = explode('@', $route['controller']);
-            $controllerClass = "App\\controllers\\" . $controller;
-
-            if (class_exists($controllerClass)) {
-                $controllerInstance = new $controllerClass();
-                if (method_exists($controllerInstance, $action)) {
-                    return $controllerInstance->$action();
+                if (preg_match($pattern, urldecode($uri), $matches)) {
+                    foreach ($matches as $key => $match) {
+                        if (is_string($key)) {
+                            $_GET[$key] = trim($match);
+                        }
+                    }
+                    $this->executeRoute($route);
+                    return;
                 }
             }
         }
@@ -54,13 +52,37 @@ class Router
         $this->abort();
     }
 
+    private function executeRoute($route)
+    {
+        foreach ($route['middleware'] as $mw) {
+            $middlewareClass = "Core\\Middleware\\" . ucfirst($mw);
+            if (class_exists($middlewareClass)) {
+                (new $middlewareClass)->handle();
+            }
+        }
+        list($controller, $action) = explode('@', $route['controller']);
+        $controllerClass = "App\\controllers\\" . $controller;
+        if (class_exists($controllerClass)) {
+            $controllerInstance = new $controllerClass();
+            if (method_exists($controllerInstance, $action)) {
+                return $controllerInstance->$action();
+            }
+        }
+        $this->abort();
+    }
+
     private function defineRoutes()
     {
-        // مسیرهای عمومی (بدون محدودیت)
         $this->get('/', 'HomeController@index');
         $this->get('/index', 'HomeController@index');
         $this->get('/parts', 'PartController@index');
+
+        $this->post('/api/cart/sync', 'CartController@sync');
+        $this->get('/api/cart/get', 'CartController@get');
+
+        $this->get('/product/{slug}', 'PartController@show');
         $this->get('/product', 'PartController@show');
+
         $this->get('/blog', 'BlogController@index');
         $this->get('/blog-detail', 'BlogController@show');
         $this->get('/terms', 'HomeController@terms');
@@ -73,7 +95,6 @@ class Router
         $this->post('/api/track-order', 'OrderController@trackOrder');
 
         $this->get('/login', 'AuthController@loginForm', ['guest']);
-        
         $this->get('/profile', 'UserController@profile', ['auth']);
         $this->get('/checkout', 'OrderController@checkout', ['auth']);
 

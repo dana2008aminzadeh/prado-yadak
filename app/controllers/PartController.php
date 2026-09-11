@@ -15,47 +15,44 @@ class PartController
 
     public function show()
     {
+        $slug = isset($_GET['slug']) ? $_GET['slug'] : null;
         $id = isset($_GET['id']) ? (int) $_GET['id'] : null;
-        if (!$id) {
+
+        if ($slug) {
+            $product = \App\models\Product::findBySlug($slug);
+        } elseif ($id) {
+            $product = \App\models\Product::findById($id);
+        } else {
             header("Location: /404");
             exit;
         }
-        $product = \App\models\Product::findById($id);
+
         if (!$product) {
             header("Location: /404");
             exit;
         }
 
+        $id = $product['id'];
+
         global $settings;
         $site_name = $settings['site_title'] ?? 'پرادو یدک';
         $pageTitle = $product['name'] . ' | ' . $site_name;
-        // ----------------------------------------------
 
         $similar_parts_data = \App\models\Product::search(['categories' => [$product['category']]], 1, 4);
         $similar_parts = $similar_parts_data['items'];
         $newest_parts_data = \App\models\Product::search([], 1, 4);
         $newest_parts = $newest_parts_data['items'];
 
-        $comments = [];
+        // استفاده از Model به جای نوشتن کوئری در Controller
+        $comments = \App\models\Product::getComments($id);
         $can_comment = false;
-        try {
-            $db = \Core\Database::getInstance();
-            $stmt = $db->prepare("SELECT * FROM product_comments WHERE product_id = ? AND status = 'approved' ORDER BY created_at DESC");
-            $stmt->execute([$id]);
-            $comments = $stmt->fetchAll();
-            if (isset($_SESSION['user_id'])) {
-                $stmtCheck = $db->prepare("
-                    SELECT 1 FROM orders o
-                    JOIN order_items oi ON o.id = oi.order_id
-                    WHERE o.user_id = ? AND oi.product_id = ? AND o.status = 'delivered' LIMIT 1
-                ");
-                $stmtCheck->execute([$_SESSION['user_id'], $id]);
-                if ($stmtCheck->fetch()) {
-                    $can_comment = true;
-                }
-            }
-        } catch (\Exception $e) {
+
+        if (isset($_SESSION['user_id'])) {
+            $can_comment = \App\models\Product::canUserComment($id, $_SESSION['user_id']);
         }
+
+        // دریافت خروجی اسکیما برای ارسال به فایل Header
+        $schemaMarkup = \App\models\Product::generateSchema($product, $comments);
 
         require_once VIEWS_PATH . '/product-detail.php';
     }
@@ -70,10 +67,8 @@ class PartController
             exit;
         }
 
-        $db = \Core\Database::getInstance();
-        $stmt = $db->prepare("SELECT name, is_genuine FROM products WHERE oem_code = ? LIMIT 1");
-        $stmt->execute([$code]);
-        $prod = $stmt->fetch();
+        // فراخوانی مدل
+        $prod = \App\models\Product::findByOem($code);
 
         if ($prod) {
             if ($prod['is_genuine']) {
@@ -82,7 +77,6 @@ class PartController
                 echo json_encode(['status' => 'warning', 'message' => "قطعه معتبر است: قطعه ({$prod['name']}) از برندهای وارداتی معتبر (OEM) می‌باشد."]);
             }
         } else {
-            // شرط پیش‌فرض برای تست فرمت TOY
             if (stripos($code, 'toy') !== false) {
                 echo json_encode(['status' => 'success', 'message' => "اصالت تایید شد: کد در سامانه بین‌المللی تویوتا جنیون ثبت شده است."]);
             } else {
@@ -114,24 +108,14 @@ class PartController
         }
 
         try {
-            $db = \Core\Database::getInstance();
-
-            // بررسی مجدد امنیتی در سمت بک‌اند برای جلوگیری از تقلب
-            $stmtCheck = $db->prepare("
-                SELECT 1 FROM orders o 
-                JOIN order_items oi ON o.id = oi.order_id 
-                WHERE o.user_id = ? AND oi.product_id = ? AND o.status = 'delivered' LIMIT 1
-            ");
-            $stmtCheck->execute([$_SESSION['user_id'], $product_id]);
-
-            if (!$stmtCheck->fetch()) {
+            if (!\App\models\Product::canUserComment($product_id, $_SESSION['user_id'])) {
                 echo json_encode(['status' => 'error', 'message' => 'تنها خریداران این محصول مجاز به ثبت نظر هستند.']);
                 exit;
             }
 
-            $stmt = $db->prepare("INSERT INTO product_comments (product_id, name, rating, comment_text, status) VALUES (?, ?, ?, ?, 'pending')");
-            $stmt->execute([$product_id, $name, $rating, $text]);
+            \App\models\Product::addComment($product_id, $name, $rating, $text);
             echo json_encode(['status' => 'success', 'message' => 'نظر شما با موفقیت ثبت شد و پس از تایید مدیریت نمایش داده می‌شود.']);
+
         } catch (\Exception $e) {
             echo json_encode(['status' => 'error', 'message' => 'خطا در ثبت نظر.']);
         }

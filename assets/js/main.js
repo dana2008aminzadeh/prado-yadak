@@ -155,6 +155,7 @@ let cart = JSON.parse(localStorage.getItem('toyota_cart')) || [];
 function saveAndRefreshCart() {
     localStorage.setItem('toyota_cart', JSON.stringify(cart));
     updateCartUI();
+    syncCartToServer();
 }
 
 function addToCart(id) {
@@ -230,12 +231,12 @@ function updateCartUI() {
                     <i data-lucide="x" style="width:16px;height:16px;"></i>
                 </button>
 
-                <a href="/product?id=${item.product.id}" class="w-14 h-14 bg-brand-dark rounded-lg flex items-center justify-center border border-white/10 text-brand-red flex-shrink-0 p-2 hover:scale-105 transition-transform">
+                <a href="/product/${item.product.slug}" class="w-14 h-14 bg-brand-dark rounded-lg flex items-center justify-center border border-white/10 text-brand-red flex-shrink-0 p-2 hover:scale-105 transition-transform">
                     ${renderMediaHTML(icon, "w-6 h-6")}
                 </a>
                 
                 <div class="flex-1 min-w-0 pl-6"> 
-                    <a href="/product?id=${item.product.id}" class="block transition-colors hover:opacity-80">
+                    <a href="/product/${item.product.slug}" class="block transition-colors hover:opacity-80">
                         <h5 class="text-xs font-bold text-white truncate">${item.product.name}</h5>
                     </a>
                     <p class="text-[10px] text-gray-400 mt-0.5">OEM: ${item.product.oem}</p>
@@ -263,7 +264,19 @@ function updateCartUI() {
     if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 
-// === منطق فیلتر و اسکرول بی‌نهایت کاتالوگ قطعات ===
+async function syncCartToServer() {
+    if (!window.isLoggedIn) return;
+    try {
+        await fetch('/api/cart/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ cart: cart })
+        });
+    } catch (e) {
+        console.error('Cart sync failed:', e);
+    }
+}
+
 let filterTimeout;
 
 function triggerFilter() {
@@ -317,11 +330,11 @@ function buildProductCardHTML(part) {
                     ${stockBadge}
                     ${brandBadge}
                 </div>
-                <div onclick="window.location.href='/product?id=${part.id}'" class="w-full h-40 bg-brand-dark rounded-xl flex items-center justify-center mb-4 text-brand-red relative group overflow-hidden border border-white/5 cursor-pointer">
+                <div onclick="window.location.href='/product/${part.slug}'" class="w-full h-40 bg-brand-dark rounded-xl flex items-center justify-center mb-4 text-brand-red relative group overflow-hidden border border-white/5 cursor-pointer">
                     ${renderMediaHTML(iconName, "w-12 h-12 transition transform group-hover:scale-125 duration-300")}
                     <span class="absolute bottom-2 left-2 text-[10px] text-gray-500 bg-brand-dark/80 px-2 py-0.5 rounded border border-white/10" style="direction: ltr;">OEM: ${part.oem}</span>
                 </div>
-                <h4 class="font-bold text-sm text-white leading-relaxed line-clamp-2 hover:text-brand-red cursor-pointer transition" onclick="window.location.href='/product?id=${part.id}'">${part.name}</h4>
+                <h4 class="font-bold text-sm text-white leading-relaxed line-clamp-2 hover:text-brand-red cursor-pointer transition" onclick="window.location.href='/product/${part.slug}'">${part.name}</h4>
                 <p class="text-xs text-gray-400 mt-2 flex items-center gap-1.5">
                     <i data-lucide="car" style="width:13px;height:13px;"></i>
                     سازگار با: ${carModelName ? carModelName.split(' ')[0] : ''}
@@ -919,6 +932,8 @@ async function handleLoginPassword(event) {
 
         if (response.ok) {
             showAlert('✔ ورود با موفقیت انجام شد.', 'success');
+            window.isLoggedIn = true;
+            await syncCartToServer();
             setTimeout(() => { window.location.href = result.redirect || '/profile'; }, 1500);
         } else {
             showAlert('❌ ' + result.error);
@@ -1020,7 +1035,9 @@ async function handleVerifyOtp(event) {
 
         if (response.ok) {
             showAlert('✔ ' + result.message, 'success');
-            setTimeout(() => {
+            setTimeout(async () => {
+                window.isLoggedIn = true;
+                await syncCartToServer();
                 window.location.href = result.redirect || (isNewUser ? '/parts' : '/profile');
             }, 1500);
         } else {
@@ -1250,6 +1267,25 @@ document.addEventListener("DOMContentLoaded", function () {
     initScrollReveal();
     initElementSdk();
     updateCartUI();
+
+    if (window.isLoggedIn) {
+        fetch('/api/cart/get')
+            .then(r => r.json())
+            .then(data => {
+                let localCart = JSON.parse(localStorage.getItem('toyota_cart')) || [];
+                // اگر لوکال خالی بود ولی در دیتابیس محصول داشتیم، محصولات دیتابیس را در لوکال لود میکنیم
+                if (localCart.length === 0 && data.cart && data.cart.length > 0) {
+                    cart = data.cart;
+                    localStorage.setItem('toyota_cart', JSON.stringify(cart));
+                } else if (localCart.length > 0) {
+                    // اگر در مرورگر محصول داشتیم، آن را به دیتابیس میفرستیم تا آپدیت شود
+                    syncCartToServer();
+                }
+                updateCartUI();
+            });
+    } else {
+        updateCartUI();
+    }
 
     if (document.getElementById('parts-grid')) {
         setupInfiniteScroll();
