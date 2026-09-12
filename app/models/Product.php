@@ -193,26 +193,38 @@ class Product
 
     public static function generateSchema($product, $comments)
     {
-        $hostUrl = "https://" . $_SERVER['HTTP_HOST'];
+        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
+        $host = $_SERVER['HTTP_HOST'] ?? 'pradoyadak.com';
+        $hostUrl = $protocol . "://" . $host;
         $productUrl = $hostUrl . "/product/" . urlencode($product['slug']);
+
+        // اگر محصول تصویری نداشت، آدرس کامل لوگوی پیش‌فرض ست می‌شود تا خطای بحرانی اسکیمای گوگل برطرف شود
+        $images = [];
+        if (!empty($product['images']) && is_array($product['images'])) {
+            foreach ($product['images'] as $img) {
+                $images[] = $hostUrl . "/image?id=" . urlencode($img);
+            }
+        } else {
+            $images[] = $hostUrl . "/assets/logo/logo.webp";
+        }
 
         $schemaAvgRating = 5.0;
         $schemaCommentCount = count($comments ?? []);
         if ($schemaCommentCount > 0) {
             $schemaSum = 0;
             foreach ($comments as $c) {
-                $schemaSum += $c['rating'];
+                $schemaSum += (float) ($c['rating'] ?? 5);
             }
             $schemaAvgRating = round($schemaSum / $schemaCommentCount, 1);
         }
 
         $schemaProduct = [
-            "@context" => "https://schema.org/",
+            "@context" => "https://schema.org",
             "@type" => "Product",
             "name" => $product['name'],
-            "image" => !empty($product['images']) ? [$hostUrl . "/image?id=" . $product['images'][0]] : [],
-            "description" => strip_tags($product['desc']),
-            "sku" => current(array_filter([$product['oem'], $product['id']])),
+            "image" => $images,
+            "description" => strip_tags($product['desc'] ?? ''),
+            "sku" => (string) (!empty($product['oem']) ? $product['oem'] : $product['id']),
             "brand" => [
                 "@type" => "Brand",
                 "name" => !empty($product['brand']) ? $product['brand'] : 'تویوتا'
@@ -221,8 +233,8 @@ class Product
                 "@type" => "Offer",
                 "url" => $productUrl,
                 "priceCurrency" => "IRR",
-                "price" => (float) $product['price'] * 10,
-                "availability" => $product['inStock'] ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+                "price" => (float) ($product['price'] ?? 0) * 10,
+                "availability" => !empty($product['inStock']) ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
                 "itemCondition" => "https://schema.org/NewCondition"
             ]
         ];

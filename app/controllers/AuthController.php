@@ -44,22 +44,24 @@ class AuthController extends Controller
         $phone = trim($input['phone'] ?? '');
         $password = $input['password'] ?? '';
 
-        $attempt_key = 'login_attempts_' . $phone;
-        $lockout_key = 'login_lockout_' . $phone;
+        $ip = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+        if (strpos($ip, ',') !== false) {
+            $ip = trim(explode(',', $ip)[0]);
+        }
 
-        if (isset($_SESSION[$lockout_key]) && time() < $_SESSION[$lockout_key]) {
-            $remaining = ceil(($_SESSION[$lockout_key] - time()) / 60);
+        // ۱. بررسی قفل بودن حساب در سطح دیتابیس (غیرقابل دور زدن با تغییر سشن)
+        $lockStatus = User::checkLoginAttempts($phone, $ip);
+        if ($lockStatus['locked']) {
             http_response_code(429);
-            echo json_encode(['error' => "حساب شما موقتاً مسدود شده است. لطفاً $remaining دقیقه دیگر مجدداً تلاش کنید."]);
+            echo json_encode(['error' => "به دلیل تلاش‌های ناموفق، حساب شما مسدود شده است. لطفاً {$lockStatus['minutes']} دقیقه دیگر تلاش کنید."]);
             exit;
         }
 
-        // استفاده از مدل User
         $user = User::findByPhone($phone);
 
+        // ۲. تایید کلمه عبور
         if ($user && password_verify($password, $user['password_hash'])) {
-            unset($_SESSION[$attempt_key]);
-            unset($_SESSION[$lockout_key]);
+            User::clearLoginAttempts($phone);
 
             session_regenerate_id(true);
             $_SESSION['user_id'] = $user['id'];
@@ -71,18 +73,19 @@ class AuthController extends Controller
 
             echo json_encode(['message' => 'ورود با موفقیت انجام شد.', 'redirect' => $redirectUrl]);
         } else {
-            $_SESSION[$attempt_key] = ($_SESSION[$attempt_key] ?? 0) + 1;
+            User::recordFailedLogin($phone, $ip);
+            $currentAttempts = $lockStatus['attempts'] + 1;
+            $rem = 5 - $currentAttempts;
 
-            if ($_SESSION[$attempt_key] >= 5) {
-                $_SESSION[$lockout_key] = time() + (15 * 60);
+            if ($rem <= 0) {
                 http_response_code(429);
-                echo json_encode(['error' => 'تعداد تلاش‌های ناموفق بیش از حد مجاز است. لطفاً ۱۵ دقیقه دیگر تلاش کنید.']);
+                echo json_encode(['error' => 'تعداد تلاش‌های ناموفق بیش از حد مجاز است. حساب شما به مدت ۱۵ دقیقه مسدود شد.']);
             } else {
-                $rem = 5 - $_SESSION[$attempt_key];
                 http_response_code(401);
                 echo json_encode(['error' => "رمز عبور اشتباه است. ($rem تلاش باقیمانده)"]);
             }
         }
+        exit;
     }
 
     private function sendSmsIr($mobile, $code)
@@ -121,7 +124,7 @@ class AuthController extends Controller
             exit;
         }
 
-        $otp_code = rand(10000, 99999);
+        $otp_code = random_int(10000, 99999);
 
         // ساخت کد تایید با مدل
         Otp::create($phone, $otp_code);

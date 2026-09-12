@@ -158,8 +158,20 @@ function saveAndRefreshCart() {
     syncCartToServer();
 }
 
-function addToCart(id) {
-    const part = partsDatabase.find(p => p.id === id);
+async function addToCart(id) {
+    let part = partsDatabase.find(p => p.id === id);
+
+    if (!part) {
+        try {
+            const res = await fetch(`/api/product?id=${id}`);
+            if (res.ok) {
+                part = await res.json();
+                partsDatabase.push(part);
+            }
+        } catch (e) {
+            console.error('Fetch product failed:', e);
+        }
+    }
     if (!part) return;
 
     const existingItem = cart.find(item => item.product.id === id);
@@ -269,7 +281,10 @@ async function syncCartToServer() {
     try {
         await fetch('/api/cart/sync', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-Token': getCsrfToken()
+            },
             body: JSON.stringify({ cart: cart })
         });
     } catch (e) {
@@ -613,7 +628,10 @@ function trackOrder() {
 
     fetch('/api/track-order', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRF-Token': getCsrfToken()
+        },
         body: 'code=' + encodeURIComponent(code)
     })
         .then(r => r.json())
@@ -683,8 +701,11 @@ function submitProductComment(e) {
 
     fetch('/api/submit-comment', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `product_id=${pid}&name=${encodeURIComponent(name)}&text=${encodeURIComponent(text)}&rating=${selectedRating}`
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRF-Token': getCsrfToken()
+        },
+        body: `product_id=${pid}&name=${encodeURIComponent(name)}&text=${encodeURIComponent(text)}&rating=${selectedRating}&csrf_token=${encodeURIComponent(getCsrfToken())}`
     })
         .then(r => r.json())
         .then(data => {
@@ -1290,6 +1311,42 @@ document.addEventListener("DOMContentLoaded", function () {
     if (document.getElementById('parts-grid')) {
         setupInfiniteScroll();
         initFilters();
-        applyFilters(1);
+
+        if (window.serverInitialProducts && window.serverInitialProducts.length > 0) {
+            partsDatabase = window.serverInitialProducts;
+            currentPage = window.serverCurrentPage || 1;
+            hasMorePages = partsDatabase.length < window.serverTotalCount;
+            isInitialLoaded = true;
+        } else {
+            applyFilters(1);
+        }
+    }
+
+    const gridEl = document.getElementById('parts-grid');
+    if (gridEl) {
+        initFilters();
+
+        const isSSR = gridEl.getAttribute('data-has-ssr') === 'true';
+        const initialPage = parseInt(gridEl.getAttribute('data-page')) || 1;
+        const totalItems = parseInt(gridEl.getAttribute('data-total')) || 0;
+
+        const ssrDataEl = document.getElementById('ssr-parts-data');
+        if (ssrDataEl) {
+            try {
+                partsDatabase = JSON.parse(ssrDataEl.textContent) || [];
+            } catch (e) {
+                partsDatabase = [];
+            }
+        }
+
+        if (isSSR && partsDatabase.length > 0) {
+            currentPage = initialPage;
+            hasMorePages = partsDatabase.length < totalItems;
+            isInitialLoaded = true;
+            setupInfiniteScroll();
+        } else {
+            setupInfiniteScroll();
+            applyFilters(1);
+        }
     }
 });

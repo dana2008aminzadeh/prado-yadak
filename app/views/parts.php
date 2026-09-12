@@ -169,17 +169,119 @@
 
                 <!-- تعداد نتایج یافت‌شده -->
                 <div class="flex justify-between items-center text-xs text-gray-400 px-1">
-                    <span id="results-count">در حال بارگذاری...</span>
+                    <h1 class="text-sm font-bold text-white" id="results-count">
+                        <?= !empty($products) ? "یافت شده: {$totalCount} قطعه" : "در حال بارگذاری..." ?>
+                    </h1>
                     <span>ضمانت تطابق قطعه با شماره شاسی خودرو (VIN)</span>
                 </div>
 
-                <!-- گرید نمایش قطعات (فقط یک بار) -->
-                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="parts-grid">
-                    <!-- کارت‌های محصولات به صورت پویا با جاوااسکریپت تزریق می‌شوند -->
+                <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="parts-grid"
+                    data-total="<?= (int) ($totalCount ?? 0) ?>" data-page="<?= (int) ($page ?? 1) ?>"
+                    data-has-ssr="<?= !empty($products) ? 'true' : 'false' ?>">
+                    <?php if (!empty($products)): ?>
+                        <?php foreach ($products as $part): ?>
+                            <?php
+                            $carModelName = $GLOBALS['car_models'][$part['model']]['name'] ?? $part['model'];
+                            $imgSrc = !empty($part['images']) ? "/image?id=" . e($part['images'][0]) : "/assets/logo/logo.webp";
+                            ?>
+                            <div
+                                class="bg-brand-grey border border-white/5 hover:border-brand-red/30 p-5 rounded-2xl flex flex-col justify-between transition duration-300 hover:shadow-[0_10px_35px_rgba(225,6,0,0.12)]">
+                                <div>
+                                    <div class="flex items-center justify-between mb-4">
+                                        <?php if ($part['inStock']): ?>
+                                            <span
+                                                class="bg-emerald-500/10 text-emerald-400 text-[10px] px-2 py-1 rounded-md font-bold border border-emerald-500/20">موجود
+                                                در انبار</span>
+                                        <?php else: ?>
+                                            <span
+                                                class="bg-rose-500/10 text-rose-400 text-[10px] px-2 py-1 rounded-md font-bold border border-rose-500/20">ناموجود</span>
+                                        <?php endif; ?>
+
+                                        <?php if ($part['isGenuine']): ?>
+                                            <span
+                                                class="bg-brand-red/10 text-brand-red text-[10px] px-2 py-1 rounded-md font-bold border border-brand-red/20">اصلی
+                                                Genuine</span>
+                                        <?php else: ?>
+                                            <span
+                                                class="bg-gray-400/10 text-gray-300 text-[10px] px-2 py-1 rounded-md font-bold border border-gray-400/20">وارداتی
+                                                OEM</span>
+                                        <?php endif; ?>
+                                    </div>
+
+                                    <a href="/product/<?= urlencode($part['slug']) ?>"
+                                        class="w-full h-40 bg-brand-dark rounded-xl flex items-center justify-center mb-4 text-brand-red relative group overflow-hidden border border-white/5 cursor-pointer block">
+                                        <img src="<?= $imgSrc ?>" alt="<?= e($part['name']) ?>" loading="lazy"
+                                            class="max-w-full max-h-full object-contain transition transform group-hover:scale-110 duration-300">
+                                        <span
+                                            class="absolute bottom-2 left-2 text-[10px] text-gray-500 bg-brand-dark/80 px-2 py-0.5 rounded border border-white/10"
+                                            dir="ltr">OEM: <?= e($part['oem']) ?></span>
+                                    </a>
+
+                                    <a href="/product/<?= urlencode($part['slug']) ?>" class="block">
+                                        <h2
+                                            class="font-bold text-sm text-white leading-relaxed line-clamp-2 hover:text-brand-red transition">
+                                            <?= e($part['name']) ?>
+                                        </h2>
+                                    </a>
+
+                                    <p class="text-xs text-gray-400 mt-2 flex items-center gap-1.5">
+                                        <i data-lucide="car" style="width:13px;height:13px;"></i>
+                                        سازگار با: <?= e($carModelName) ?>
+                                    </p>
+                                </div>
+
+                                <div class="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
+                                    <div>
+                                        <span class="text-[10px] text-gray-500 block mb-0.5">قیمت مصرف‌کننده:</span>
+                                        <span class="font-black text-sm text-brand-red"><?= number_format($part['price']) ?>
+                                            تومان</span>
+                                    </div>
+                                    <button <?= $part['inStock'] ? 'onclick="addToCart(' . $part['id'] . ')"' : 'disabled' ?>
+                                        class="p-2.5 rounded-xl transition <?= $part['inStock'] ? 'bg-brand-red hover:bg-red-700 text-white shadow-[0_4px_15px_rgba(225,6,0,0.2)]' : 'bg-white/5 text-gray-500 cursor-not-allowed' ?>">
+                                        <i data-lucide="shopping-cart" style="width:18px;height:18px;"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </div>
 
-                <!-- نشانگر نامرئی اسکرول بی‌نهایت -->
                 <div id="scroll-sentinel" class="w-full h-8"></div>
+
+                <?php if ($totalPages > 1): ?>
+                    <nav aria-label="صفحات محصولات"
+                        class="flex justify-center items-center gap-2 py-8 my-4 border-t border-white/5">
+                        <?php
+                        $queryParams = $_GET;
+                        $prevPage = $page > 1 ? $page - 1 : null;
+                        $nextPage = $page < $totalPages ? $page + 1 : null;
+                        ?>
+
+                        <?php if ($prevPage): ?>
+                            <?php $queryParams['page'] = $prevPage; ?>
+                            <a href="/parts?<?= http_build_query($queryParams) ?>"
+                                class="px-4 py-2 bg-brand-dark border border-white/10 hover:border-brand-red rounded-xl text-xs font-bold text-gray-300 hover:text-white transition">صفحه
+                                قبل</a>
+                        <?php endif; ?>
+
+                        <div class="flex gap-1">
+                            <?php for ($p = max(1, $page - 2); $p <= min($totalPages, $page + 2); $p++): ?>
+                                <?php $queryParams['page'] = $p; ?>
+                                <a href="/parts?<?= http_build_query($queryParams) ?>"
+                                    class="w-9 h-9 flex items-center justify-center rounded-xl text-xs font-bold transition <?= $p === $page ? 'bg-brand-red text-white' : 'bg-brand-dark border border-white/10 text-gray-400 hover:text-white' ?>">
+                                    <?= $p ?>
+                                </a>
+                            <?php endfor; ?>
+                        </div>
+
+                        <?php if ($nextPage): ?>
+                            <?php $queryParams['page'] = $nextPage; ?>
+                            <a href="/parts?<?= http_build_query($queryParams) ?>"
+                                class="px-4 py-2 bg-brand-dark border border-white/10 hover:border-brand-red rounded-xl text-xs font-bold text-gray-300 hover:text-white transition">صفحه
+                                بعد</a>
+                        <?php endif; ?>
+                    </nav>
+                <?php endif; ?>
 
                 <!-- لودینگ چرخان انتهای صفحه -->
                 <div id="infinite-loader" class="hidden w-full py-8 flex flex-col items-center justify-center gap-3">
@@ -352,8 +454,11 @@
     </div>
 
     <?php include 'assets/php/footer.php'; ?>
-
+    <script type="application/json" id="ssr-parts-data">
+    <?= json_encode($products ?? [], JSON_UNESCAPED_UNICODE) ?>
+    </script>
     <script src="assets/js/main.js"></script>
+
 
 </body>
 

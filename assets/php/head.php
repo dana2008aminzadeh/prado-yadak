@@ -2,90 +2,131 @@
 global $settings;
 $site_name = $settings['site_title'] ?? 'پرادو یدک';
 
-$hostUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://" . $_SERVER['HTTP_HOST'];
+$protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
+$host = $_SERVER['HTTP_HOST'] ?? 'pradoyadak.com';
+$hostUrl = $protocol . "://" . $host;
+
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 if ($uri !== '/' && substr($uri, -1) === '/') {
     $uri = rtrim($uri, '/');
 }
 
+// ۱. مدیریت عنوان صفحات (Title)
 if (!isset($pageTitle)) {
     $defaultTitles = [
-        '/' => $site_name,
-        '/index' => $site_name,
-        '/blog' => 'وبلاگ و راهنمای فنی تویوتا | ' . $site_name,
-        '/login' => 'ورود / ثبت‌نام | ' . $site_name,
-        '/profile' => 'پنل کاربری و پروفایل | ' . $site_name,
-        '/terms' => 'قوانین، مقررات و ضمانت اصالت | ' . $site_name,
-        '/checkout' => 'تسویه حساب | ' . $site_name,
-        '/404' => 'صفحه پیدا نشد | ' . $site_name
+        '/' => $site_name . ' | مرجع تخصصی قطعات اصلی تویوتا و لکسوس',
+        '/index' => $site_name . ' | مرجع تخصصی قطعات اصلی تویوتا و لکسوس',
+        '/blog' => 'وبلاگ و دانشنامه فنی تویوتا | ' . $site_name,
+        '/login' => 'ورود و ثبت‌نام | ' . $site_name,
+        '/profile' => 'پنل کاربری | ' . $site_name,
+        '/terms' => 'قوانین و ضمانت اصالت کالا | ' . $site_name,
+        '/checkout' => 'تسویه حساب و پرداخت | ' . $site_name,
+        '/404' => 'صفحه مورد نظر یافت نشد | ' . $site_name
     ];
 
     if ($uri === '/parts') {
-        $partsTitle = 'جستجو و خرید قطعات تویوتا';
+        $partsTitle = 'کاتالوگ و قیمت قطعات یدکی تویوتا';
 
         if (!empty($_GET['category']) && isset($GLOBALS['part_categories'][$_GET['category']])) {
             $catData = $GLOBALS['part_categories'][$_GET['category']];
             $catName = is_array($catData) ? ($catData['name'] ?? '') : $catData;
-            $partsTitle = 'خرید ' . $catName . ' تویوتا';
+            $partsTitle = 'خرید قطعات ' . $catName . ' تویوتا';
         } elseif (!empty($_GET['model']) && isset($GLOBALS['car_models'][$_GET['model']])) {
             $modData = $GLOBALS['car_models'][$_GET['model']];
             $modName = is_array($modData) ? ($modData['name'] ?? '') : $modData;
-            $partsTitle = 'خرید قطعات ' . $modName;
+            $partsTitle = 'خرید قطعات تویوتا ' . $modName;
         }
 
         $pageTitle = $partsTitle . ' | ' . $site_name;
     } else {
-        $pageTitle = $defaultTitles[$uri] ?? $site_name;
+        $pageTitle = $defaultTitles[$uri] ?? ($site_name . ' | قطعات یدکی تویوتا');
     }
 }
 
-$canonicalUrl = $hostUrl . ($uri === '/index' ? '/' : $uri);
+// ۲. متای توضیحات (Meta Description)
+$defaultDesc = 'فروشگاه تخصصی پرادو یدک؛ تامین قطعات اصلی جنیون پارت تویوتا و لکسوس با ضمانت ۱۰۰٪ اصالت، تطابق با شماره شاسی (VIN) و ارسال سریع به سراسر کشور.';
+$finalMetaDesc = $metaDescription ?? $defaultDesc;
 
+// ۳. تولید آدرس کانونیکال (حفظ دسته‌بندی، مدل و صفحه برای پیجینیشن)
+$canonicalUrl = $hostUrl . ($uri === '/index' ? '/' : $uri);
 if ($uri === '/parts') {
     $canonicalParams = [];
     if (!empty($_GET['category']))
         $canonicalParams['category'] = $_GET['category'];
     if (!empty($_GET['model']))
         $canonicalParams['model'] = $_GET['model'];
+    if (!empty($_GET['page']) && (int) $_GET['page'] > 1)
+        $canonicalParams['page'] = (int) $_GET['page'];
 
     if (!empty($canonicalParams)) {
         $canonicalUrl .= '?' . http_build_query($canonicalParams);
     }
 }
 
-$defaultDesc = 'پرادو یدک، تامین‌کننده تخصصی قطعات جنیون و اصلی تویوتا و لکسوس با ضمانت ۱۰۰٪ اصالت کالا و ارسال سریع به سراسر ایران.';
-$finalMetaDesc = $metaDescription ?? $defaultDesc;
+// ۴. مدیریت ربات‌ها (جلوگیری از ایندکس فیلترهای تکراری و صفحات خصوصی)
+$noindexParams = ['sort', 'maxPrice', 'q', 'inStock'];
+$shouldNoIndex = false;
+
+foreach ($noindexParams as $param) {
+    if (isset($_GET[$param]) && trim((string) $_GET[$param]) !== '') {
+        $shouldNoIndex = true;
+        break;
+    }
+}
+
+if (in_array($uri, ['/404', '/checkout', '/profile', '/login'])) {
+    $shouldNoIndex = true;
+}
+
+$robotsMeta = $shouldNoIndex ? 'noindex, follow' : 'index, follow';
+
+// ۵. تصویر و نوع صفحه برای شبکه‌های اجتماعی (Open Graph)
+$ogImage = $pageImage ?? ($hostUrl . '/assets/logo/logo.webp');
+$ogType = (str_starts_with($uri, '/product') || $uri === '/product') ? 'product' : 'website';
 ?>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="csrf-token" content="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="theme-color" content="#251E1B">
 
-<title><?php echo e($pageTitle); ?></title>
-<meta name="description" content="<?php echo e($finalMetaDesc); ?>">
-<link rel="canonical" href="<?php echo e($canonicalUrl); ?>" />
+<meta name="csrf-token" content="<?= $_SESSION['csrf_token'] ?? ''; ?>">
+<meta name="robots" content="<?= $robotsMeta; ?>">
 
-<script src="https://unpkg.com/lucide@latest"></script>
-<script src="https://cdn.tailwindcss.com"></script>
+<title><?= e($pageTitle); ?></title>
+<meta name="description" content="<?= e($finalMetaDesc); ?>">
+<link rel="canonical" href="<?= e($canonicalUrl); ?>">
 
-<?php
-$uri_for_scripts = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-if ($uri_for_scripts === '/' || $uri_for_scripts === '/index'):
-    global $car_models, $part_categories, $parts_database;
-    ?>
-    <script>
-        window.dynamicSettings = <?php echo json_encode($settings ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
-        window.dynamicCarModels = <?php echo json_encode($car_models ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
-        window.dynamicPartCategories = <?php echo json_encode($part_categories ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
-        window.dynamicPartsDatabase = <?php echo json_encode($parts_database ?? [], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
-        window.isLoggedIn = <?= isset($_SESSION['user_id']) ? 'true' : 'false' ?>;
-    </script>
-    <script src="/_sdk/element_sdk.js"></script>
-    <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
-<?php endif; ?>
+<!-- متاتگ‌های شبکه‌های اجتماعی و پیام‌رسان‌ها (Open Graph & Twitter Cards) -->
+<meta property="og:site_name" content="<?= e($site_name); ?>">
+<meta property="og:title" content="<?= e($pageTitle); ?>">
+<meta property="og:description" content="<?= e($finalMetaDesc); ?>">
+<meta property="og:url" content="<?= e($canonicalUrl); ?>">
+<meta property="og:type" content="<?= $ogType; ?>">
+<meta property="og:locale" content="fa_IR">
+<meta property="og:image" content="<?= e($ogImage); ?>">
+<meta property="og:image:alt" content="<?= e($pageTitle); ?>">
 
-<?php if (isset($schemaMarkup)): ?>
-    <?= $schemaMarkup ?>
-<?php endif; ?>
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="<?= e($pageTitle); ?>">
+<meta name="twitter:description" content="<?= e($finalMetaDesc); ?>">
+<meta name="twitter:image" content="<?= e($ogImage); ?>">
 
+<!-- آیکون‌ها -->
 <link rel="icon" type="image/webp" href="/assets/logo/logo.webp">
+<link rel="apple-touch-icon" href="/assets/logo/logo.webp">
+
+<!-- فایل استایل اصلی کامپایل‌شده -->
 <link rel="stylesheet" href="/assets/css/style.css">
+
+<!-- متغیرهای پایه سمت کلاینت برای جاوااسکریپت -->
+<script>
+    window.isLoggedIn = <?= isset($_SESSION['user_id']) ? 'true' : 'false'; ?>;
+</script>
+
+<!-- آیکون‌های Lucide -->
+<script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js" defer></script>
+
+<!-- کدهای اسکیما (در صورت وجود در کنترلر) -->
+<?php if (isset($schemaMarkup)): ?>
+    <?= $schemaMarkup; ?>
+<?php endif; ?>

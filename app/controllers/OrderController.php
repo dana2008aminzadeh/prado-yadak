@@ -1,7 +1,7 @@
 <?php
 namespace App\controllers;
 
-class OrderController
+class OrderController extends Controller
 {
     public function checkout()
     {
@@ -11,7 +11,7 @@ class OrderController
     public function trackOrder()
     {
         header('Content-Type: application/json; charset=utf-8');
-        $code = $_POST['code'] ?? '';
+        $code = trim($_POST['code'] ?? '');
 
         if (empty($code)) {
             echo json_encode(['status' => 'error', 'message' => 'کد رهگیری را وارد کنید.']);

@@ -7,9 +7,32 @@ class PartController extends Controller
 {
     public function index()
     {
-        $brands = \App\models\Product::getDistinctBrands();
+        $toArray = function ($input) {
+            if (empty($input))
+                return [];
+            return is_array($input) ? $input : explode(',', $input);
+        };
 
-        // نمایش لیست قطعات
+        $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+        $perPage = 20;
+
+        $filters = [
+            'q' => trim($_GET['q'] ?? ''),
+            'categories' => $toArray($_GET['category'] ?? []),
+            'models' => $toArray($_GET['model'] ?? []),
+            'brands' => $toArray($_GET['brand'] ?? []),
+            'maxPrice' => isset($_GET['maxPrice']) ? (float) $_GET['maxPrice'] : null,
+            'inStock' => $_GET['inStock'] ?? '',
+            'sort' => $_GET['sort'] ?? 'newest'
+        ];
+
+        $data = Product::search($filters, $page, $perPage);
+        $products = $data['items'];
+        $totalCount = (int) $data['total'];
+        $totalPages = (int) ceil($totalCount / $perPage);
+
+        $brands = Product::getDistinctBrands();
+
         require_once VIEWS_PATH . '/parts.php';
     }
 
