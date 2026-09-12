@@ -6,18 +6,25 @@
 </head>
 
 <body class="bg-brand-dark text-white overflow-x-hidden antialiased">
-
     <?php include 'assets/php/header.php'; ?>
+
+    <?php
+    global $settings;
+    $siteTitle = $settings['site_title'] ?? 'پرادو یدک';
+    $phone = $settings['phone_number'] ?? '09189998852';
+    $whatsapp = $settings['whatsapp_link'] ?? ('https://wa.me/98' . ltrim($phone, '0'));
+    ?>
 
     <!-- بدنه اصلی قوانین و ضمانت اصالت -->
     <main class="max-w-6xl mx-auto px-4 py-8 space-y-12">
 
         <!-- مسیر دسترسی (Breadcrumb) -->
-        <div class="flex items-center gap-2 text-xs text-gray-400 overflow-x-auto whitespace-nowrap pb-1">
+        <nav aria-label="مسیر ناوبری"
+            class="flex items-center gap-2 text-xs text-gray-400 overflow-x-auto whitespace-nowrap pb-1">
             <a href="/" class="hover:text-white transition">صفحه اصلی</a>
             <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
             <span class="text-brand-red font-bold">قوانین، مقررات و ضمانت اصالت کالا</span>
-        </div>
+        </nav>
 
         <!-- هیرو بخش قوانین -->
         <div class="text-center space-y-4 py-6">
@@ -26,25 +33,26 @@
                 <span class="w-2 h-2 rounded-full bg-[#8b533a] animate-pulse"></span>
                 <span>شفافیت کامل در خرید و خدمات پس از فروش</span>
             </div>
-            <h2 class="text-2xl sm:text-4xl font-black text-white leading-tight">
+            <h1 class="text-2xl sm:text-4xl font-black text-white leading-tight">
                 قوانین، شرایط بازگشت کالا و ضمانت اصالت
-            </h2>
+            </h1>
             <div class="w-20 h-1 bg-[#8b533a] mx-auto rounded-full"></div>
             <p class="text-gray-300 text-xs sm:text-sm max-w-2xl mx-auto leading-relaxed">
-                در مجموعه پرادو یدک، حفظ اعتماد شما و ارائه‌ی لوازم یدکی ۱۰۰٪ اصلی (Genuine Parts) اولویت اول ماست. کلیه
+                در مجموعه <?= e($siteTitle) ?>، حفظ اعتماد شما و ارائه‌ی لوازم یدکی ۱۰۰٪ اصلی (Genuine Parts) اولویت اول
+                ماست. کلیه
                 شرایط تعویض، مرجوعی، تطابق شاسی و استرداد وجه با شفافیت کامل در این صفحه تنظیم شده است.
             </p>
         </div>
 
-        <!-- کارت‌های ویژگی‌های کلیدی ضمانت (اصلاح رنگ به قهوه ای) -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <!-- کارت‌های ویژگی‌های کلیدی ضمانت -->
+        <section aria-label="ویژگی‌های کلیدی ضمانت" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <div
                 class="bg-brand-grey border border-white/10 rounded-2xl p-6 text-center space-y-3 hover:border-[#8b533a]/40 transition group">
                 <div
-                    class="w-14 h-14 bg-[#8b533a]/10 border border-[#8b533a]/20 rounded-2xl flex items-center justify-center mx-auto  group-hover:scale-110 transition-transform">
+                    class="w-14 h-14 bg-[#8b533a]/10 border border-[#8b533a]/20 rounded-2xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
                     <i data-lucide="shield-check" class="w-7 h-7"></i>
                 </div>
-                <h3 class="font-bold text-sm text-white">ضمانت ۱۰۰٪ اصالت</h3>
+                <h2 class="font-bold text-sm text-white">ضمانت ۱۰۰٪ اصالت</h2>
                 <p class="text-xs text-gray-400 leading-relaxed">تضمین کتبی اصلی بودن کلیه قطعات جنیون پارتس و برندهای
                     OEM ژاپنی</p>
             </div>
@@ -52,10 +60,10 @@
             <div
                 class="bg-brand-grey border border-white/10 rounded-2xl p-6 text-center space-y-3 hover:border-[#8b533a]/40 transition group">
                 <div
-                    class="w-14 h-14 bg-[#8b533a]/10 border border-[#8b533a]/20 rounded-2xl flex items-center justify-center mx-auto  group-hover:scale-110 transition-transform">
+                    class="w-14 h-14 bg-[#8b533a]/10 border border-[#8b533a]/20 rounded-2xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
                     <i data-lucide="refresh-cw" class="w-7 h-7"></i>
                 </div>
-                <h3 class="font-bold text-sm text-white">۷ روز مهلت بازگشت</h3>
+                <h2 class="font-bold text-sm text-white">۷ روز مهلت بازگشت</h2>
                 <p class="text-xs text-gray-400 leading-relaxed">امکان مرجوعی و تعویض قطعه در صورت عدم استفاده و حفظ
                     پلمپ اولیه</p>
             </div>
@@ -63,10 +71,10 @@
             <div
                 class="bg-brand-grey border border-white/10 rounded-2xl p-6 text-center space-y-3 hover:border-[#8b533a]/40 transition group">
                 <div
-                    class="w-14 h-14 bg-[#8b533a]/10 border border-[#8b533a]/20 rounded-2xl flex items-center justify-center mx-auto  group-hover:scale-110 transition-transform">
+                    class="w-14 h-14 bg-[#8b533a]/10 border border-[#8b533a]/20 rounded-2xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
                     <i data-lucide="file-check" class="w-7 h-7"></i>
                 </div>
-                <h3 class="font-bold text-sm text-white">تطابق با شماره شاسی (VIN)</h3>
+                <h2 class="font-bold text-sm text-white">تطابق با شماره شاسی (VIN)</h2>
                 <p class="text-xs text-gray-400 leading-relaxed">استعلام دقیق شماره فنی قطعه با کد VIN خودرو پیش از
                     ارسال برای جلوگیری از خطای خرید</p>
             </div>
@@ -74,14 +82,14 @@
             <div
                 class="bg-brand-grey border border-white/10 rounded-2xl p-6 text-center space-y-3 hover:border-[#8b533a]/40 transition group">
                 <div
-                    class="w-14 h-14 bg-[#8b533a]/10 border border-[#8b533a]/20 rounded-2xl flex items-center justify-center mx-auto  group-hover:scale-110 transition-transform">
+                    class="w-14 h-14 bg-[#8b533a]/10 border border-[#8b533a]/20 rounded-2xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
                     <i data-lucide="banknote" class="w-7 h-7"></i>
                 </div>
-                <h3 class="font-bold text-sm text-white">بازگشت سریع وجه</h3>
+                <h2 class="font-bold text-sm text-white">بازگشت سریع وجه</h2>
                 <p class="text-xs text-gray-400 leading-relaxed">استرداد کامل وجه حداکثر ظرف ۲۴ تا ۴۸ ساعت پس از تحویل و
                     تایید انبار</p>
             </div>
-        </div>
+        </section>
 
         <!-- بخش ۱: ضمانت اصالت کالا و جبران خسارت -->
         <section class="bg-brand-grey border border-white/10 rounded-2xl sm:rounded-3xl p-6 sm:p-8 space-y-6">
@@ -91,15 +99,17 @@
                     <i data-lucide="award" class="w-5 h-5"></i>
                 </div>
                 <div>
-                    <h3 class="text-lg sm:text-xl font-black text-white">۱. دستورالعمل و ضمانت اصالت قطعات (Authenticity
-                        Policy)</h3>
-                    <p class="text-xs text-gray-400 mt-0.5">اصول اصالت‌سنجی لوازم یدکی تویوتا در فروشگاه پرادو یدک</p>
+                    <h2 class="text-lg sm:text-xl font-black text-white">۱. دستورالعمل و ضمانت اصالت قطعات (Authenticity
+                        Policy)</h2>
+                    <p class="text-xs text-gray-400 mt-0.5">اصول اصالت‌سنجی لوازم یدکی تویوتا در فروشگاه
+                        <?= e($siteTitle) ?>
+                    </p>
                 </div>
             </div>
-
             <div class="space-y-4 text-xs sm:text-sm text-gray-300 leading-loose text-justify">
                 <p>
-                    مجموعه <strong class="text-white">پرادو یدک</strong> با بیش از ۱۵ سال تجربه تخصصی در تامین لوازم
+                    مجموعه <strong class="text-white"><?= e($siteTitle) ?></strong> با بیش از ۱۵ سال تجربه تخصصی در
+                    تامین لوازم
                     یدکی خودروهای تویوتا (شامل لندکروزر، پرادو، کمری، هایلوکس، کرولا و یاریس)، اصالت تمامی قطعات
                     عرضه‌شده تحت عنوان <strong class="text-brand-red">Toyota Genuine Parts</strong> و همچنین قطعات تجاری
                     OEM معتبر (مانند Genuine Parts, Aisin, KYB, Advics, RBI, TYG, FPI) را به صورت ۱۰۰٪ تضمین می‌نماید.
@@ -108,13 +118,14 @@
                 <!-- باکس تعهد خسارت -->
                 <div
                     class="bg-brand-red/10 border border-brand-red/30 rounded-2xl p-5 space-y-3 my-4 shadow-lg shadow-brand-red/5">
-                    <h4 class="font-bold text-white text-sm flex items-center gap-2">
+                    <h3 class="font-bold text-white text-sm flex items-center gap-2">
                         <i data-lucide="shield-alert" class="w-5 h-5 text-brand-red shrink-0"></i>
                         تعهد جبران خسارت در صورت اثبات غیر اصل بودن:
-                    </h4>
+                    </h3>
                     <p class="text-gray-300 text-xs leading-relaxed">
                         چنانچه خریدار پس از دریافت قطعه و بررسی توسط کارشناسان رسمی یا نمایندگی‌های معتبر، اثبات نماید
-                        قطعه‌ی فروخته‌شده تحت عنوان جنیون اصلی، غیر اصل یا تقلبی بوده است، فروشگاه پرادو یدک متعهد
+                        قطعه‌ی فروخته‌شده تحت عنوان جنیون اصلی، غیر اصل یا تقلبی بوده است، فروشگاه <?= e($siteTitle) ?>
+                        متعهد
                         می‌گردد:
                     </p>
                     <ul class="list-disc list-inside text-xs text-gray-200 space-y-4 pr-2 leading-loose">
@@ -124,7 +135,7 @@
                     </ul>
                 </div>
 
-                <h4 class="font-bold text-white text-sm pt-2">نحوه بررسی و تشخیص اصالت توسط خریدار:</h4>
+                <h3 class="font-bold text-white text-sm pt-2">نحوه بررسی و تشخیص اصالت توسط خریدار:</h3>
                 <ul class="space-y-2.5 text-xs text-gray-300">
                     <li class="flex items-start gap-2.5 bg-brand-dark/40 p-3 rounded-xl border border-white/5">
                         <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5"></i>
@@ -134,7 +145,8 @@
                     <li class="flex items-start gap-2.5 bg-brand-dark/40 p-3 rounded-xl border border-white/5">
                         <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5"></i>
                         <span><strong class="text-white">استعلام هوشمند آنلاین:</strong> شما می‌توانید کد پارت نامبر
-                            (OEM) درج‌شده روی جعبه را در سامانه اصالت‌سنجی سایت پرادو یدک استعلام نمایید.</span>
+                            (OEM) درج‌شده روی جعبه را در سامانه اصالت‌سنجی سایت <?= e($siteTitle) ?> استعلام
+                            نمایید.</span>
                     </li>
                     <li class="flex items-start gap-2.5 bg-brand-dark/40 p-3 rounded-xl border border-white/5">
                         <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-500 shrink-0 mt-0.5"></i>
@@ -153,20 +165,19 @@
                     <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
                 </div>
                 <div>
-                    <h3 class="text-lg sm:text-xl font-black text-white">۲. شرایط و قوانین ۷ روز مهلت بازگشت و تعویض
-                        کالا</h3>
+                    <h2 class="text-lg sm:text-xl font-black text-white">۲. شرایط و قوانین ۷ روز مهلت بازگشت و تعویض
+                        کالا</h2>
                     <p class="text-xs text-gray-400 mt-0.5">ضوابط مرجوعی قطعات یدکی مطابق با قوانین نظام صنفی و تجارت
                         الکترونیک</p>
                 </div>
             </div>
-
             <div class="space-y-4 text-xs sm:text-sm text-gray-300 leading-loose text-justify">
                 <p>
-                    تمامی مشتریان محترم فروشگاه پرادو یدک حق دارند تا <strong class="text-brand-red font-bold">۷ روز
+                    تمامی مشتریان محترم فروشگاه <?= e($siteTitle) ?> حق دارند تا <strong
+                        class="text-brand-red font-bold">۷ روز
                         کاری</strong> پس از تحویل مرسوله توسط پست، تیپاکس یا باربری، در صورت وجود شرایط زیر نسبت به
                     مرجوع کردن یا تعویض قطعه اقدام نمایند:
                 </p>
-
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 my-4">
                     <!-- موارد مجاز بازگشت -->
                     <div class="bg-brand-dark/60 border border-emerald-500/30 p-5 rounded-2xl space-y-3">
@@ -178,12 +189,12 @@
                         <ul class="space-y-2 text-xs text-gray-300 list-disc list-inside">
                             <li>مغایرت قطعه فرستاده‌شده با مشخصات سفارش یا شماره فنی (OEM).</li>
                             <li>وجود آسیب‌دیدگی فیزیکی یا شکستگی حاصل از حمل‌ونقل در زمان تحویل.</li>
-                            <li>عدم تطابق قطعه با خودرو رغم استعلام شماره شاسی (VIN) توسط پشتیبانی سایت پرادو یدک.</li>
+                            <li>عدم تطابق قطعه با خودرو رغم استعلام شماره شاسی (VIN) توسط پشتیبانی سایت
+                                <?= e($siteTitle) ?>.
+                            </li>
                             <li>وجود نقص فنی ساختاری در کارکرد قطعه در آزمایشگاه یا تعمیرگاه تخصصی.</li>
                         </ul>
-                    </div>
-
-                    <!-- موارد ابطال -->
+                    </div><!-- موارد ابطال -->
                     <div class="bg-brand-dark/60 border border-rose-500/30 p-5 rounded-2xl space-y-3">
                         <span
                             class="text-rose-400 font-bold text-xs flex items-center gap-2 pb-2 border-b border-rose-500/20">
@@ -194,13 +205,12 @@
                             <li>وجود هرگونه آثار پیچ شدن، بستن قطعه، گریس‌کاری، نشت روغن یا نصب روی خودرو.</li>
                             <li>قطعات برقی حساس (مانند ECU، کامپیوتر گیربکس، سنسورهای خاص) در صورت باز شدن پلمپ.
                                 <strong>(همچنین تمامی قطعات استوک به دلیل ماهیت کارکرده بودن، فاقد مهلت مرجوعی
-                                    می‌باشند).</strong></li>
+                                    می‌باشند).</strong>
+                            </li>
                             <li>خرابی قطعه به دلیل نصب ناشیانه توسط مکانیک غیرمتخصص یا نوسانات برق خودرو.</li>
                         </ul>
                     </div>
-                </div>
-
-                <!-- هشدار قطعات برقی -->
+                </div><!-- هشدار قطعات برقی -->
                 <div
                     class="bg-brand-red/10 border-2 border-brand-red/30 p-4 rounded-xl flex items-start gap-3 text-xs text-gray-200">
                     <i data-lucide="alert-triangle" class="w-5 h-5 text-brand-red shrink-0 mt-0.5"></i>
@@ -215,7 +225,7 @@
             </div>
         </section>
 
-        <!-- بخش ۳: گام‌به‌گام روند مرجوعی و بازگشت وجه (اصلاح رنگ به قهوه ای مطابق عکس) -->
+        <!-- بخش ۳: گام‌به‌گام روند مرجوعی و بازگشت وجه -->
         <section class="bg-brand-grey border border-white/10 rounded-2xl sm:rounded-3xl p-6 sm:p-8 space-y-6">
             <div class="flex items-center gap-3 border-b border-white/10 pb-4">
                 <div
@@ -223,50 +233,48 @@
                     <i data-lucide="list-ordered" class="w-5 h-5"></i>
                 </div>
                 <div>
-                    <h3 class="text-lg sm:text-xl font-black text-white">۳. فرآیند گام‌به‌گام ثبت درخواست مرجوعی و عودت
-                        وجه</h3>
+                    <h2 class="text-lg sm:text-xl font-black text-white">۳. فرآیند گام‌به‌گام ثبت درخواست مرجوعی و عودت
+                        وجه</h2>
                     <p class="text-xs text-gray-400 mt-0.5">مراحل ساده و سریع برای بررسی و استرداد پول خریدار</p>
                 </div>
             </div>
-
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 <div class="bg-brand-dark/60 border border-white/5 rounded-2xl p-5 space-y-2 relative">
                     <span
-                        class="w-7 h-7 bg-[#8b533a]/20 border border-[#8b533a]/30  font-bold text-xs rounded-lg flex items-center justify-center">۱</span>
-                    <h4 class="font-bold text-xs text-white">ارسال مستندات به پشتیبانی</h4>
+                        class="w-7 h-7 bg-[#8b533a]/20 border border-[#8b533a]/30 font-bold text-xs rounded-lg flex items-center justify-center">۱</span>
+                    <h3 class="font-bold text-xs text-white">ارسال مستندات به پشتیبانی</h3>
                     <p class="text-[11px] text-gray-400 leading-relaxed">عکس و ویدیو از قطعه، جعبه و شماره فنی را به
-                        واتساپ شماره <span class="text-brand-red font-mono font-bold">09189998852</span> بفرستید.</p>
+                        واتساپ شماره <span class="text-brand-red font-mono font-bold"><?= e($phone) ?></span> بفرستید.
+                    </p>
                 </div>
                 <div class="bg-brand-dark/60 border border-white/5 rounded-2xl p-5 space-y-2 relative">
                     <span
-                        class="w-7 h-7 bg-[#8b533a]/20 border border-[#8b533a]/30  font-bold text-xs rounded-lg flex items-center justify-center">۲</span>
-                    <h4 class="font-bold text-xs text-white">دریافت کد تایید مرجوعی</h4>
-                    <p class="text-[11px] text-gray-400 leading-relaxed">کارشناس فنی سایت پرادو یدک درخواست را بررسی
+                        class="w-7 h-7 bg-[#8b533a]/20 border border-[#8b533a]/30 font-bold text-xs rounded-lg flex items-center justify-center">۲</span>
+                    <h3 class="font-bold text-xs text-white">دریافت کد تایید مرجوعی</h3>
+                    <p class="text-[11px] text-gray-400 leading-relaxed">کارشناس فنی سایت <?= e($siteTitle) ?> درخواست
+                        را بررسی
                         کرده و در صورت تایید، کد مرجوعی صادر می‌شود.</p>
                 </div>
                 <div class="bg-brand-dark/60 border border-white/5 rounded-2xl p-5 space-y-2 relative">
                     <span
-                        class="w-7 h-7 bg-[#8b533a]/20 border border-[#8b533a]/30  font-bold text-xs rounded-lg flex items-center justify-center">۳</span>
-                    <h4 class="font-bold text-xs text-white">بسته‌بندی و ارسال قطعه</h4>
+                        class="w-7 h-7 bg-[#8b533a]/20 border border-[#8b533a]/30 font-bold text-xs rounded-lg flex items-center justify-center">۳</span>
+                    <h3 class="font-bold text-xs text-white">بسته‌بندی و ارسال قطعه</h3>
                     <p class="text-[11px] text-gray-400 leading-relaxed">قطعه را در جعبه اصلی همراه با ضربه‌گیر
                         بسته‌بندی کرده و از طریق تیپاکس/پست ارسال فرمایید.</p>
                 </div>
                 <div class="bg-brand-dark/60 border border-white/5 rounded-2xl p-5 space-y-2 relative">
                     <span
                         class="w-7 h-7 bg-[#8b533a] text-white font-bold text-xs rounded-lg flex items-center justify-center shadow-md shadow-[#8b533a]/20">۴</span>
-                    <h4 class="font-bold text-xs text-white">تست انبار و واریز وجه</h4>
+                    <h3 class="font-bold text-xs text-white">تست انبار و واریز وجه</h3>
                     <p class="text-[11px] text-gray-400 leading-relaxed">پس از تحویل کالا به انبار و تایید سلامت، وجه
                         فاکتور ظرف ۲۴ الی ۴۸ ساعت کاری واریز می‌گردد.</p>
                 </div>
-            </div>
-
-            <!-- بخش پرداخت هزینه‌های مرجوعی -->
+            </div><!-- بخش پرداخت هزینه‌های مرجوعی -->
             <div class="bg-brand-dark border-2 border-brand-red/30 p-5 rounded-2xl space-y-4">
                 <div class="flex items-center gap-2 text-white font-bold text-sm border-b border-white/10 pb-3">
                     <i data-lucide="calculator" class="w-5 h-5 text-brand-red"></i>
-                    <h4>قوانین پرداخت هزینه‌های پستی مرجوعی:</h4>
+                    <h3>قوانین پرداخت هزینه‌های پستی مرجوعی:</h3>
                 </div>
-
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <!-- حالت خطای فروشگاه -->
                     <div class="bg-brand-red/10 border border-brand-red/30 rounded-xl p-4 space-y-2">
@@ -280,11 +288,10 @@
                         </div>
                         <p class="text-xs text-gray-300 leading-relaxed">
                             در صورتی که مغایرتی در قطعه ارسالی وجود داشته باشد یا کارشناس فنی عیب کالا را تایید کند،
-                            <strong>تمامی هزینه‌های پست و باربری کاملاً بر عهده فروشگاه پرادو یدک</strong> خواهد بود.
+                            <strong>تمامی هزینه‌های پست و باربری کاملاً بر عهده فروشگاه <?= e($siteTitle) ?></strong>
+                            خواهد بود.
                         </p>
-                    </div>
-
-                    <!-- حالت انصراف سلیقه‌ای -->
+                    </div><!-- حالت انصراف سلیقه‌ای -->
                     <div class="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 space-y-2">
                         <div class="flex items-center justify-between">
                             <span class="font-bold text-xs text-amber-500 flex items-center gap-1.5">
@@ -311,18 +318,17 @@
                     <i data-lucide="truck" class="w-5 h-5"></i>
                 </div>
                 <div>
-                    <h3 class="text-lg sm:text-xl font-black text-white">۴. شرایط ارسال، بیمه مرسولات و سلامت فیزیکی
-                    </h3>
+                    <h2 class="text-lg sm:text-xl font-black text-white">۴. شرایط ارسال، بیمه مرسولات و سلامت فیزیکی
+                    </h2>
                     <p class="text-xs text-gray-400 mt-0.5">تضمین رسیدن سالم قطعه حساس به دست شما</p>
                 </div>
             </div>
-
             <div class="space-y-4 text-xs sm:text-sm text-gray-300 leading-loose text-justify">
                 <p>
-                    تمامی مرسولات فروشگاه پرادو یدک قبل از تحویل به شرکت‌های حمل‌ونقل (پست پیشتاز، تیپاکس، اتوبوس‌رانی و
+                    تمامی مرسولات فروشگاه <?= e($siteTitle) ?> قبل از تحویل به شرکت‌های حمل‌ونقل (پست پیشتاز، تیپاکس،
+                    اتوبوس‌رانی و
                     باربری) به طور کامل توسط کادر بسته‌بندی با فوم‌های ضدضربه و کارتن‌های چندلایه محافظت می‌شوند.
                 </p>
-
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 my-2">
                     <!-- کارت بیمه مرسوله -->
                     <div class="bg-brand-red/10 border border-brand-red/30 p-5 rounded-2xl space-y-2">
@@ -334,9 +340,7 @@
                             تمامی خریدهای شما هنگام ارسال توسط تیپاکس یا پست به میزان ارزش واقعی کالا به طور کامل بیمه
                             می‌گردند تا در صورت بروز سانحه، خسارت جبران شود.
                         </p>
-                    </div>
-
-                    <!-- کارت مسئولیت رویت هنگام تحویل -->
+                    </div><!-- کارت مسئولیت رویت هنگام تحویل -->
                     <div
                         class="bg-amber-500/10 border-2 border-amber-500/40 p-5 rounded-2xl space-y-2 shadow-lg shadow-amber-500/5">
                         <div class="flex items-center justify-between">
@@ -359,19 +363,20 @@
             </div>
         </section>
 
+        <!-- بخش مشاوره و تماس -->
         <section class="bg-brand-grey border border-white/10 rounded-2xl sm:rounded-3xl p-6 sm:p-8 space-y-6">
             <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-6">
                 <div class="text-center md:text-right">
-                    <h3 class="text-xl font-bold text-white mb-1">سوالی درباره مرجوعی یا اصالت قطعه دارید؟</h3>
-                    <p class="text-sm text-gray-400">کارشناسان فنی پرادو یدک همه‌روزه آمادگی دارند قبل از ثبت خرید، شما
-                        را در انتخاب قطعه صحیح و شفاف‌سازی قوانین راهنمایی کنند.</p>
+                    <h2 class="text-xl font-bold text-white mb-1">سوالی درباره مرجوعی یا اصالت قطعه دارید؟</h2>
+                    <p class="text-sm text-gray-400">پیش از خرید، برای انتخاب دقیق قطعه و راهنمایی، با کارشناسان
+                        <?= e($siteTitle) ?> مشورت کنید.</p>
                 </div>
                 <div class="flex flex-wrap justify-center gap-4">
-                    <a href="tel:09189998852"
+                    <a href="tel:<?= e($phone) ?>"
                         class="bg-brand-grey border border-white/10 hover:border-white/30 text-white px-6 py-3 rounded-xl text-sm font-bold transition flex items-center gap-2 shadow-sm">
-                        <i data-lucide="phone-call" class="w-4 h-4 text-brand-accent"></i> 09189998852
+                        <i data-lucide="phone-call" class="w-4 h-4 text-brand-accent"></i> <?= e($phone) ?>
                     </a>
-                    <a href="https://wa.me/989189998852" target="_blank"
+                    <a href="<?= e($whatsapp) ?>" target="_blank" rel="noopener noreferrer"
                         class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl text-sm font-bold transition flex items-center gap-2 shadow-sm">
                         <i data-lucide="message-circle" class="w-4 h-4"></i> پشتیبانی واتساپ
                     </a>
@@ -387,12 +392,11 @@
                     <i data-lucide="help-circle" class="w-5 h-5"></i>
                 </div>
                 <div>
-                    <h3 class="text-lg sm:text-xl font-black text-white">۵. سوالات متداول درباره قوانین و مرجوعی کالا
-                    </h3>
+                    <h2 class="text-lg sm:text-xl font-black text-white">۵. سوالات متداول درباره قوانین و مرجوعی کالا
+                    </h2>
                     <p class="text-xs text-gray-400 mt-0.5">پاسخ شفاف به متداول‌ترین پرسش‌های خریداران قطعات تویوتا</p>
                 </div>
             </div>
-
             <div class="space-y-3" id="faq-accordion">
                 <!-- سوال ۱ -->
                 <div
@@ -416,9 +420,7 @@
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- سوال ۲ -->
+                </div><!-- سوال ۲ -->
                 <div
                     class="bg-white border border-gray-200 rounded-2xl overflow-hidden transition-all duration-300 hover:border-brand-red/30">
                     <button onclick="toggleFaq(this)"
@@ -440,9 +442,7 @@
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- سوال ۳ -->
+                </div><!-- سوال ۳ -->
                 <div
                     class="bg-white border border-gray-200 rounded-2xl overflow-hidden transition-all duration-300 hover:border-brand-red/30">
                     <button onclick="toggleFaq(this)"
@@ -464,9 +464,7 @@
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- سوال ۴ -->
+                </div><!-- سوال ۴ -->
                 <div
                     class="bg-white border border-gray-200 rounded-2xl overflow-hidden transition-all duration-300 hover:border-brand-red/30">
                     <button onclick="toggleFaq(this)"
@@ -495,41 +493,7 @@
 
     <?php include 'assets/php/footer.php'; ?>
 
-    <script>
-        function toggleFaq(button) {
-            const content = button.nextElementSibling;
-            const icon = button.querySelector('[data-lucide="chevron-down"]');
-
-            // بررسی می‌کنیم که آیا محتوا بسته است یا خیر
-            const isCollapsed = content.classList.contains('grid-rows-[0fr]');
-
-            // بستن تمام سوالات دیگر (جلوه آکاردئونی)
-            document.querySelectorAll('#faq-accordion > div').forEach(item => {
-                const btn = item.querySelector('button');
-                const cnt = btn.nextElementSibling;
-                const icn = btn.querySelector('[data-lucide="chevron-down"]');
-
-                if (cnt !== content) {
-                    cnt.classList.add('grid-rows-[0fr]', 'opacity-0');
-                    cnt.classList.remove('grid-rows-[1fr]', 'opacity-100');
-                    if (icn) icn.classList.remove('rotate-180');
-                }
-            });
-
-            // باز یا بسته کردن آیتمی که روی آن کلیک شده است
-            if (isCollapsed) {
-                content.classList.remove('grid-rows-[0fr]', 'opacity-0');
-                content.classList.add('grid-rows-[1fr]', 'opacity-100');
-                if (icon) icon.classList.add('rotate-180');
-            } else {
-                content.classList.add('grid-rows-[0fr]', 'opacity-0');
-                content.classList.remove('grid-rows-[1fr]', 'opacity-100');
-                if (icon) icon.classList.remove('rotate-180');
-            }
-        }
-    </script>
-    <script src="assets/js/main.js"></script>
-
+    <script src="/assets/js/main.js"></script>
 </body>
 
 </html>

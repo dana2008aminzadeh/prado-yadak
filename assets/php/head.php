@@ -97,7 +97,7 @@ foreach ($noindexParams as $param) {
     }
 }
 
-if (in_array($uri, ['/404', '/checkout', '/profile', '/login'])) {
+if (http_response_code() === 404 || in_array($uri, ['/404', '/checkout', '/profile', '/login'])) {
     $shouldNoIndex = true;
 }
 

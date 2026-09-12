@@ -1313,6 +1313,49 @@ function handleSaveSettings(event) {
     alert('✔ مشخصات حساب کاربری با موفقیت به‌روزرسانی شد.');
 }
 
+function toggleFaq(button) {
+    const content = button.nextElementSibling;
+    const icon = button.querySelector('[data-lucide="chevron-down"]');
+    const isCollapsed = content.classList.contains('grid-rows-[0fr]');
+
+    document.querySelectorAll('#faq-accordion > div').forEach(item => {
+        const btn = item.querySelector('button');
+        const cnt = btn.nextElementSibling;
+        const icn = btn.querySelector('[data-lucide="chevron-down"]');
+        if (cnt !== content) {
+            cnt.classList.add('grid-rows-[0fr]', 'opacity-0');
+            cnt.classList.remove('grid-rows-[1fr]', 'opacity-100');
+            if (icn) icn.classList.remove('rotate-180');
+        }
+    });
+
+    if (isCollapsed) {
+        content.classList.remove('grid-rows-[0fr]', 'opacity-0');
+        content.classList.add('grid-rows-[1fr]', 'opacity-100');
+        if (icon) icon.classList.add('rotate-180');
+    } else {
+        content.classList.add('grid-rows-[0fr]', 'opacity-0');
+        content.classList.remove('grid-rows-[1fr]', 'opacity-100');
+        if (icon) icon.classList.remove('rotate-180');
+    }
+}
+
+function copyArticleLink() {
+    const currentUrl = window.location.href;
+    navigator.clipboard.writeText(currentUrl).then(() => {
+        const toast = document.getElementById('copy-toast');
+        if (!toast) return;
+        toast.classList.remove('opacity-0');
+        toast.classList.add('opacity-100');
+        setTimeout(() => {
+            toast.classList.remove('opacity-100');
+            toast.classList.add('opacity-0');
+        }, 2000);
+    }).catch(err => {
+        console.error('خطا در کپی لینک:', err);
+    });
+}
+
 document.addEventListener("DOMContentLoaded", function () {
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();

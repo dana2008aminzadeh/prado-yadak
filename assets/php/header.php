@@ -19,7 +19,7 @@ function getDesktopClass($pageName, $currentPage)
     $activeClass = 'text-brand-accent font-bold relative after:content-[""] after:absolute after:-bottom-2 after:left-0 after:w-full after:h-0.5 after:bg-brand-accent after:rounded-full';
     $inactiveClass = 'text-gray-300 hover:text-white transition';
 
-    if ($pageName == '/blog' && in_array($currentPage, ['/blog', '/blog-detail']))
+    if ($pageName == '/blog' && (str_starts_with($currentPage, '/blog') || $currentPage == '/blog-detail'))
         return $activeClass;
     if ($pageName == '/parts' && in_array($currentPage, ['/parts', '/product']))
         return $activeClass;
@@ -32,7 +32,7 @@ function getMobileClass($pageName, $currentPage)
     $activeClass = 'block py-2 px-3 rounded-lg text-brand-accent font-bold bg-brand-accent/10 border-r-2 border-brand-accent';
     $inactiveClass = 'block py-2 px-3 rounded-lg text-gray-300 hover:bg-white/5 transition';
 
-    if ($pageName == '/blog' && in_array($currentPage, ['/blog', '/blog-detail']))
+    if ($pageName == '/blog' && (str_starts_with($currentPage, '/blog') || $currentPage == '/blog-detail'))
         return $activeClass;
     if ($pageName == '/parts' && in_array($currentPage, ['/parts', '/product']))
         return $activeClass;

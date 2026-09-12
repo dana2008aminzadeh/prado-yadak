@@ -1,3 +1,11 @@
+<?php
+http_response_code(404);
+global $settings;
+$siteName = $settings['site_title'] ?? 'پرادو یدک';
+$pageTitle = 'صفحه مورد نظر پیدا نشد (خطای ۴۰۴) | ' . $siteName;
+$phoneNumber = $settings['phone_number'] ?? '09189998852';
+$whatsappLink = $settings['whatsapp_link'] ?? ('https://wa.me/98' . ltrim($phoneNumber, '0'));
+?>
 <!doctype html>
 <html lang="fa" dir="rtl" class="scroll-smooth">
 
@@ -6,13 +14,11 @@
 </head>
 
 <body class="bg-brand-dark text-white overflow-x-hidden antialiased flex flex-col min-h-screen">
-
     <?php include 'assets/php/header.php'; ?>
 
     <!-- بدنه اصلی 404 -->
     <main
         class="flex-1 max-w-5xl mx-auto px-4 py-12 sm:py-20 flex flex-col items-center justify-center text-center relative z-10">
-
         <!-- پس‌زمینه گرافیکی تزیینی -->
         <div class="absolute inset-0 -z-10 flex items-center justify-center pointer-events-none opacity-20">
             <div class="w-96 h-96 bg-brand-red/20 rounded-full blur-3xl"></div>
@@ -39,7 +45,7 @@
                 class="inline-block bg-brand-red/10 border border-brand-red/30 text-brand-red text-xs font-bold px-4 py-1.5 rounded-full">
                 خطای عدم دسترسی (Page Not Found)
             </span>
-            <h2 class="text-2xl sm:text-4xl font-black text-white">صفحه مورد نظر پیدا نشد!</h2>
+            <h1 class="text-2xl sm:text-4xl font-black text-white">صفحه مورد نظر پیدا نشد!</h1>
             <div class="w-16 h-1 bg-brand-red mx-auto rounded-full"></div>
             <p class="text-gray-400 text-xs sm:text-base leading-relaxed">
                 آدرس وارد شده اشتباه است، صفحه منتقل شده یا قطعه مورد نظر از سیستم خارج شده است.<br
@@ -71,7 +77,7 @@
                 class="bg-brand-grey border border-white/10 hover:border-brand-red text-white font-bold px-6 py-3.5 rounded-xl transition flex items-center gap-2 text-xs sm:text-sm">
                 <i data-lucide="grid" style="width:18px;height:18px;"></i> کاتالوگ تمام قطعات
             </a>
-            <a href="https://wa.me/989189998852" target="_blank"
+            <a href="<?= e($whatsappLink) ?>" target="_blank" rel="noopener noreferrer"
                 class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-6 py-3.5 rounded-xl transition flex items-center gap-2 text-xs sm:text-sm shadow-[0_4px_20px_rgba(16,185,129,0.3)]">
                 <i data-lucide="message-circle" style="width:18px;height:18px;"></i> استعلام قطعه در واتساپ
             </a>
@@ -79,8 +85,8 @@
 
         <!-- بخش دسترسی سریع به دسته‌بندی‌های اصلی -->
         <div class="w-full border-t border-white/10 pt-10">
-            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">میان‌برهای پیشنهادی دسته‌بندی
-                قطعات تویوتا</h3>
+            <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">میان‌برهای پیشنهادی دسته‌بندی
+                قطعات تویوتا</h2>
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <a href="/parts?category=engine"
                     class="bg-brand-grey/60 border border-white/5 hover:border-brand-red/30 p-4 rounded-xl text-center space-y-2 group transition">
@@ -120,13 +126,10 @@
                 </a>
             </div>
         </div>
-
     </main>
 
     <?php include 'assets/php/footer.php'; ?>
-
-    <script src="assets/js/main.js"></script>
-
+    <script src="/assets/js/main.js"></script>
 </body>
 
 </html>

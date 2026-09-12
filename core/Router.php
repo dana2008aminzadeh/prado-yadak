@@ -85,6 +85,9 @@ class Router
 
         $this->get('/blog', 'BlogController@index');
         $this->get('/blog-detail', 'BlogController@show');
+        $this->get('/blog', 'BlogController@index');
+        $this->get('/blog/{slug}', 'BlogController@show');
+        $this->get('/blog-detail', 'BlogController@show');
         $this->get('/terms', 'HomeController@terms');
         $this->get('/image', 'ImageController@show');
 

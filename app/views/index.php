@@ -517,82 +517,42 @@ global $settings;
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <!-- کارت ۱ -->
-                <div
-                    class="bg-brand-grey border border-white/5 rounded-2xl overflow-hidden group hover:border-brand-accent/30 transition duration-300 flex flex-col justify-between">
-                    <div
-                        class="h-40 bg-brand-dark flex items-center justify-center p-6 text-brand-accent border-b border-white/5 relative">
-                        <i data-lucide="zap" style="width:40px;height:40px;"
-                            class="group-hover:scale-110 transition-transform"></i>
-                    </div>
-                    <div class="p-5 space-y-3 flex-1 flex flex-col justify-between"
-                        onclick="window.location.href='/blog-detail?id=1'">
-                        <div class="space-y-2">
-                            <h4
-                                class="font-bold text-sm text-white group-hover:text-brand-accent transition-colors line-clamp-1">
-                                چگونه شمع اصلی تویوتا را از تقلبی تشخیص دهیم?</h4>
-                            <p class="text-xs text-gray-400 leading-relaxed line-clamp-2">بررسی جامع هولوگرام جنیون
-                                پارتس، آلیاژ ایریدیوم دنسو ژاپن و کدهای حک شده برای جلوگیری از آسیب به موتور.</p>
-                        </div>
+                <?php if (!empty($latestArticles)): ?>
+                    <?php foreach ($latestArticles as $art):
+                        $artUrl = '/blog/' . urlencode($art['slug']);
+                        ?>
                         <div
-                            class="flex justify-between items-center pt-3 border-t border-white/5 text-[10px] text-gray-500 mt-2">
-                            <span>زمان مطالعه: ۵ دقیقه</span>
-                            <span class="text-brand-accent font-bold flex items-center gap-1">ادامه مطلب <i
-                                    data-lucide="arrow-left" style="width:12px;height:12px;"></i></span>
+                            class="bg-brand-grey border border-white/5 rounded-2xl overflow-hidden group hover:border-brand-accent/30 transition duration-300 flex flex-col justify-between">
+                            <a href="<?= $artUrl ?>"
+                                class="h-40 bg-brand-dark flex items-center justify-center p-6 text-brand-accent border-b border-white/5 relative block">
+                                <i data-lucide="<?= e($art['icon'] ?: 'wrench') ?>" style="width:40px;height:40px;"
+                                    class="group-hover:scale-110 transition-transform"></i>
+                            </a>
+                            <div class="p-5 space-y-3 flex-1 flex flex-col justify-between">
+                                <div class="space-y-2">
+                                    <a href="<?= $artUrl ?>" class="block">
+                                        <h3
+                                            class="font-bold text-sm text-white group-hover:text-brand-accent transition-colors line-clamp-1">
+                                            <?= e($art['title']) ?>
+                                        </h3>
+                                    </a>
+                                    <p class="text-xs text-gray-400 leading-relaxed line-clamp-2">
+                                        <?= e($art['summary']) ?>
+                                    </p>
+                                </div>
+                                <div
+                                    class="flex justify-between items-center pt-3 border-t border-white/5 text-[10px] text-gray-500 mt-2">
+                                    <span>زمان مطالعه: <?= (int) $art['reading_time'] ?> دقیقه</span>
+                                    <a href="<?= $artUrl ?>" class="text-brand-accent font-bold flex items-center gap-1">
+                                        ادامه مطلب <i data-lucide="arrow-left" style="width:12px;height:12px;"></i>
+                                    </a>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-                <!-- کارت ۲ -->
-                <div
-                    class="bg-brand-grey border border-white/5 rounded-2xl overflow-hidden group hover:border-brand-accent/30 transition duration-300 flex flex-col justify-between">
-                    <div
-                        class="h-40 bg-brand-dark flex items-center justify-center p-6 text-brand-accent border-b border-white/5 relative">
-                        <i data-lucide="wrench" style="width:40px;height:40px;"
-                            class="group-hover:scale-110 transition-transform"></i>
-                    </div>
-                    <div class="p-5 space-y-3 flex-1 flex flex-col justify-between"
-                        onclick="window.location.href='/blog-detail?id=1'">
-                        <div class="space-y-2">
-                            <h4
-                                class="font-bold text-sm text-white group-hover:text-brand-accent transition-colors line-clamp-1">
-                                بهترین زمان تعویض تسمه تایم تویوتا کمری و پرادو</h4>
-                            <p class="text-xs text-gray-400 leading-relaxed line-clamp-2">علائم خرابی زنجیر تایم، صداهای
-                                غیرعادی موتور در حالت سرد و کیلومتر استاندارد تعویض کیت کامل تسمه تایم تویوتا.</p>
-                        </div>
-                        <div
-                            class="flex justify-between items-center pt-3 border-t border-white/5 text-[10px] text-gray-500 mt-2">
-                            <span>زمان مطالعه: ۴ دقیقه</span>
-                            <span class="text-brand-accent font-bold flex items-center gap-1">ادامه مطلب <i
-                                    data-lucide="arrow-left" style="width:12px;height:12px;"></i></span>
-                        </div>
-                    </div>
-                </div>
-                <!-- کارت ۳ -->
-                <div
-                    class="bg-brand-grey border border-white/5 rounded-2xl overflow-hidden group hover:border-brand-accent/30 transition duration-300 flex flex-col justify-between">
-                    <div
-                        class="h-40 bg-brand-dark flex items-center justify-center p-6 text-brand-accent border-b border-white/5 relative">
-                        <i data-lucide="droplet" style="width:40px;height:40px;"
-                            class="group-hover:scale-110 transition-transform"></i>
-                    </div>
-                    <div class="p-5 space-y-3 flex-1 flex flex-col justify-between"
-                        onclick="window.location.href='/blog-detail?id=1'">
-                        <div class="space-y-2">
-                            <h4
-                                class="font-bold text-sm text-white group-hover:text-brand-accent transition-colors line-clamp-1">
-                                راهنمای جامع انتخاب و تعویض روغن گیربکس (ATF)</h4>
-                            <p class="text-xs text-gray-400 leading-relaxed line-clamp-2">تفاوت روانکارهای نوع WS با
-                                Type IV و تاثیر حیاتی تعویض به موقع فیلتر بر روانی دنده‌های لندکروزر و کرولا.</p>
-                        </div>
-                        <div
-                            class="flex justify-between items-center pt-3 border-t border-white/5 text-[10px] text-gray-500 mt-2">
-                            <span>زمان مطالعه: ۶ دقیقه</span>
-                            <span class="text-brand-accent font-bold flex items-center gap-1">ادامه مطلب <i
-                                    data-lucide="arrow-left" style="width:12px;height:12px;"></i></span>
-                        </div>
-                    </div>
-                </div>
+                    <?php endforeach; ?>
+                <?php endif; ?>
             </div>
+
         </div>
     </section>
 

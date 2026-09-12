@@ -26,7 +26,7 @@ if (!isset($current_page)) {
                         <p class="text-xs text-gray-500"><?= e($settings['site_subtitle'] ?? 'PRADO YADAK') ?></p>
                     </div>
                 </a>
-                <?php if (in_array($current_page, ['/blog', '/blog-detail'])): ?>
+                <?php if (str_starts_with($current_page, '/blog') || $current_page === '/blog-detail'): ?>
                     <p class="text-gray-400 text-sm leading-relaxed mb-3">مرجع تخصصی مقالات آموزشی، عیب‌یابی خودروهای
                         تویوتا، راهنمای نگهداری و شیوه‌های تشخیص قطعات اصلی از تقلبی.</p>
                 <?php elseif (in_array($current_page, ['/parts', '/parts'])): ?>
@@ -43,7 +43,7 @@ if (!isset($current_page)) {
             </div>
 
             <div>
-                <?php if (in_array($current_page, ['/blog', '/blog-detail'])): ?>
+                <?php if (str_starts_with($current_page, '/blog') || $current_page === '/blog-detail'): ?>
                     <h4 class="font-bold mb-4 text-brand-accent text-sm">دسته‌بندی موضوعی</h4>
                     <ul class="space-y-2 text-gray-400 text-sm">
                         <li><a href="/blog" onclick="filterBlog('genuine')" class="hover:text-white transition">تشخیص اصالت
@@ -73,15 +73,24 @@ if (!isset($current_page)) {
             </div>
 
             <div>
-                <?php if (in_array($current_page, ['/blog', '/blog-detail'])): ?>
+                <?php if (str_starts_with($current_page, '/blog') || $current_page === '/blog-detail'): ?>
                     <h4 class="font-bold mb-4 text-brand-accent text-sm">مقالات پربازدید</h4>
                     <ul class="space-y-2 text-gray-400 text-sm">
-                        <li><a href="/blog-detail?id=1" class="hover:text-white transition line-clamp-1">تشخیص شمع اصلی
-                                تویوتا از تقلبی</a></li>
-                        <li><a href="/blog-detail?id=1" class="hover:text-white transition line-clamp-1">زمان تعویض تسمه
-                                تایم کمری و پرادو</a></li>
-                        <li><a href="/blog-detail?id=1" class="hover:text-white transition line-clamp-1">راهنمای انتخاب روغن
-                                گیربکس ATF</a></li>
+                        <?php
+                        $popularArticles = \App\models\Article::getPopular(3);
+                        if (!empty($popularArticles)):
+                            foreach ($popularArticles as $pArt):
+                                ?>
+                                <li>
+                                    <a href="/blog/<?= urlencode($pArt['slug']) ?>"
+                                        class="hover:text-white transition line-clamp-1">
+                                        <?= e($pArt['title']) ?>
+                                    </a>
+                                </li>
+                            <?php
+                            endforeach;
+                        endif;
+                        ?>
                     </ul>
                 <?php else: ?>
                     <h4 class="font-bold mb-4 text-brand-accent text-sm">مدل‌های خودرو</h4>
