@@ -38,12 +38,11 @@ global $settings;
                         <span>نمایندگی رسمی قطعات تویوتا</span>
                     </div>
 
-                    <!-- عنوان اصلی -->
-                    <h2 class="text-3xl md:text-5xl lg:text-6xl font-black leading-tight mb-5 text-[#2b170c]"
+                    <h1 class="text-3xl md:text-5xl lg:text-6xl font-black leading-tight mb-5 text-[#2b170c]"
                         id="hero-title">
                         سریع‌ترین راه برای یافتن<br>
                         <span class="text-[#8b533a]">قطعات اصلی تویوتا</span>
-                    </h2>
+                    </h1>
 
                     <p class="text-[#5c473b] text-sm md:text-base mb-8 leading-relaxed max-w-lg" id="hero-subtitle">
                         جستجوی دقیق با شماره شاسی (VIN) یا نام قطعه. تضمین ۱۰۰٪ اصالت کالا و ارسال سریع به سراسر ایران.
@@ -201,7 +200,7 @@ global $settings;
         <div class="max-w-7xl mx-auto px-4">
             <div class="text-center mb-14 scroll-reveal">
                 <span class="text-brand-accent text-sm font-bold tracking-widest">دسته‌بندی قطعات</span>
-                <h3 class="text-3xl md:text-5xl font-black mt-3">قطعات مورد نیاز خود را پیدا کنید</h3>
+                <h2 class="text-3xl md:text-5xl font-black mt-3">قطعات مورد نیاز خود را پیدا کنید</h2>
                 <div class="w-20 h-1 bg-brand-accent mx-auto mt-4 rounded-full"></div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -260,7 +259,7 @@ global $settings;
         <div class="max-w-7xl mx-auto px-4">
             <div class="text-center mb-14 scroll-reveal">
                 <span class="text-brand-accent text-sm font-bold tracking-widest">چرا ما؟</span>
-                <h3 class="text-3xl md:text-5xl font-black mt-3">خدمات ویژه پرادو یدک</h3>
+                <h2 class="text-3xl md:text-5xl font-black mt-3">خدمات ویژه پرادو یدک</h2>
                 <div class="w-20 h-1 bg-brand-accent mx-auto mt-4 rounded-full"></div>
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -317,7 +316,7 @@ global $settings;
                             class="text-brand-accent text-xs sm:text-sm font-bold tracking-widest uppercase font-mono">Toyota
                             Models</span>
                     </div>
-                    <h3 class="text-2xl sm:text-3xl md:text-4xl font-black text-white">قطعات اختصاصی هر مدل</h3>
+                    <h2 class="text-2xl sm:text-3xl md:text-4xl font-black text-white">قطعات اختصاصی هر مدل</h2>
                     <p class="text-gray-400 text-xs sm:text-sm max-w-md leading-relaxed">
                         با انتخاب مدل خودروی خود، به کاتالوگ دقیق قطعات سازگار و استاندارد دسترسی پیدا کنید.
                     </p>
@@ -384,7 +383,7 @@ global $settings;
         <div class="max-w-7xl mx-auto px-4">
             <div class="text-center mb-14 scroll-reveal">
                 <span class="text-brand-accent text-sm font-bold tracking-widest">صدای مشتریان</span>
-                <h3 class="text-3xl md:text-5xl font-black mt-3">رضایت خریداران پس از تحویل قطعه</h3>
+                <h2 class="text-3xl md:text-5xl font-black mt-3">رضایت خریداران پس از تحویل قطعه</h2>
                 <div class="w-20 h-1 bg-brand-accent mx-auto mt-4 rounded-full"></div>
                 <p class="text-xs text-gray-500 mt-3 max-w-md mx-auto">نظرات واقعی مشتریانی که قطعات تویوتا را از
                     فروشگاه پرادو یدک تحویل گرفته و روی خودروی خود نصب کرده‌اند.</p>
@@ -509,7 +508,7 @@ global $settings;
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-12 gap-4">
                 <div>
                     <span class="text-brand-accent text-sm font-bold tracking-widest">آموزش تخصصی</span>
-                    <h3 class="text-2xl md:text-4xl font-black mt-2">آخرین مقالات و راهنمای فنی</h3>
+                    <h2 class="text-2xl md:text-4xl font-black mt-2">آخرین مقالات و راهنمای فنی</h2>
                 </div>
                 <a href="/blog"
                     class="border border-white/10 hover:border-brand-accent px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 bg-brand-grey/40 shrink-0">

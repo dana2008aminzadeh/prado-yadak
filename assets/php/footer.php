@@ -29,7 +29,7 @@ if (!isset($current_page)) {
                 <?php if (in_array($current_page, ['/blog', '/blog-detail'])): ?>
                     <p class="text-gray-400 text-sm leading-relaxed mb-3">مرجع تخصصی مقالات آموزشی، عیب‌یابی خودروهای
                         تویوتا، راهنمای نگهداری و شیوه‌های تشخیص قطعات اصلی از تقلبی.</p>
-                <?php elseif (in_array($current_page, ['/parts', '/product'])): ?>
+                <?php elseif (in_array($current_page, ['/parts', '/parts'])): ?>
                     <p class="text-gray-400 text-sm leading-relaxed mb-3">تأمین‌کننده تخصصی قطعات اصلی تویوتا و لکسوس با
                         ضمانت ۱۰۰٪ اصالت کالا و تطابق با شماره شاسی (VIN).</p>
                 <?php else: ?>
@@ -201,7 +201,7 @@ if (!isset($current_page)) {
                 </button>
 
                 <!-- آیکون قطعه (لینک‌دار) -->
-                <a href="/product?id=1"
+                <a href="/parts?id=1"
                     class="w-16 h-16 rounded-lg flex items-center justify-center border border-[#a88d7c]/40 bg-[#eae0d6] flex-shrink-0 hover:scale-105 transition-transform text-brand-red">
                     <i data-lucide="wind" style="width:28px;height:28px;"></i>
                 </a>
@@ -209,7 +209,7 @@ if (!isset($current_page)) {
                 <!-- اطلاعات محصول -->
                 <div class="flex-1 min-w-0 pl-6">
                     <!-- عنوان قطعه (لینک‌دار) -->
-                    <a href="/product?id=1" class="block transition-colors hover:opacity-80">
+                    <a href="/parts" class="block transition-colors hover:opacity-80">
                         <h5 class="text-xs font-bold truncate text-[#2b170c]">رادیاتور آب کامل تویوتا کرولا</h5>
                     </a>
                     <p class="text-[10px] mt-0.5 text-[#5c473b]">OEM: 16400-0T040</p>

@@ -92,6 +92,21 @@ function initElementSdk() {
     }
 }
 
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function safeSlug(slug) {
+    if (!slug) return '';
+    return encodeURIComponent(String(slug).trim());
+}
+
 function initScrollReveal() {
     const elements = document.querySelectorAll('.scroll-reveal');
     if (!elements.length) return;
@@ -336,35 +351,45 @@ function buildProductCardHTML(part) {
         : '<span class="bg-gray-400/10 text-gray-300 text-[10px] px-2 py-1 rounded-md font-bold border border-gray-400/20">وارداتی OEM</span>';
 
     const iconName = part.imageIcon || (part.images && part.images[0]) || 'disc';
-    const carModelName = typeof carModels !== 'undefined' && carModels[part.model] ? carModels[part.model] : part.model;
+    const rawCarModel = (typeof carModels !== 'undefined' && carModels[part.model]) ? carModels[part.model] : part.model;
+
+    // پاک‌سازی تمامی متغیرهای تزریقی
+    const safeProductSlug = safeSlug(part.slug);
+    const safeName = escapeHtml(part.name);
+    const safeOem = escapeHtml(part.oem);
+    const safeModel = escapeHtml(rawCarModel ? rawCarModel.split(' ')[0] : '');
+    const safePrice = Number(part.price || 0).toLocaleString('fa-IR');
+    const safeId = parseInt(part.id, 10) || 0;
 
     return `
-        <div class="bg-brand-grey border border-white/5 hover:border-brand-red/30 p-5 rounded-2xl flex flex-col justify-between transition duration-300 hover:shadow-[0_10px_35px_rgba(225,6,0,0.12)]">
-            <div>
-                <div class="flex items-center justify-between mb-4">
-                    ${stockBadge}
-                    ${brandBadge}
-                </div>
-                <div onclick="window.location.href='/product/${part.slug}'" class="w-full h-40 bg-brand-dark rounded-xl flex items-center justify-center mb-4 text-brand-red relative group overflow-hidden border border-white/5 cursor-pointer">
-                    ${renderMediaHTML(iconName, "w-12 h-12 transition transform group-hover:scale-125 duration-300")}
-                    <span class="absolute bottom-2 left-2 text-[10px] text-gray-500 bg-brand-dark/80 px-2 py-0.5 rounded border border-white/10" style="direction: ltr;">OEM: ${part.oem}</span>
-                </div>
-                <h4 class="font-bold text-sm text-white leading-relaxed line-clamp-2 hover:text-brand-red cursor-pointer transition" onclick="window.location.href='/product/${part.slug}'">${part.name}</h4>
-                <p class="text-xs text-gray-400 mt-2 flex items-center gap-1.5">
-                    <i data-lucide="car" style="width:13px;height:13px;"></i>
-                    سازگار با: ${carModelName ? carModelName.split(' ')[0] : ''}
-                </p>
+    <div class="bg-brand-grey border border-white/5 hover:border-brand-red/30 p-5 rounded-2xl flex flex-col justify-between transition duration-300 hover:shadow-[0_10px_35px_rgba(225,6,0,0.12)]">
+        <div>
+            <div class="flex items-center justify-between mb-4">
+                ${stockBadge}
+                ${brandBadge}
             </div>
-            <div class="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
-                <div>
-                    <span class="text-[10px] text-gray-500 block mb-0.5">قیمت مصرف‌کننده:</span>
-                    <span class="font-black text-sm text-brand-red">${part.price.toLocaleString('fa-IR')} تومان</span>
-                </div>
-                <button ${part.inStock ? `onclick="addToCart(${part.id})"` : 'disabled'} class="p-2.5 rounded-xl transition ${part.inStock ? 'bg-brand-red hover:bg-red-700 text-white shadow-[0_4px_15px_rgba(225,6,0,0.2)]' : 'bg-white/5 text-gray-500 cursor-not-allowed'}">
-                    <i data-lucide="shopping-cart" style="width:18px;height:18px;"></i>
-                </button>
-            </div>
+            <a href="/product/${safeProductSlug}" class="w-full h-40 bg-brand-dark rounded-xl flex items-center justify-center mb-4 text-brand-red relative group overflow-hidden border border-white/5 cursor-pointer block">
+                ${renderMediaHTML(iconName, "w-12 h-12 transition transform group-hover:scale-125 duration-300")}
+                <span class="absolute bottom-2 left-2 text-[10px] text-gray-500 bg-brand-dark/80 px-2 py-0.5 rounded border border-white/10" style="direction: ltr;">OEM: ${safeOem}</span>
+            </a>
+            <a href="/product/${safeProductSlug}" class="block">
+                <h3 class="font-bold text-sm text-white leading-relaxed line-clamp-2 hover:text-brand-red transition">${safeName}</h3>
+            </a>
+            <p class="text-xs text-gray-400 mt-2 flex items-center gap-1.5">
+                <i data-lucide="car" style="width:13px;height:13px;"></i>
+                سازگار با: ${safeModel}
+            </p>
         </div>
+        <div class="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
+            <div>
+                <span class="text-[10px] text-gray-500 block mb-0.5">قیمت مصرف‌کننده:</span>
+                <span class="font-black text-sm text-brand-red">${safePrice} تومان</span>
+            </div>
+            <button ${part.inStock ? `onclick="addToCart(${safeId})"` : 'disabled'} class="p-2.5 rounded-xl transition ${part.inStock ? 'bg-brand-red hover:bg-red-700 text-white shadow-[0_4px_15px_rgba(225,6,0,0.2)]' : 'bg-white/5 text-gray-500 cursor-not-allowed'}">
+                <i data-lucide="shopping-cart" style="width:18px;height:18px;"></i>
+            </button>
+        </div>
+    </div>
     `;
 }
 
@@ -571,14 +596,23 @@ function getProductIdFromURL() {
 function renderMediaHTML(source, iconStyleClass = "anim-float") {
     if (!source) return '';
 
-    if (source !== 'disc' && !source.startsWith('http') && !source.includes('.') && source.length > 20) {
-        return `<img src="/image?id=${source}" class="max-w-full max-h-full object-contain ${iconStyleClass}" alt="Product Image" loading="lazy" />`;
+    const cleanSource = String(source).trim();
+
+    // بررسی آدرس تصویر تلگرام یا فایل لوکال
+    if (cleanSource !== 'disc' && !cleanSource.startsWith('http') && !cleanSource.includes('/') && cleanSource.length > 20) {
+        const safeId = encodeURIComponent(cleanSource);
+        return `<img src="/image?id=${safeId}" class="max-w-full max-h-full object-contain ${escapeHtml(iconStyleClass)}" alt="تصویر محصول" loading="lazy" />`;
     }
 
-    if (source.startsWith('http') || source.includes('/') || source.includes('.')) {
-        return `<img src="${source}" class="max-w-full max-h-full object-contain ${iconStyleClass}" alt="Part Image" loading="lazy" />`;
+    // بررسی آدرس‌های مجاز وب (تنها پروتکل‌های امن http و https یا مسیرهای نسبی)
+    if (/^(https?:\/\/|\/assets\/)/i.test(cleanSource)) {
+        const safeUrl = escapeHtml(cleanSource);
+        return `<img src="${safeUrl}" class="max-w-full max-h-full object-contain ${escapeHtml(iconStyleClass)}" alt="تصویر محصول" loading="lazy" />`;
     }
-    return `<i data-lucide="${source}" class="${iconStyleClass}" style="width:100%; height:100%; max-width:110px; max-height:110px;"></i>`;
+
+    // اگر آیکون لوساید باشد، باید صرفاً کاراکترهای الفبایی و خط تیره مجاز باشند
+    const safeIcon = /^[a-z0-9-]+$/i.test(cleanSource) ? cleanSource : 'disc';
+    return `<i data-lucide="${safeIcon}" class="${escapeHtml(iconStyleClass)}" style="width:100%; height:100%; max-width:110px; max-height:110px;"></i>`;
 }
 
 function changeMainImage(imgSrc, element) {
@@ -640,7 +674,7 @@ function trackOrder() {
                 (data.status === 'warning' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' :
                     'bg-rose-500/10 text-rose-400 border-rose-500/20');
             resDiv.className = 'text-xs p-3 rounded-xl border transition-all duration-300 block mt-3 ' + colorClass;
-            resDiv.innerHTML = data.message;
+            resDiv.textContent = data.message; // ایمن در برابر XSS
         }).catch(() => {
             resDiv.className = 'text-xs p-3 rounded-xl border transition-all duration-300 block mt-3 bg-rose-500/10 text-rose-400 border-rose-500/20';
             resDiv.innerHTML = 'خطا در ارتباط با سرور.';
@@ -711,8 +745,7 @@ function submitProductComment(e) {
         .then(data => {
             msgBox.className = 'text-xs font-bold p-3 rounded-lg text-center mb-4 block ' +
                 (data.status === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20');
-            msgBox.innerHTML = data.message;
-
+            msgBox.textContent = data.message; // ایمن در برابر XSS
             if (data.status === 'success') {
                 document.getElementById('comment-form').reset();
                 setStarRating(5);
@@ -813,7 +846,6 @@ function showAlert(message, type = 'danger') {
     if (!container) {
         container = document.createElement('div');
         container.id = 'toast-container';
-        // اصلاح نحوه چینش برای قرارگیری دقیق در مرکز صفحه (فارغ از جهت RTL/LTR)
         container.className = 'fixed top-6 inset-x-0 mx-auto z-[9999] flex flex-col items-center gap-3 w-[90%] max-w-sm pointer-events-none px-4';
         document.body.appendChild(container);
     }
@@ -823,7 +855,9 @@ function showAlert(message, type = 'danger') {
         : 'bg-emerald-600 border border-emerald-500 shadow-emerald-500/30';
 
     toast.className = `pointer-events-auto p-4 rounded-2xl shadow-2xl text-white text-xs text-center font-bold transform transition-all duration-300 -translate-y-4 opacity-0 ${colorClass} w-full`;
-    toast.innerHTML = message;
+
+    // جلوگیری از DOM XSS با درج متن خالص به جای پردازش کد HTML
+    toast.textContent = message;
     container.appendChild(toast);
 
     requestAnimationFrame(() => {
@@ -1279,7 +1313,6 @@ function handleSaveSettings(event) {
     alert('✔ مشخصات حساب کاربری با موفقیت به‌روزرسانی شد.');
 }
 
-// مقداردهی اولیه پس از بارگذاری DOM
 document.addEventListener("DOMContentLoaded", function () {
     if (typeof lucide !== 'undefined') {
         lucide.createIcons();
@@ -1289,17 +1322,16 @@ document.addEventListener("DOMContentLoaded", function () {
     initElementSdk();
     updateCartUI();
 
+    // ۱. همگام‌سازی سبد خرید کاربر
     if (window.isLoggedIn) {
         fetch('/api/cart/get')
             .then(r => r.json())
             .then(data => {
                 let localCart = JSON.parse(localStorage.getItem('toyota_cart')) || [];
-                // اگر لوکال خالی بود ولی در دیتابیس محصول داشتیم، محصولات دیتابیس را در لوکال لود میکنیم
                 if (localCart.length === 0 && data.cart && data.cart.length > 0) {
                     cart = data.cart;
                     localStorage.setItem('toyota_cart', JSON.stringify(cart));
                 } else if (localCart.length > 0) {
-                    // اگر در مرورگر محصول داشتیم، آن را به دیتابیس میفرستیم تا آپدیت شود
                     syncCartToServer();
                 }
                 updateCartUI();
@@ -1308,20 +1340,7 @@ document.addEventListener("DOMContentLoaded", function () {
         updateCartUI();
     }
 
-    if (document.getElementById('parts-grid')) {
-        setupInfiniteScroll();
-        initFilters();
-
-        if (window.serverInitialProducts && window.serverInitialProducts.length > 0) {
-            partsDatabase = window.serverInitialProducts;
-            currentPage = window.serverCurrentPage || 1;
-            hasMorePages = partsDatabase.length < window.serverTotalCount;
-            isInitialLoaded = true;
-        } else {
-            applyFilters(1);
-        }
-    }
-
+    // ۲. مدیریت هوشمند کاتالوگ قطعات و SSR
     const gridEl = document.getElementById('parts-grid');
     if (gridEl) {
         initFilters();
@@ -1339,6 +1358,7 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         }
 
+        // اگر محصولات با PHP لود شده‌اند، به HTML دست نزن و اسکرول نامحدود را آماده کن
         if (isSSR && partsDatabase.length > 0) {
             currentPage = initialPage;
             hasMorePages = partsDatabase.length < totalItems;

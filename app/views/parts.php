@@ -128,10 +128,18 @@
 
             <!-- ================= محتوای اصلی (جستجو و لیست محصولات) ================= -->
             <div class="flex-1 space-y-6">
+                <!-- عنوان رسمی صفحه برای سئو و خزنده‌های گوگل (H1 اصلی کاتالوگ) -->
+                <div class="pb-2">
+                    <h1 class="text-xl sm:text-2xl font-black text-white">
+                        کاتالوگ و قیمت لوازم یدکی تویوتا
+                    </h1>
+                    <p class="text-xs text-gray-400 mt-1">تامین قطعات جنیون پارتس و OEM اصلی با ضمانت تطابق شاسی (VIN)
+                    </p>
+                </div>
+
                 <!-- نوار جستجو و دکمه فیلتر موبایل -->
                 <div
                     class="bg-brand-grey border border-white/10 rounded-2xl p-4 flex flex-col sm:flex-row gap-3 items-center">
-
                     <!-- فیلد جستجو -->
                     <div class="relative w-full flex-1">
                         <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
@@ -149,17 +157,15 @@
                             class="lg:hidden flex flex-1 items-center justify-center gap-2 border border-white/10 hover:border-brand-red px-5 py-3 rounded-xl text-sm font-bold bg-brand-dark/50 transition">
                             <i data-lucide="sliders-horizontal" style="width:16px;height:16px;"></i> فیلترها
                         </button>
-
                         <!-- انتخاب مرتب‌سازی -->
                         <div class="relative flex-1 sm:flex-none">
-                            <select id="sort-select" onchange="applyFilters()"
+                            <select id="sort-select" onchange="applyFilters(1)"
                                 class="w-full bg-brand-dark border border-white/10 rounded-xl pr-4 pl-10 py-3 text-sm text-gray-300 appearance-none focus:outline-none focus:border-brand-red transition cursor-pointer">
                                 <option value="newest">جدیدترین قطعات</option>
                                 <option value="price-asc">ارزان‌ترین</option>
                                 <option value="price-desc">گران‌ترین</option>
                                 <option value="popular">محبوب‌ترین</option>
                             </select>
-                            <!-- آیکون فلش (سمت چپ) -->
                             <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                                 <i data-lucide="chevron-down" class="text-gray-400 w-4 h-4"></i>
                             </div>
@@ -167,14 +173,15 @@
                     </div>
                 </div>
 
-                <!-- تعداد نتایج یافت‌شده -->
+                <!-- اصلاح شمارشگر نتایج: تبدیل به span برای جلوگیری از تداخل هدینگ‌ها -->
                 <div class="flex justify-between items-center text-xs text-gray-400 px-1">
-                    <h1 class="text-sm font-bold text-white" id="results-count">
+                    <span class="text-sm font-bold text-white" id="results-count">
                         <?= !empty($products) ? "یافت شده: {$totalCount} قطعه" : "در حال بارگذاری..." ?>
-                    </h1>
+                    </span>
                     <span>ضمانت تطابق قطعه با شماره شاسی خودرو (VIN)</span>
                 </div>
 
+                <!-- گرید رندر شده با PHP برای سئو -->
                 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6" id="parts-grid"
                     data-total="<?= (int) ($totalCount ?? 0) ?>" data-page="<?= (int) ($page ?? 1) ?>"
                     data-has-ssr="<?= !empty($products) ? 'true' : 'false' ?>">
@@ -183,6 +190,7 @@
                             <?php
                             $carModelName = $GLOBALS['car_models'][$part['model']]['name'] ?? $part['model'];
                             $imgSrc = !empty($part['images']) ? "/image?id=" . e($part['images'][0]) : "/assets/logo/logo.webp";
+                            $safeSlug = urlencode($part['slug']);
                             ?>
                             <div
                                 class="bg-brand-grey border border-white/5 hover:border-brand-red/30 p-5 rounded-2xl flex flex-col justify-between transition duration-300 hover:shadow-[0_10px_35px_rgba(225,6,0,0.12)]">
@@ -208,7 +216,7 @@
                                         <?php endif; ?>
                                     </div>
 
-                                    <a href="/product/<?= urlencode($part['slug']) ?>"
+                                    <a href="/product/<?= $safeSlug ?>"
                                         class="w-full h-40 bg-brand-dark rounded-xl flex items-center justify-center mb-4 text-brand-red relative group overflow-hidden border border-white/5 cursor-pointer block">
                                         <img src="<?= $imgSrc ?>" alt="<?= e($part['name']) ?>" loading="lazy"
                                             class="max-w-full max-h-full object-contain transition transform group-hover:scale-110 duration-300">
@@ -217,11 +225,12 @@
                                             dir="ltr">OEM: <?= e($part['oem']) ?></span>
                                     </a>
 
-                                    <a href="/product/<?= urlencode($part['slug']) ?>" class="block">
-                                        <h2
+                                    <!-- اصلاح سلسله‌مراتب سئو: عناوین کارت‌ها تبدیل به H3 شدند -->
+                                    <a href="/product/<?= $safeSlug ?>" class="block">
+                                        <h3
                                             class="font-bold text-sm text-white leading-relaxed line-clamp-2 hover:text-brand-red transition">
                                             <?= e($part['name']) ?>
-                                        </h2>
+                                        </h3>
                                     </a>
 
                                     <p class="text-xs text-gray-400 mt-2 flex items-center gap-1.5">
@@ -236,7 +245,7 @@
                                         <span class="font-black text-sm text-brand-red"><?= number_format($part['price']) ?>
                                             تومان</span>
                                     </div>
-                                    <button <?= $part['inStock'] ? 'onclick="addToCart(' . $part['id'] . ')"' : 'disabled' ?>
+                                    <button <?= $part['inStock'] ? 'onclick="addToCart(' . (int) $part['id'] . ')"' : 'disabled' ?>
                                         class="p-2.5 rounded-xl transition <?= $part['inStock'] ? 'bg-brand-red hover:bg-red-700 text-white shadow-[0_4px_15px_rgba(225,6,0,0.2)]' : 'bg-white/5 text-gray-500 cursor-not-allowed' ?>">
                                         <i data-lucide="shopping-cart" style="width:18px;height:18px;"></i>
                                     </button>
@@ -246,6 +255,7 @@
                     <?php endif; ?>
                 </div>
 
+                <!-- نشانگر لود اسکرول نامحدود -->
                 <div id="scroll-sentinel" class="w-full h-8"></div>
 
                 <?php if ($totalPages > 1): ?>
@@ -256,7 +266,6 @@
                         $prevPage = $page > 1 ? $page - 1 : null;
                         $nextPage = $page < $totalPages ? $page + 1 : null;
                         ?>
-
                         <?php if ($prevPage): ?>
                             <?php $queryParams['page'] = $prevPage; ?>
                             <a href="/parts?<?= http_build_query($queryParams) ?>"
@@ -289,23 +298,24 @@
                     <span class="text-xs font-bold text-gray-400">در حال دریافت قطعات بیشتر...</span>
                 </div>
 
-                <!-- پیام پایان کل محصولات انبار -->
+                <!-- پیام پایان کل محصولات -->
                 <div id="end-of-catalog"
                     class="hidden w-full text-center py-8 text-xs font-bold text-gray-500 border-t border-white/5 my-4">
                     به پایان کاتالوگ قطعات رسیدید.
                 </div>
 
-                <!-- نمای وضعیت خالی بودن لیست (Empty State) -->
+                <!-- وضعیت خالی بودن -->
                 <div id="empty-state" class="hidden text-center py-20 bg-brand-grey border border-white/5 rounded-2xl">
                     <div class="w-16 h-16 bg-brand-red/10 rounded-full flex items-center justify-center mx-auto mb-4">
                         <i data-lucide="info" class="text-brand-red" style="width:32px;height:32px;"></i>
                     </div>
                     <h4 class="font-bold text-lg mb-2">قطعه مورد نظر پیدا نشد!</h4>
                     <p class="text-gray-400 text-sm max-w-sm mx-auto mb-6">احتمالاً فیلترهای زیادی انتخاب کرده‌اید یا
-                        قطعه در انبار موجود نیست. با پشتیبانی تماس بگیرید.</p>
+                        قطعه در انبار موجود نیست.</p>
                     <button onclick="resetFilters()"
-                        class="bg-brand-red hover:bg-red-700 text-white font-bold px-6 py-2.5 rounded-xl transition text-xs">حذف
-                        فیلترها و نمایش همه</button>
+                        class="bg-brand-red hover:bg-red-700 text-white font-bold px-6 py-2.5 rounded-xl transition text-xs">
+                        حذف فیلترها و نمایش همه
+                    </button>
                 </div>
             </div>
         </div>

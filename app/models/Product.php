@@ -191,14 +191,16 @@ class Product
         return $stmt->fetch() ? true : false;
     }
 
-    public static function generateSchema($product, $comments)
+    // متد generateSchema در فایل app/models/Product.php را با کد زیر جایگزین کنید:
+
+    public static function generateSchema($product, $comments = [])
     {
         $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
         $host = $_SERVER['HTTP_HOST'] ?? 'pradoyadak.com';
         $hostUrl = $protocol . "://" . $host;
         $productUrl = $hostUrl . "/product/" . urlencode($product['slug']);
 
-        // اگر محصول تصویری نداشت، آدرس کامل لوگوی پیش‌فرض ست می‌شود تا خطای بحرانی اسکیمای گوگل برطرف شود
+        // ۱. آماده‌سازی تصاویر
         $images = [];
         if (!empty($product['images']) && is_array($product['images'])) {
             foreach ($product['images'] as $img) {
@@ -208,61 +210,165 @@ class Product
             $images[] = $hostUrl . "/assets/logo/logo.webp";
         }
 
-        $schemaAvgRating = 5.0;
+        // ۲. محاسبه امتیاز کاربران
         $schemaCommentCount = count($comments ?? []);
+        $schemaAvgRating = 5.0;
+        $reviewsSchema = [];
+
         if ($schemaCommentCount > 0) {
             $schemaSum = 0;
             foreach ($comments as $c) {
-                $schemaSum += (float) ($c['rating'] ?? 5);
+                $ratingVal = (float) ($c['rating'] ?? 5);
+                $schemaSum += $ratingVal;
+
+                $reviewsSchema[] = [
+                    "@type" => "Review",
+                    "reviewRating" => [
+                        "@type" => "Rating",
+                        "ratingValue" => (string) $ratingVal,
+                        "bestRating" => "5",
+                        "worstRating" => "1"
+                    ],
+                    "author" => [
+                        "@type" => "Person",
+                        "name" => !empty($c['name']) ? $c['name'] : 'خریدار قطعه'
+                    ],
+                    "datePublished" => !empty($c['created_at']) ? date('Y-m-d', strtotime($c['created_at'])) : date('Y-m-d'),
+                    "reviewBody" => strip_tags($c['comment_text'] ?? '')
+                ];
             }
             $schemaAvgRating = round($schemaSum / $schemaCommentCount, 1);
         }
 
+        // ۳. تبدیل قیمت به ریال (استاندارد ISO 4217 برای IRR)
+        $priceInRials = ((float) ($product['price'] ?? 0)) * 10;
+        $validUntil = date('Y-12-31', strtotime('+1 year'));
+
+        // ۴. ساختار اصلی Product با استانداردهای Merchant Center
         $schemaProduct = [
             "@context" => "https://schema.org",
             "@type" => "Product",
             "name" => $product['name'],
             "image" => $images,
-            "description" => strip_tags($product['desc'] ?? ''),
-            "sku" => (string) (!empty($product['oem']) ? $product['oem'] : $product['id']),
+            "description" => mb_substr(strip_tags($product['desc'] ?? $product['name']), 0, 300, 'UTF-8'),
+            "sku" => (string) (!empty($product['oem']) ? $product['oem'] : 'PRD-' . $product['id']),
+            "mpn" => (string) (!empty($product['oem']) ? $product['oem'] : 'PRD-' . $product['id']),
             "brand" => [
                 "@type" => "Brand",
-                "name" => !empty($product['brand']) ? $product['brand'] : 'تویوتا'
+                "name" => !empty($product['brand']) ? $product['brand'] : 'Toyota'
             ],
             "offers" => [
                 "@type" => "Offer",
                 "url" => $productUrl,
                 "priceCurrency" => "IRR",
-                "price" => (float) ($product['price'] ?? 0) * 10,
+                "price" => (string) $priceInRials,
+                "priceValidUntil" => $validUntil,
+                "itemCondition" => "https://schema.org/NewCondition",
                 "availability" => !empty($product['inStock']) ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-                "itemCondition" => "https://schema.org/NewCondition"
+                "seller" => [
+                    "@type" => "Organization",
+                    "name" => "پرادو یدک",
+                    "url" => $hostUrl
+                ],
+                // سیاست ضمانت و مرجوعی کالا
+                "hasMerchantReturnPolicy" => [
+                    "@type" => "MerchantReturnPolicy",
+                    "applicableCountry" => "IR",
+                    "returnPolicyCategory" => "https://schema.org/MerchantReturnFiniteReturnWindow",
+                    "merchantReturnDays" => 7,
+                    "returnMethod" => "https://schema.org/ReturnByMail",
+                    "returnFees" => "https://schema.org/FreeReturn"
+                ],
+                // مشخصات و زمان ارسال مرسوله
+                "shippingDetails" => [
+                    "@type" => "OfferShippingDetails",
+                    "shippingRate" => [
+                        "@type" => "MonetaryAmount",
+                        "value" => "0",
+                        "currency" => "IRR"
+                    ],
+                    "shippingDestination" => [
+                        [
+                            "@type" => "DefinedRegion",
+                            "addressCountry" => "IR"
+                        ]
+                    ],
+                    "deliveryTime" => [
+                        "@type" => "ShippingDeliveryTime",
+                        "handlingTime" => [
+                            "@type" => "QuantitativeValue",
+                            "minValue" => 0,
+                            "maxValue" => 1,
+                            "unitCode" => "d"
+                        ],
+                        "transitTime" => [
+                            "@type" => "QuantitativeValue",
+                            "minValue" => 1,
+                            "maxValue" => 3,
+                            "unitCode" => "d"
+                        ]
+                    ]
+                ]
             ]
         ];
 
+        // افزودن امتیاز و نظرات در صورت وجود
         if ($schemaCommentCount > 0) {
             $schemaProduct["aggregateRating"] = [
                 "@type" => "AggregateRating",
-                "ratingValue" => $schemaAvgRating,
-                "reviewCount" => $schemaCommentCount,
+                "ratingValue" => (string) $schemaAvgRating,
+                "reviewCount" => (string) $schemaCommentCount,
                 "bestRating" => "5",
                 "worstRating" => "1"
             ];
+            $schemaProduct["review"] = $reviewsSchema;
         }
+
+        // ۵. ساختار BreadcrumbList پویا
+        $breadcrumbItems = [
+            [
+                "@type" => "ListItem",
+                "position" => 1,
+                "name" => "صفحه اصلی",
+                "item" => $hostUrl . "/"
+            ],
+            [
+                "@type" => "ListItem",
+                "position" => 2,
+                "name" => "کاتالوگ قطعات",
+                "item" => $hostUrl . "/parts"
+            ]
+        ];
+
+        $pos = 3;
+        if (!empty($product['category'])) {
+            $catName = $GLOBALS['part_categories'][$product['category']]['name'] ?? $product['category'];
+            $breadcrumbItems[] = [
+                "@type" => "ListItem",
+                "position" => $pos++,
+                "name" => $catName,
+                "item" => $hostUrl . "/parts?category=" . urlencode($product['category'])
+            ];
+        }
+
+        $breadcrumbItems[] = [
+            "@type" => "ListItem",
+            "position" => $pos,
+            "name" => $product['name'],
+            "item" => $productUrl
+        ];
 
         $schemaBreadcrumb = [
             "@context" => "https://schema.org",
             "@type" => "BreadcrumbList",
-            "itemListElement" => [
-                ["@type" => "ListItem", "position" => 1, "name" => "صفحه اصلی", "item" => $hostUrl . "/"],
-                ["@type" => "ListItem", "position" => 2, "name" => "کاتالوگ قطعات", "item" => $hostUrl . "/parts"],
-                ["@type" => "ListItem", "position" => 3, "name" => $product['name'], "item" => $productUrl]
-            ]
+            "itemListElement" => $breadcrumbItems
         ];
 
-        $schemaStr = "<script type=\"application/ld+json\">\n" . json_encode($schemaProduct, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n</script>\n";
-        $schemaStr .= "<script type=\"application/ld+json\">\n" . json_encode($schemaBreadcrumb, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n</script>";
+        // خروجی نهایی اسکریپت‌های JSON-LD
+        $output = "<script type=\"application/ld+json\">\n" . json_encode($schemaProduct, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n</script>\n";
+        $output .= "<script type=\"application/ld+json\">\n" . json_encode($schemaBreadcrumb, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n</script>";
 
-        return $schemaStr;
+        return $output;
     }
 
     public static function findByOem($oemCode)

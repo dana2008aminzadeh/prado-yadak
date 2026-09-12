@@ -11,6 +11,29 @@ if ($uri !== '/' && substr($uri, -1) === '/') {
     $uri = rtrim($uri, '/');
 }
 
+if ($uri === '/' || $uri === '/index') {
+    $canonicalUrl = $hostUrl . '/';
+} elseif (str_starts_with($uri, '/product/') && isset($product['slug'])) {
+    $canonicalUrl = $hostUrl . "/product/" . urlencode($product['slug']);
+} elseif ($uri === '/parts') {
+    $canonicalParams = [];
+    if (!empty($_GET['category']))
+        $canonicalParams['category'] = $_GET['category'];
+    if (!empty($_GET['model']))
+        $canonicalParams['model'] = $_GET['model'];
+    if (!empty($_GET['brand']))
+        $canonicalParams['brand'] = $_GET['brand'];
+    if (!empty($_GET['page']) && (int) $_GET['page'] > 1)
+        $canonicalParams['page'] = (int) $_GET['page'];
+
+    $canonicalUrl = $hostUrl . '/parts';
+    if (!empty($canonicalParams)) {
+        $canonicalUrl .= '?' . http_build_query($canonicalParams);
+    }
+} else {
+    $canonicalUrl = $hostUrl . $uri;
+}
+
 // ۱. مدیریت عنوان صفحات (Title)
 if (!isset($pageTitle)) {
     $defaultTitles = [

@@ -38,13 +38,22 @@ class PartController extends Controller
 
     public function show()
     {
-        $slug = isset($_GET['slug']) ? $_GET['slug'] : null;
+        $slug = isset($_GET['slug']) ? trim($_GET['slug']) : null;
         $id = isset($_GET['id']) ? (int) $_GET['id'] : null;
+
+        if ($id && !$slug) {
+            $product = \App\models\Product::findById($id);
+            if ($product) {
+                header("HTTP/1.1 301 Moved Permanently");
+                header("Location: /product/" . urlencode($product['slug']));
+                exit;
+            }
+            header("Location: /404");
+            exit;
+        }
 
         if ($slug) {
             $product = \App\models\Product::findBySlug($slug);
-        } elseif ($id) {
-            $product = \App\models\Product::findById($id);
         } else {
             header("Location: /404");
             exit;
@@ -56,7 +65,6 @@ class PartController extends Controller
         }
 
         $id = $product['id'];
-
         global $settings;
         $site_name = $settings['site_title'] ?? 'پرادو یدک';
         $pageTitle = $product['name'] . ' | ' . $site_name;
@@ -65,8 +73,6 @@ class PartController extends Controller
         $similar_parts = $similar_parts_data['items'];
         $newest_parts_data = \App\models\Product::search([], 1, 4);
         $newest_parts = $newest_parts_data['items'];
-
-        // استفاده از Model به جای نوشتن کوئری در Controller
         $comments = \App\models\Product::getComments($id);
         $can_comment = false;
 
@@ -74,7 +80,6 @@ class PartController extends Controller
             $can_comment = \App\models\Product::canUserComment($id, $_SESSION['user_id']);
         }
 
-        // دریافت خروجی اسکیما برای ارسال به فایل Header
         $schemaMarkup = \App\models\Product::generateSchema($product, $comments);
 
         require_once VIEWS_PATH . '/product-detail.php';

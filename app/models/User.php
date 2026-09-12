@@ -24,27 +24,44 @@ class User
     public static function checkLoginAttempts($phone, $ip)
     {
         $db = Database::getInstance();
-        $stmt = $db->prepare("
-            SELECT COUNT(*) as attempts, MAX(attempted_at) as last_attempt 
-            FROM login_attempts 
-            WHERE (phone = ? OR ip_address = ?) 
-              AND attempted_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)
-        ");
-        $stmt->execute([$phone, $ip]);
-        $row = $stmt->fetch();
 
-        $attempts = (int) ($row['attempts'] ?? 0);
-        $lastAttempt = $row['last_attempt'] ? strtotime($row['last_attempt']) : time();
+        // ۱. بررسی قفل بودن همین شماره همراه (محافظت از اکانت خاص)
+        $stmtPhone = $db->prepare("
+        SELECT COUNT(*) as attempts, MAX(attempted_at) as last_attempt
+        FROM login_attempts
+        WHERE phone = ? AND attempted_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)
+    ");
+        $stmtPhone->execute([$phone]);
+        $rowPhone = $stmtPhone->fetch();
+        $phoneAttempts = (int) ($rowPhone['attempts'] ?? 0);
 
-        if ($attempts >= 5) {
-            $lockoutDuration = 15 * 60; // 15 دقیقه
-            $remaining = ($lastAttempt + $lockoutDuration) - time();
+        if ($phoneAttempts >= 5) {
+            $lastAttempt = $rowPhone['last_attempt'] ? strtotime($rowPhone['last_attempt']) : time();
+            $remaining = ($lastAttempt + (15 * 60)) - time();
             if ($remaining > 0) {
-                return ['locked' => true, 'minutes' => ceil($remaining / 60)];
+                return ['locked' => true, 'type' => 'account', 'minutes' => ceil($remaining / 60), 'attempts' => $phoneAttempts];
             }
         }
 
-        return ['locked' => false, 'attempts' => $attempts];
+        // ۲. بررسی قفل بودن سراسری این آی‌پی (محافظت در برابر اسپری پسورد / بات‌نت)
+        $stmtIp = $db->prepare("
+        SELECT COUNT(*) as attempts, MAX(attempted_at) as last_attempt
+        FROM login_attempts
+        WHERE ip_address = ? AND attempted_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)
+    ");
+        $stmtIp->execute([$ip]);
+        $rowIp = $stmtIp->fetch();
+        $ipAttempts = (int) ($rowIp['attempts'] ?? 0);
+
+        if ($ipAttempts >= 25) {
+            $lastAttempt = $rowIp['last_attempt'] ? strtotime($rowIp['last_attempt']) : time();
+            $remaining = ($lastAttempt + (15 * 60)) - time();
+            if ($remaining > 0) {
+                return ['locked' => true, 'type' => 'ip', 'minutes' => ceil($remaining / 60), 'attempts' => $ipAttempts];
+            }
+        }
+
+        return ['locked' => false, 'attempts' => $phoneAttempts];
     }
 
     public static function recordFailedLogin($phone, $ip)

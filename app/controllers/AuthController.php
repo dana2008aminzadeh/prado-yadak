@@ -44,25 +44,21 @@ class AuthController extends Controller
         $phone = trim($input['phone'] ?? '');
         $password = $input['password'] ?? '';
 
-        $ip = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-        if (strpos($ip, ',') !== false) {
-            $ip = trim(explode(',', $ip)[0]);
-        }
+        $ip = $this->getClientIp();
 
-        // ۱. بررسی قفل بودن حساب در سطح دیتابیس (غیرقابل دور زدن با تغییر سشن)
         $lockStatus = User::checkLoginAttempts($phone, $ip);
         if ($lockStatus['locked']) {
             http_response_code(429);
-            echo json_encode(['error' => "به دلیل تلاش‌های ناموفق، حساب شما مسدود شده است. لطفاً {$lockStatus['minutes']} دقیقه دیگر تلاش کنید."]);
+            $msg = $lockStatus['type'] === 'account'
+                ? "به دلیل تلاش‌های ناموفق مکرر، این حساب موقتاً مسدود شده است. لطفاً {$lockStatus['minutes']} دقیقه دیگر تلاش کنید."
+                : "تعداد درخواست‌های ناموفق از شبکه شما بیش از حد مجاز است. لطفاً {$lockStatus['minutes']} دقیقه صبر کنید.";
+            echo json_encode(['error' => $msg]);
             exit;
         }
 
         $user = User::findByPhone($phone);
-
-        // ۲. تایید کلمه عبور
         if ($user && password_verify($password, $user['password_hash'])) {
             User::clearLoginAttempts($phone);
-
             session_regenerate_id(true);
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['user_role'] = $user['role'];

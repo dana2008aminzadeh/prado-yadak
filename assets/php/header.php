@@ -82,14 +82,14 @@ if (!in_array($current_page, $hide_floating_buttons_on)):
             <i data-lucide="menu" style="width:24px;height:24px;"></i>
         </button>
 
-        <!-- لوگو و برند -->
+        <!-- در assets/php/header.php بخش لوگو: -->
         <a href="/index" class="flex items-center gap-2.5 sm:gap-3 order-2 md:order-1">
             <img src="/assets/logo/logo.webp" alt="<?= e($settings['site_title'] ?? 'پرادو یدک') ?>" loading="lazy"
                 class="h-10 sm:h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-105">
             <div class="text-center md:text-right">
-                <h1 class="text-base sm:text-lg font-extrabold leading-tight">
+                <span class="block text-base sm:text-lg font-extrabold leading-tight text-white">
                     <?= e($settings['site_title'] ?? 'پرادو یدک') ?>
-                </h1>
+                </span>
                 <p class="text-[9px] sm:text-[10px] text-gray-400 tracking-wider">
                     <?= e($settings['site_subtitle'] ?? 'PRADO YADAK') ?>
                 </p>
