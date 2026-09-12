@@ -1,11 +1,10 @@
 <?php
-namespace Core;
+namespace App\controllers;
 
 class Controller
 {
     public function __construct()
     {
-        // در متدهای POST، توکن CSRF اجباری بررسی می‌شود
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $this->verifyCsrfToken();
         }
@@ -13,12 +12,16 @@ class Controller
 
     protected function verifyCsrfToken()
     {
-        $headers = apache_request_headers();
-        $token = $_POST['csrf_token'] ?? $headers['X-CSRF-Token'] ?? '';
+        $headers = function_exists('getallheaders') ? getallheaders() : [];
 
-        if (empty($token) || !hash_equals($_SESSION['csrf_token'], $token)) {
+        $client_csrf = $_POST['csrf_token'] ??
+            $headers['X-CSRF-Token'] ??
+            $headers['x-csrf-token'] ??
+            $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+
+        if (empty($client_csrf) || !hash_equals($_SESSION['csrf_token'] ?? '', $client_csrf)) {
             http_response_code(403);
-            echo json_encode(['error' => 'درخواست نامعتبر است (CSRF Token Mismatch)']);
+            echo json_encode(['error' => 'درخواست نامعتبر است (خطای امنیتی CSRF)']);
             exit;
         }
     }

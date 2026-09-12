@@ -4,7 +4,7 @@ namespace App\controllers;
 use App\models\User;
 use App\models\Otp;
 
-class AuthController
+class AuthController extends Controller
 {
     public function loginForm()
     {
@@ -19,14 +19,6 @@ class AuthController
     {
         header('Content-Type: application/json');
         $input = json_decode(file_get_contents('php://input'), true);
-        $headers = getallheaders();
-        $client_csrf = $headers['X-CSRF-Token'] ?? ($headers['x-csrf-token'] ?? '');
-
-        if (empty($client_csrf) || !hash_equals($_SESSION['csrf_token'] ?? '', $client_csrf)) {
-            http_response_code(403);
-            echo json_encode(['error' => 'درخواست نامعتبر است (خطای امنیتی)']);
-            exit;
-        }
         return $input;
     }
 

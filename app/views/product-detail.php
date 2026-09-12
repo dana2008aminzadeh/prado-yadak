@@ -44,7 +44,7 @@
                         $mainImage = !empty($images) ? "/image?id=" . e($images[0]) : "/assets/logo/logo.webp";
                         ?>
                         <div id="main-product-inner" class="w-full h-full flex items-center justify-center">
-                            <img src="<?= $mainImage ?>" alt="<?= e($product['name']) ?>"
+                            <img src="<?= $mainImage ?>" alt="<?= e($product['name']) ?>" loading="lazy"
                                 class="max-w-full max-h-full object-contain drop-shadow-2xl transition transform group-hover:scale-110 duration-300">
                         </div>
 
@@ -67,7 +67,7 @@
                             <?php foreach ($images as $index => $img): ?>
                                 <div onclick="changeMainImage('/image?id=<?= e($img) ?>', this)"
                                     class="thumb-btn h-16 sm:h-20 border rounded-xl flex items-center justify-center cursor-pointer transition duration-200 hover:border-brand-red/50 p-2 <?= $index === 0 ? 'border-brand-red bg-brand-dark' : 'border-white/5 bg-brand-dark/40' ?>">
-                                    <img src="/image?id=<?= e($img) ?>" class="max-w-full max-h-full object-contain anim-float"
+                                    <img src="/image?id=<?= e($img) ?>" loading="lazy" class="max-w-full max-h-full object-contain anim-float"
                                         alt="Thumbnail">
                                 </div>
                             <?php endforeach; ?>
@@ -318,7 +318,7 @@
             <a href=\"/product/{$safeSlug}\" class=\"bg-brand-grey border border-white/5 rounded-2xl overflow-hidden group hover:border-brand-red/30 transition duration-300 flex flex-col justify-between relative shadow-sm\">
                 $genuineBadge
                 <div class=\"h-48 bg-brand-dark flex items-center justify-center p-4 border-b border-white/5 relative overflow-hidden\">
-                    <img src=\"$img\" alt=\"{$p['name']}\" class=\"max-w-full max-h-full object-contain group-hover:scale-110 transition duration-500 drop-shadow-lg\">
+                    <img src=\"$img\" loading=\"lazy\" alt=\"{$p['name']}\" class=\"max-w-full max-h-full object-contain group-hover:scale-110 transition duration-500 drop-shadow-lg\">
                 </div>
                 <div class=\"p-5 flex-1 flex flex-col justify-between space-y-4\">
                     <div class=\"space-y-2\">

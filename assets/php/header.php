@@ -6,17 +6,14 @@ $is_logged_in = isset($_SESSION['user_id']);
 
 $current_page = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
-// حذف اسلش اضافی در انتهای آدرس (به جز صفحه اصلی)
 if ($current_page !== '/' && substr($current_page, -1) === '/') {
     $current_page = rtrim($current_page, '/');
 }
 
-// اگر کاربر در ریشه سایت بود، آن را به عنوان صفحه اصلی در نظر بگیر
 if ($current_page === '/' || $current_page === '') {
     $current_page = '/index';
 }
 
-// تابع استایل‌دهی منوی دسکتاپ
 function getDesktopClass($pageName, $currentPage)
 {
     $activeClass = 'text-brand-accent font-bold relative after:content-[""] after:absolute after:-bottom-2 after:left-0 after:w-full after:h-0.5 after:bg-brand-accent after:rounded-full';
@@ -30,7 +27,6 @@ function getDesktopClass($pageName, $currentPage)
     return ($pageName == $currentPage) ? $activeClass : $inactiveClass;
 }
 
-// تابع استایل‌دهی منوی موبایل
 function getMobileClass($pageName, $currentPage)
 {
     $activeClass = 'block py-2 px-3 rounded-lg text-brand-accent font-bold bg-brand-accent/10 border-r-2 border-brand-accent';
@@ -44,7 +40,6 @@ function getMobileClass($pageName, $currentPage)
     return ($pageName == $currentPage) ? $activeClass : $inactiveClass;
 }
 
-// آرایه منوهای اصلی سایت
 $menu_items = [
     '/index' => 'صفحه اصلی',
     '/parts' => 'مشاهده قطعات',
@@ -52,12 +47,10 @@ $menu_items = [
     '/terms' => 'قوانین و ضمانت'
 ];
 
-// لیست صفحاتی که دکمه‌های شناور واتساپ و تماس نباید در آن‌ها نمایش داده شوند
 $hide_floating_buttons_on = ['/index', '/blog', '/login', '/404'];
 ?>
 
 <?php
-// بررسی شرط: اگر صفحه فعلی در لیست بالا نبود، دکمه‌ها را نمایش بده
 if (!in_array($current_page, $hide_floating_buttons_on)):
     ?>
     <!-- دکمه‌های شناور مشاوره -->
@@ -91,7 +84,7 @@ if (!in_array($current_page, $hide_floating_buttons_on)):
 
         <!-- لوگو و برند -->
         <a href="/index" class="flex items-center gap-2.5 sm:gap-3 order-2 md:order-1">
-            <img src="/assets/logo/logo.webp" alt="<?= e($settings['site_title'] ?? 'پرادو یدک') ?>"
+            <img src="/assets/logo/logo.webp" alt="<?= e($settings['site_title'] ?? 'پرادو یدک') ?>" loading="lazy"
                 class="h-10 sm:h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-105">
             <div class="text-center md:text-right">
                 <h1 class="text-base sm:text-lg font-extrabold leading-tight">

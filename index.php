@@ -23,13 +23,50 @@ function e($string)
 
 function clean_html($html)
 {
+    if (empty($html))
+        return '';
+
     $allowed_tags = '<div><span><p><br><hr><h1><h2><h3><h4><h5><h6><strong><b><i><em><u><a><ul><ol><li><blockquote><code><pre>';
-    return strip_tags($html ?? '', $allowed_tags);
+    $html = strip_tags($html, $allowed_tags);
+
+    $dom = new DOMDocument();
+    libxml_use_internal_errors(true);
+
+    $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+    libxml_clear_errors();
+
+    $xpath = new DOMXPath($dom);
+    $nodes = $xpath->query('//*[@*]');
+
+    foreach ($nodes as $node) {
+        if ($node instanceof DOMElement && $node->hasAttributes()) {
+
+            for ($i = $node->attributes->length - 1; $i >= 0; $i--) {
+                $attr = $node->attributes->item($i);
+
+                if ($attr) {
+                    $attrName = strtolower($attr->nodeName);
+                    $attrValue = strtolower($attr->nodeValue);
+
+                    if (
+                        str_starts_with($attrName, 'on') ||
+                        ($attrName === 'href' && str_contains(str_replace(' ', '', $attrValue), 'javascript:'))
+                    ) {
+                        $node->removeAttribute($attr->nodeName);
+                    }
+                }
+            }
+        }
+    }
+
+    $clean_html = $dom->saveHTML();
+    $clean_html = str_replace('<?xml encoding="utf-8" ?>', '', $clean_html);
+
+    return trim($clean_html);
 }
 
 function toShamsi($dateString)
 {
-    // بررسی اینکه آیا ورودی خودش تایم‌استمپ است یا رشته متنی
     $timestamp = is_numeric($dateString) ? $dateString : strtotime($dateString);
     if (!$timestamp)
         return 'نامشخص';

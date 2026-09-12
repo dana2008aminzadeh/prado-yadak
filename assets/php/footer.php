@@ -17,7 +17,7 @@ if (!isset($current_page)) {
             <!-- ستون ۱: معرفی مجموعه -->
             <div class="md:col-span-1">
                 <a href="/index" class="flex items-center gap-3 mb-4">
-                    <img src="/assets/logo/logo.webp" alt="پرادو یدک"
+                    <img src="/assets/logo/logo.webp" alt="پرادو یدک" loading="lazy"
                         class="h-10 sm:h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-105">
                     <div>
                         <h4 class="font-bold text-white" id="footer-title">

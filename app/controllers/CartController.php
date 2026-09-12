@@ -3,9 +3,8 @@ namespace App\controllers;
 
 use App\models\Cart;
 
-class CartController
+class CartController extends Controller
 {
-    // ذخیره سبد خرید از سمت جاوااسکریپت به دیتابیس
     public function sync()
     {
         if (session_status() == PHP_SESSION_NONE) session_start();
@@ -23,7 +22,6 @@ class CartController
         echo json_encode(['status' => 'success']);
     }
     
-    // دریافت سبد خرید ذخیره شده برای وقتی که کاربر با سیستم جدید وارد میشود
     public function get()
     {
         if (session_status() == PHP_SESSION_NONE) session_start();

@@ -2,17 +2,16 @@
 global $settings;
 $site_name = $settings['site_title'] ?? 'پرادو یدک';
 
-// اگر متغیر pageTitle از سمت کنترلر (Controller) مقداردهی نشده بود، بر اساس آدرس (URI) آن را تنظیم کن
-if (!isset($pageTitle)) {
-    $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-    if ($uri !== '/' && substr($uri, -1) === '/') {
-        $uri = rtrim($uri, '/');
-    }
+$hostUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://" . $_SERVER['HTTP_HOST'];
+$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+if ($uri !== '/' && substr($uri, -1) === '/') {
+    $uri = rtrim($uri, '/');
+}
 
+if (!isset($pageTitle)) {
     $defaultTitles = [
         '/' => $site_name,
         '/index' => $site_name,
-        '/parts' => 'جستجو و خرید قطعات تویوتا | ' . $site_name,
         '/blog' => 'وبلاگ و راهنمای فنی تویوتا | ' . $site_name,
         '/login' => 'ورود / ثبت‌نام | ' . $site_name,
         '/profile' => 'پنل کاربری و پروفایل | ' . $site_name,
@@ -21,16 +20,52 @@ if (!isset($pageTitle)) {
         '/404' => 'صفحه پیدا نشد | ' . $site_name
     ];
 
-    $pageTitle = $defaultTitles[$uri] ?? $site_name;
+    if ($uri === '/parts') {
+        $partsTitle = 'جستجو و خرید قطعات تویوتا';
+
+        if (!empty($_GET['category']) && isset($GLOBALS['part_categories'][$_GET['category']])) {
+            $catData = $GLOBALS['part_categories'][$_GET['category']];
+            $catName = is_array($catData) ? ($catData['name'] ?? '') : $catData;
+            $partsTitle = 'خرید ' . $catName . ' تویوتا';
+        } elseif (!empty($_GET['model']) && isset($GLOBALS['car_models'][$_GET['model']])) {
+            $modData = $GLOBALS['car_models'][$_GET['model']];
+            $modName = is_array($modData) ? ($modData['name'] ?? '') : $modData;
+            $partsTitle = 'خرید قطعات ' . $modName;
+        }
+
+        $pageTitle = $partsTitle . ' | ' . $site_name;
+    } else {
+        $pageTitle = $defaultTitles[$uri] ?? $site_name;
+    }
 }
+
+$canonicalUrl = $hostUrl . ($uri === '/index' ? '/' : $uri);
+
+if ($uri === '/parts') {
+    $canonicalParams = [];
+    if (!empty($_GET['category']))
+        $canonicalParams['category'] = $_GET['category'];
+    if (!empty($_GET['model']))
+        $canonicalParams['model'] = $_GET['model'];
+
+    if (!empty($canonicalParams)) {
+        $canonicalUrl .= '?' . http_build_query($canonicalParams);
+    }
+}
+
+$defaultDesc = 'پرادو یدک، تامین‌کننده تخصصی قطعات جنیون و اصلی تویوتا و لکسوس با ضمانت ۱۰۰٪ اصالت کالا و ارسال سریع به سراسر ایران.';
+$finalMetaDesc = $metaDescription ?? $defaultDesc;
 ?>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="csrf-token" content="<?php echo $_SESSION['csrf_token'] ?? ''; ?>">
-<title><?php echo e($pageTitle); ?></title>
 
-<script src="https://cdn.tailwindcss.com"></script>
+<title><?php echo e($pageTitle); ?></title>
+<meta name="description" content="<?php echo e($finalMetaDesc); ?>">
+<link rel="canonical" href="<?php echo e($canonicalUrl); ?>" />
+
 <script src="https://unpkg.com/lucide@latest"></script>
+<script src="https://cdn.tailwindcss.com"></script>
 
 <?php
 $uri_for_scripts = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
