@@ -11,20 +11,27 @@ if ($uri !== '/' && substr($uri, -1) === '/') {
     $uri = rtrim($uri, '/');
 }
 
-if ($uri === '/' || $uri === '/index') {
+// محاسبه یکتا و استاندارد Canonical URL بدون بازنویسی مجدد
+if ($uri === '/' || $uri === '/index' || $uri === '') {
     $canonicalUrl = $hostUrl . '/';
-} elseif (str_starts_with($uri, '/product/') && isset($product['slug'])) {
+} elseif ((str_starts_with($uri, '/product') || $uri === '/product') && isset($product['slug'])) {
     $canonicalUrl = $hostUrl . "/product/" . urlencode($product['slug']);
+} elseif ((str_starts_with($uri, '/blog') || $uri === '/blog-detail') && isset($article['slug'])) {
+    $canonicalUrl = $hostUrl . "/blog/" . urlencode($article['slug']);
 } elseif ($uri === '/parts') {
     $canonicalParams = [];
-    if (!empty($_GET['category']))
+    if (!empty($_GET['category'])) {
         $canonicalParams['category'] = $_GET['category'];
-    if (!empty($_GET['model']))
+    }
+    if (!empty($_GET['model'])) {
         $canonicalParams['model'] = $_GET['model'];
-    if (!empty($_GET['brand']))
+    }
+    if (!empty($_GET['brand'])) {
         $canonicalParams['brand'] = $_GET['brand'];
-    if (!empty($_GET['page']) && (int) $_GET['page'] > 1)
+    }
+    if (!empty($_GET['page']) && (int) $_GET['page'] > 1) {
         $canonicalParams['page'] = (int) $_GET['page'];
+    }
 
     $canonicalUrl = $hostUrl . '/parts';
     if (!empty($canonicalParams)) {
@@ -34,11 +41,10 @@ if ($uri === '/' || $uri === '/index') {
     $canonicalUrl = $hostUrl . $uri;
 }
 
-// ۱. مدیریت عنوان صفحات (Title)
+// تنظیم عناوین پیش‌فرض صفحات
 if (!isset($pageTitle)) {
     $defaultTitles = [
         '/' => $site_name . ' | مرجع تخصصی قطعات اصلی تویوتا و لکسوس',
-        '/index' => $site_name . ' | مرجع تخصصی قطعات اصلی تویوتا و لکسوس',
         '/blog' => 'وبلاگ و دانشنامه فنی تویوتا | ' . $site_name,
         '/login' => 'ورود و ثبت‌نام | ' . $site_name,
         '/profile' => 'پنل کاربری | ' . $site_name,
@@ -49,7 +55,6 @@ if (!isset($pageTitle)) {
 
     if ($uri === '/parts') {
         $partsTitle = 'کاتالوگ و قیمت قطعات یدکی تویوتا';
-
         if (!empty($_GET['category']) && isset($GLOBALS['part_categories'][$_GET['category']])) {
             $catData = $GLOBALS['part_categories'][$_GET['category']];
             $catName = is_array($catData) ? ($catData['name'] ?? '') : $catData;
@@ -59,34 +64,16 @@ if (!isset($pageTitle)) {
             $modName = is_array($modData) ? ($modData['name'] ?? '') : $modData;
             $partsTitle = 'خرید قطعات تویوتا ' . $modName;
         }
-
         $pageTitle = $partsTitle . ' | ' . $site_name;
     } else {
         $pageTitle = $defaultTitles[$uri] ?? ($site_name . ' | قطعات یدکی تویوتا');
     }
 }
 
-// ۲. متای توضیحات (Meta Description)
 $defaultDesc = 'فروشگاه تخصصی پرادو یدک؛ تامین قطعات اصلی جنیون پارت تویوتا و لکسوس با ضمانت ۱۰۰٪ اصالت، تطابق با شماره شاسی (VIN) و ارسال سریع به سراسر کشور.';
 $finalMetaDesc = $metaDescription ?? $defaultDesc;
 
-// ۳. تولید آدرس کانونیکال (حفظ دسته‌بندی، مدل و صفحه برای پیجینیشن)
-$canonicalUrl = $hostUrl . ($uri === '/index' ? '/' : $uri);
-if ($uri === '/parts') {
-    $canonicalParams = [];
-    if (!empty($_GET['category']))
-        $canonicalParams['category'] = $_GET['category'];
-    if (!empty($_GET['model']))
-        $canonicalParams['model'] = $_GET['model'];
-    if (!empty($_GET['page']) && (int) $_GET['page'] > 1)
-        $canonicalParams['page'] = (int) $_GET['page'];
-
-    if (!empty($canonicalParams)) {
-        $canonicalUrl .= '?' . http_build_query($canonicalParams);
-    }
-}
-
-// ۴. مدیریت ربات‌ها (جلوگیری از ایندکس فیلترهای تکراری و صفحات خصوصی)
+// کنترل تگ Robots جهت جلوگیری از ایندکس صفحات با فیلترهای پویا و تکراری
 $noindexParams = ['sort', 'maxPrice', 'q', 'inStock'];
 $shouldNoIndex = false;
 
@@ -102,8 +89,6 @@ if (http_response_code() === 404 || in_array($uri, ['/404', '/checkout', '/profi
 }
 
 $robotsMeta = $shouldNoIndex ? 'noindex, follow' : 'index, follow';
-
-// ۵. تصویر و نوع صفحه برای شبکه‌های اجتماعی (Open Graph)
 $ogImage = $pageImage ?? ($hostUrl . '/assets/logo/logo.webp');
 $ogType = (str_starts_with($uri, '/product') || $uri === '/product') ? 'product' : 'website';
 ?>

@@ -26,7 +26,7 @@
                 </div>
 
                 <div>
-                    <h5 class="font-bold text-sm text-gray-200 mb-3">مدل‌های تویوتا</h5>
+                    <h2 class="font-bold text-sm text-gray-200 mb-3">مدل‌های تویوتا</h2>
                     <div class="space-y-2.5" id="model-filters">
                         <?php
                         global $car_models;
@@ -45,7 +45,7 @@
 
                 <!-- فیلتر دسته‌بندی قطعه -->
                 <div>
-                    <h5 class="font-bold text-sm text-gray-200 mb-3">دسته‌بندی قطعه</h5>
+                    <h2 class="font-bold text-sm text-gray-200 mb-3">دسته‌بندی قطعه</h2>
                     <div class="space-y-2.5" id="category-filters">
                         <?php
                         global $part_categories;
@@ -63,7 +63,7 @@
                 </div>
 
                 <div>
-                    <h5 class="font-bold text-sm text-gray-200 mb-3">حدود قیمت (تومان)</h5>
+                    <h2 class="font-bold text-sm text-gray-200 mb-3">حدود قیمت (تومان)</h2>
                     <input type="range" id="price-slider" min="0" max="300000000" step="1000000" value="300000000"
                         class="w-full h-1 bg-brand-dark rounded-lg appearance-none cursor-pointer"
                         oninput="updatePriceLabel(this.value)">
@@ -75,7 +75,7 @@
 
                 <!-- فیلتر اصالت و برند کالا -->
                 <div>
-                    <h5 class="font-bold text-sm text-gray-200 mb-3">اصالت و برند کالا</h5>
+                    <h2 class="font-bold text-sm text-gray-200 mb-3">اصالت و برند کالا</h2>
                     <div class="space-y-2">
                         <!-- دسته‌بندی‌های کلی -->
                         <label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer">
@@ -173,11 +173,10 @@
                     </div>
                 </div>
 
-                <!-- اصلاح شمارشگر نتایج: تبدیل به span برای جلوگیری از تداخل هدینگ‌ها -->
                 <div class="flex justify-between items-center text-xs text-gray-400 px-1">
-                    <span class="text-sm font-bold text-white" id="results-count">
+                    <h2 class="text-sm font-bold text-white m-0" id="results-count">
                         <?= !empty($products) ? "یافت شده: {$totalCount} قطعه" : "در حال بارگذاری..." ?>
-                    </span>
+                    </h2>
                     <span>ضمانت تطابق قطعه با شماره شاسی خودرو (VIN)</span>
                 </div>
 
@@ -321,7 +320,6 @@
         </div>
     </main>
 
-    <!-- ================= فیلتر موبایل به صورت کشویی (Mobile Filters Canvas) ================= -->
     <div id="mobile-filter-overlay"
         class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity duration-300"
         onclick="toggleMobileFilters(false)"></div>
@@ -329,7 +327,6 @@
     <div id="mobile-filter-drawer"
         class="fixed top-0 bottom-0 right-0 w-80 z-50 p-6 flex flex-col justify-between border-l border-white/10 translate-x-full transition-transform duration-300 ease-in-out hidden bg-brand-grey shadow-[0_0_50px_rgba(0,0,0,0.8)]">
 
-        <!-- ۱. مخفی کردن اسکرول‌بار با کلاس‌های تلویند ([&::-webkit-scrollbar]:hidden و ...) -->
         <div
             class="overflow-y-auto pr-1 space-y-6 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             <div class="flex items-center justify-between pb-4 border-b border-black/10 dark:border-white/10 mb-2">
@@ -345,7 +342,7 @@
             </div>
 
             <div id="mobile-model-filters" class="space-y-2">
-                <h5 class="font-bold text-sm mb-2 opacity-90">مدل خودرو</h5>
+                <h2 class="font-bold text-sm mb-2 opacity-90">مدل خودرو</h2>
                 <?php
                 if (!empty($car_models)) {
                     foreach ($car_models as $slug => $data) {
@@ -360,7 +357,7 @@
             </div>
 
             <div id="mobile-category-filters" class="space-y-2 pt-2 border-t border-black/10 dark:border-white/10">
-                <h5 class="font-bold text-sm mb-2 opacity-90">دسته‌بندی</h5>
+                <h2 class="font-bold text-sm mb-2 opacity-90">دسته‌بندی</h2>
                 <?php
                 if (!empty($part_categories)) {
                     foreach ($part_categories as $slug => $data) {
@@ -375,7 +372,7 @@
             </div>
 
             <div class="space-y-2 pt-4 border-t border-black/10 dark:border-white/10">
-                <h5 class="font-bold text-sm mb-2 opacity-90">حدود قیمت (تومان)</h5>
+                <h2 class="font-bold text-sm mb-2 opacity-90">حدود قیمت (تومان)</h2>
                 <input type="range" id="mobile-price-slider" min="0" max="300000000" step="1000000" value="300000000"
                     class="w-full h-1 bg-brand-dark rounded-lg appearance-none cursor-pointer"
                     oninput="updatePriceLabel(this.value)">
@@ -386,7 +383,7 @@
             </div>
 
             <div class="space-y-2 pt-4 border-t border-black/10 dark:border-white/10">
-                <h5 class="font-bold text-sm mb-2 opacity-90">اصالت و برند کالا</h5>
+                <h2 class="font-bold text-sm mb-2 opacity-90">اصالت و برند کالا</h2>
                 <div class="space-y-2">
                     <label class="flex items-center gap-2.5 text-xs opacity-80 hover:opacity-100 cursor-pointer">
                         <input type="checkbox" name="brand" value="genuine"

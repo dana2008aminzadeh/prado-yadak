@@ -5,6 +5,59 @@ class HomeController extends Controller
 {
     public function index()
     {
+        global $settings;
+        $siteName = $settings['site_title'] ?? 'پرادو یدک';
+        $phone = $settings['phone_number'] ?? '09189998852';
+        $address = $settings['address'] ?? 'استان کردستان سقز جاده کانی جژنی صنوف آلاینده-2 پلاک 350 فروشگاه پرادو یدک';
+
+        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
+        $host = $_SERVER['HTTP_HOST'] ?? 'pradoyadak.com';
+        $hostUrl = $protocol . "://" . $host;
+
+        $schemaWebSite = [
+            '@context' => 'https://schema.org',
+            '@type' => 'WebSite',
+            'name' => $siteName,
+            'url' => $hostUrl . '/',
+            'potentialAction' => [
+                '@type' => 'SearchAction',
+                'target' => [
+                    '@type' => 'EntryPoint',
+                    'urlTemplate' => $hostUrl . '/parts?q={search_term_string}'
+                ],
+                'query-input' => 'required name=search_term_string'
+            ]
+        ];
+
+        $schemaAutoPartsStore = [
+            '@context' => 'https://schema.org',
+            '@type' => 'AutoPartsStore',
+            'name' => $siteName,
+            'image' => $hostUrl . '/assets/logo/logo.webp',
+            'url' => $hostUrl . '/',
+            'telephone' => $phone,
+            'priceRange' => 'IRR',
+            'address' => [
+                '@type' => 'PostalAddress',
+                'streetAddress' => $address,
+                'addressLocality' => 'سقز',
+                'addressRegion' => 'کردستان',
+                'postalCode' => '6681898204',
+                'addressCountry' => 'IR'
+            ],
+            'openingHoursSpecification' => [
+                [
+                    '@type' => 'OpeningHoursSpecification',
+                    'dayOfWeek' => ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'],
+                    'opens' => '09:00',
+                    'closes' => '18:00'
+                ]
+            ]
+        ];
+
+        $schemaMarkup = "<script type=\"application/ld+json\">\n" . json_encode($schemaWebSite, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n</script>\n";
+        $schemaMarkup .= "<script type=\"application/ld+json\">\n" . json_encode($schemaAutoPartsStore, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n</script>";
+
         $latestArticles = \App\models\Article::getAll('published', null, 3);
         require_once VIEWS_PATH . '/index.php';
     }

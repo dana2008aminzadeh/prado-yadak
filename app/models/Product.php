@@ -191,8 +191,6 @@ class Product
         return $stmt->fetch() ? true : false;
     }
 
-    // متد generateSchema در فایل app/models/Product.php را با کد زیر جایگزین کنید:
-
     public static function generateSchema($product, $comments = [])
     {
         $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
@@ -200,7 +198,6 @@ class Product
         $hostUrl = $protocol . "://" . $host;
         $productUrl = $hostUrl . "/product/" . urlencode($product['slug']);
 
-        // ۱. آماده‌سازی تصاویر
         $images = [];
         if (!empty($product['images']) && is_array($product['images'])) {
             foreach ($product['images'] as $img) {
@@ -210,7 +207,6 @@ class Product
             $images[] = $hostUrl . "/assets/logo/logo.webp";
         }
 
-        // ۲. محاسبه امتیاز کاربران
         $schemaCommentCount = count($comments ?? []);
         $schemaAvgRating = 5.0;
         $reviewsSchema = [];
@@ -240,11 +236,9 @@ class Product
             $schemaAvgRating = round($schemaSum / $schemaCommentCount, 1);
         }
 
-        // ۳. تبدیل قیمت به ریال (استاندارد ISO 4217 برای IRR)
         $priceInRials = ((float) ($product['price'] ?? 0)) * 10;
         $validUntil = date('Y-12-31', strtotime('+1 year'));
 
-        // ۴. ساختار اصلی Product با استانداردهای Merchant Center
         $schemaProduct = [
             "@context" => "https://schema.org",
             "@type" => "Product",
@@ -270,7 +264,6 @@ class Product
                     "name" => "پرادو یدک",
                     "url" => $hostUrl
                 ],
-                // سیاست ضمانت و مرجوعی کالا
                 "hasMerchantReturnPolicy" => [
                     "@type" => "MerchantReturnPolicy",
                     "applicableCountry" => "IR",
@@ -279,7 +272,6 @@ class Product
                     "returnMethod" => "https://schema.org/ReturnByMail",
                     "returnFees" => "https://schema.org/FreeReturn"
                 ],
-                // مشخصات و زمان ارسال مرسوله
                 "shippingDetails" => [
                     "@type" => "OfferShippingDetails",
                     "shippingRate" => [
@@ -312,7 +304,6 @@ class Product
             ]
         ];
 
-        // افزودن امتیاز و نظرات در صورت وجود
         if ($schemaCommentCount > 0) {
             $schemaProduct["aggregateRating"] = [
                 "@type" => "AggregateRating",
@@ -324,7 +315,6 @@ class Product
             $schemaProduct["review"] = $reviewsSchema;
         }
 
-        // ۵. ساختار BreadcrumbList پویا
         $breadcrumbItems = [
             [
                 "@type" => "ListItem",
@@ -364,7 +354,6 @@ class Product
             "itemListElement" => $breadcrumbItems
         ];
 
-        // خروجی نهایی اسکریپت‌های JSON-LD
         $output = "<script type=\"application/ld+json\">\n" . json_encode($schemaProduct, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n</script>\n";
         $output .= "<script type=\"application/ld+json\">\n" . json_encode($schemaBreadcrumb, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n</script>";
 

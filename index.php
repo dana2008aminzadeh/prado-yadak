@@ -23,46 +23,144 @@ function e($string)
 
 function clean_html($html)
 {
-    if (empty($html))
+    if (empty($html) || !is_string($html)) {
         return '';
+    }
 
-    $allowed_tags = '<div><span><p><br><hr><h1><h2><h3><h4><h5><h6><strong><b><i><em><u><a><ul><ol><li><blockquote><code><pre>';
-    $html = strip_tags($html, $allowed_tags);
+    // تگ‌های مجاز
+    $allowedTags = [
+        'p',
+        'br',
+        'hr',
+        'h1',
+        'h2',
+        'h3',
+        'h4',
+        'h5',
+        'h6',
+        'strong',
+        'b',
+        'em',
+        'i',
+        'u',
+        'span',
+        'div',
+        'ul',
+        'ol',
+        'li',
+        'blockquote',
+        'code',
+        'pre',
+        'a'
+    ];
+
+    // ویژگی‌های (Attributes) مجاز به تفکیک تگ
+    $allowedAttributes = [
+        'a' => ['href', 'title', 'target', 'rel'],
+        'p' => ['class'],
+        'span' => ['class'],
+        'div' => ['class'],
+        'code' => ['class'],
+        'pre' => ['class'],
+        'blockquote' => ['class']
+    ];
 
     $dom = new DOMDocument();
     libxml_use_internal_errors(true);
 
-    $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
+    // افزودن هدر انکودینگ برای جلوگیری از بهم‌ریختگی متون فارسی در DOMDocument
+    $dom->loadHTML(
+        '<!DOCTYPE html><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body>' . $html . '</body></html>',
+        LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
+    );
     libxml_clear_errors();
 
     $xpath = new DOMXPath($dom);
-    $nodes = $xpath->query('//*[@*]');
 
-    foreach ($nodes as $node) {
-        if ($node instanceof DOMElement && $node->hasAttributes()) {
-
-            for ($i = $node->attributes->length - 1; $i >= 0; $i--) {
-                $attr = $node->attributes->item($i);
-
-                if ($attr) {
-                    $attrName = strtolower($attr->nodeName);
-                    $attrValue = strtolower($attr->nodeValue);
-
-                    if (
-                        str_starts_with($attrName, 'on') ||
-                        ($attrName === 'href' && str_contains(str_replace(' ', '', $attrValue), 'javascript:'))
-                    ) {
-                        $node->removeAttribute($attr->nodeName);
-                    }
-                }
-            }
+    // ۱. حذف کامل تگ‌های خطرناک به همراه فرزندان آن‌ها
+    $dangerousTags = ['script', 'style', 'iframe', 'object', 'embed', 'applet', 'meta', 'link', 'svg', 'form', 'input', 'button', 'select', 'textarea'];
+    foreach ($dangerousTags as $badTag) {
+        $nodes = $xpath->query('//' . $badTag);
+        foreach ($nodes as $node) {
+            $node->parentNode->removeChild($node);
         }
     }
 
-    $clean_html = $dom->saveHTML();
-    $clean_html = str_replace('<?xml encoding="utf-8" ?>', '', $clean_html);
+    // ۲. بررسی تک‌تک تگ‌های باقیمانده در بدنه سند
+    $elements = $xpath->query('//body//*');
+    $elementsList = [];
+    foreach ($elements as $element) {
+        $elementsList[] = $element;
+    }
 
-    return trim($clean_html);
+    foreach ($elementsList as $element) {
+        $tagName = strtolower($element->nodeName);
+
+        // اگر تگ در لیست سفید نبود، محتوای متنی آن حفظ شده و خود تگ حذف می‌شود
+        if (!in_array($tagName, $allowedTags, true)) {
+            $parent = $element->parentNode;
+            while ($element->hasChildNodes()) {
+                $parent->insertBefore($element->firstChild, $element);
+            }
+            $parent->removeChild($element);
+            continue;
+        }
+
+        // بررسی و پالایش صفات تگ
+        if ($element->hasAttributes()) {
+            $attrsToRemove = [];
+            foreach ($element->attributes as $attr) {
+                $attrName = strtolower($attr->nodeName);
+                $attrValue = $attr->nodeValue;
+
+                // حذف صفات غیرمجاز برای تگ مربوطه
+                $validAttrs = $allowedAttributes[$tagName] ?? [];
+                if (!in_array($attrName, $validAttrs, true)) {
+                    $attrsToRemove[] = $attr->nodeName;
+                    continue;
+                }
+
+                // پالایش دقیق پروتکل در لینک‌ها (a href)
+                if ($attrName === 'href') {
+                    // رمزگشایی انتیتی‌های HTML و کاراکترهای کنترلی برای شناسایی javascript: مخفی
+                    $decoded = rawurldecode(html_entity_decode($attrValue, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                    $sanitizedUrl = preg_replace('/[\x00-\x1F\x7F\s]+/u', '', $decoded);
+
+                    $isSafe = (bool) preg_match('/^(https?:|mailto:|tel:|\/|#|\?)/i', $sanitizedUrl);
+                    $isMalicious = (bool) preg_match('/^(javascript|vbscript|data):/i', $sanitizedUrl);
+
+                    if (!$isSafe || $isMalicious) {
+                        $attrsToRemove[] = $attr->nodeName;
+                    }
+                }
+
+                // ایمن‌سازی کلاس‌های مجاز (جلوگیری از کاراکترهای تزریق)
+                if ($attrName === 'class' && !preg_match('/^[a-zA-Z0-9_\-\s]+$/', $attrValue)) {
+                    $attrsToRemove[] = $attr->nodeName;
+                }
+            }
+
+            foreach ($attrsToRemove as $removeName) {
+                $element->removeAttribute($removeName);
+            }
+        }
+
+        if ($tagName === 'a' && strtolower($element->getAttribute('target')) === '_blank') {
+            $element->setAttribute('rel', 'noopener noreferrer nofollow');
+        }
+    }
+
+    $body = $xpath->query('//body')->item(0);
+    if (!$body) {
+        return '';
+    }
+
+    $output = '';
+    foreach ($body->childNodes as $child) {
+        $output .= $dom->saveHTML($child);
+    }
+
+    return trim($output);
 }
 
 function toShamsi($dateString)
@@ -133,6 +231,14 @@ $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
 if ($uri !== '/' && substr($uri, -1) === '/') {
     $uri = rtrim($uri, '/');
+}
+
+if ($uri === '/index' || $uri === '/index.php') {
+    $queryString = $_SERVER['QUERY_STRING'] ?? '';
+    $targetUrl = '/' . ($queryString !== '' ? '?' . $queryString : '');
+    header('HTTP/1.1 301 Moved Permanently');
+    header('Location: ' . $targetUrl);
+    exit;
 }
 
 $router->dispatch($uri);

@@ -16,7 +16,7 @@ if (!isset($current_page)) {
 
             <!-- ستون ۱: معرفی مجموعه -->
             <div class="md:col-span-1">
-                <a href="/index" class="flex items-center gap-3 mb-4">
+                <a href="/" class="flex items-center gap-3 mb-4">
                     <img src="/assets/logo/logo.webp" alt="پرادو یدک" loading="lazy"
                         class="h-10 sm:h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-105">
                     <div>
@@ -57,7 +57,7 @@ if (!isset($current_page)) {
                 <?php else: ?>
                     <h4 class="font-bold mb-4 text-brand-accent text-sm">بخش‌های اصلی</h4>
                     <ul class="space-y-2 text-gray-400 text-sm">
-                        <li><a href="/index" class="hover:text-white transition">صفحه اصلی</a></li>
+                        <li><a href="/" class="hover:text-white transition">صفحه اصلی</a></li>
                         <li><a href="/parts" class="hover:text-white transition">کاتالوگ قطعات</a></li>
                         <li><a href="/blog" class="hover:text-white transition">وبلاگ فنی</a></li>
                         <li><a href="/terms" class="hover:text-white transition">قوانین و ضمانت اصالت</a></li>
@@ -168,7 +168,7 @@ if (!isset($current_page)) {
             class="border-t border-white/10 pt-6 text-center text-gray-500 text-xs flex flex-col sm:flex-row justify-between items-center gap-2">
             <span>© ۱۴۰۳ - ۱۴۰۵ پرادو یدک. تمامی حقوق محفوظ است.</span>
             <div class="flex gap-4">
-                <a href="/index" class="hover:text-white transition">صفحه اصلی</a>
+                <a href="/" class="hover:text-white transition">صفحه اصلی</a>
                 <a href="/parts" class="hover:text-white transition">کاتالوگ قطعات</a>
                 <a href="/terms" class="hover:text-white transition">قوانین و ضمانت</a>
             </div>
