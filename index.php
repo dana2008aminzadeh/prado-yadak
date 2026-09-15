@@ -27,7 +27,6 @@ function clean_html($html)
         return '';
     }
 
-    // تگ‌های مجاز
     $allowedTags = [
         'p',
         'br',
@@ -51,18 +50,46 @@ function clean_html($html)
         'blockquote',
         'code',
         'pre',
-        'a'
+        'a',
+        'table',
+        'thead',
+        'tbody',
+        'tfoot',
+        'tr',
+        'th',
+        'td',
+        'caption',
+        'img',
+        'figure',
+        'figcaption'
     ];
 
-    // ویژگی‌های (Attributes) مجاز به تفکیک تگ
     $allowedAttributes = [
-        'a' => ['href', 'title', 'target', 'rel'],
-        'p' => ['class'],
-        'span' => ['class'],
-        'div' => ['class'],
-        'code' => ['class'],
-        'pre' => ['class'],
-        'blockquote' => ['class']
+        'a' => ['href', 'title', 'target', 'rel', 'class'],
+        'p' => ['class', 'style', 'dir'],
+        'span' => ['class', 'style', 'dir'],
+        'div' => ['class', 'style', 'dir'],
+        'code' => ['class', 'dir'],
+        'pre' => ['class', 'dir'],
+        'blockquote' => ['class', 'dir'],
+        'h1' => ['class', 'style'],
+        'h2' => ['class', 'style'],
+        'h3' => ['class', 'style'],
+        'h4' => ['class', 'style'],
+        'h5' => ['class', 'style'],
+        'h6' => ['class', 'style'],
+        'ul' => ['class', 'dir'],
+        'ol' => ['class', 'dir'],
+        'li' => ['class', 'dir'],
+        // ویژگی‌های مجاز برای جداول
+        'table' => ['class', 'style', 'border', 'cellspacing', 'cellpadding', 'width', 'dir'],
+        'th' => ['class', 'style', 'colspan', 'rowspan', 'width'],
+        'td' => ['class', 'style', 'colspan', 'rowspan', 'width'],
+        'tr' => ['class', 'style'],
+        // ویژگی‌های مجاز برای تصاویر
+        'img' => ['src', 'alt', 'title', 'width', 'height', 'class', 'style', 'loading'],
+        'figure' => ['class', 'style'],
+        'figcaption' => ['class', 'style']
     ];
 
     $dom = new DOMDocument();
@@ -156,10 +183,8 @@ function clean_html($html)
     }
 
     $output = '';
-    $nodes = $xpath->query('//script|//style|//iframe|//object|//embed|//applet|//meta|//link|//svg|//form|//input|//button|//select|//textarea');
-    $arr = iterator_to_array($nodes);
-    foreach ($arr as $node) {
-        $node->parentNode->removeChild($node);
+    foreach ($body->childNodes as $child) {
+        $output .= $dom->saveHTML($child);
     }
 
     return trim($output);
