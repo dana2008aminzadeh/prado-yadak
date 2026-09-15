@@ -85,35 +85,6 @@ class PartController extends Controller
         require_once VIEWS_PATH . '/product-detail.php';
     }
 
-    public function checkAuthenticity()
-    {
-        header('Content-Type: application/json; charset=utf-8');
-        $code = $_POST['code'] ?? '';
-
-        if (empty($code)) {
-            echo json_encode(['status' => 'error', 'message' => 'لطفاً کد اصالت یا OEM را وارد کنید.']);
-            exit;
-        }
-
-        // فراخوانی مدل
-        $prod = \App\models\Product::findByOem($code);
-
-        if ($prod) {
-            if ($prod['is_genuine']) {
-                echo json_encode(['status' => 'success', 'message' => "اصالت تایید شد: قطعه ({$prod['name']}) جنیون پارت اصلی تویوتا است."]);
-            } else {
-                echo json_encode(['status' => 'warning', 'message' => "قطعه معتبر است: قطعه ({$prod['name']}) از برندهای وارداتی معتبر (OEM) می‌باشد."]);
-            }
-        } else {
-            if (stripos($code, 'toy') !== false) {
-                echo json_encode(['status' => 'success', 'message' => "اصالت تایید شد: کد در سامانه بین‌المللی تویوتا جنیون ثبت شده است."]);
-            } else {
-                echo json_encode(['status' => 'error', 'message' => 'کد وارد شده در سامانه یافت نشد. قطعه فاقد اعتبار است.']);
-            }
-        }
-        exit;
-    }
-
     public function submitComment()
     {
         if (session_status() == PHP_SESSION_NONE)

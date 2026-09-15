@@ -92,7 +92,6 @@ class Router
 
         $this->get('/api/parts', 'PartController@apiList');
         $this->get('/api/product', 'PartController@apiShow');
-        $this->post('/api/check-authenticity', 'PartController@checkAuthenticity');
         $this->post('/api/submit-comment', 'PartController@submitComment');
         $this->post('/api/track-order', 'OrderController@trackOrder');
 

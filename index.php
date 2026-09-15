@@ -156,8 +156,10 @@ function clean_html($html)
     }
 
     $output = '';
-    foreach ($body->childNodes as $child) {
-        $output .= $dom->saveHTML($child);
+    $nodes = $xpath->query('//script|//style|//iframe|//object|//embed|//applet|//meta|//link|//svg|//form|//input|//button|//select|//textarea');
+    $arr = iterator_to_array($nodes);
+    foreach ($arr as $node) {
+        $node->parentNode->removeChild($node);
     }
 
     return trim($output);
