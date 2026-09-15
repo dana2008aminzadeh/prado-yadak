@@ -2,7 +2,7 @@
 global $settings;
 
 $is_logged_in = isset($_SESSION['user_id']);
-$current_page = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$current_page = (string) (parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?? '');
 
 if ($current_page !== '/' && substr($current_page, -1) === '/') {
     $current_page = rtrim($current_page, '/');

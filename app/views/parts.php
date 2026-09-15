@@ -128,13 +128,23 @@
 
             <!-- ================= محتوای اصلی (جستجو و لیست محصولات) ================= -->
             <div class="flex-1 space-y-6">
-                <!-- عنوان رسمی صفحه برای سئو و خزنده‌های گوگل (H1 اصلی کاتالوگ) -->
                 <div class="pb-2">
+                    <?php
+                        $h1_title = 'کاتالوگ و قیمت لوازم یدکی تویوتا';
+                        if (!empty($_GET['category']) && isset($GLOBALS['part_categories'][$_GET['category']])) {
+                            $catData = $GLOBALS['part_categories'][$_GET['category']];
+                            $catName = is_array($catData) ? ($catData['name'] ?? '') : $catData;
+                            $h1_title = 'خرید لوازم ' . $catName . ' تویوتا';
+                        } elseif (!empty($_GET['model']) && isset($GLOBALS['car_models'][$_GET['model']])) {
+                            $modData = $GLOBALS['car_models'][$_GET['model']];
+                            $modName = is_array($modData) ? ($modData['name'] ?? '') : $modData;
+                            $h1_title = 'قطعات یدکی تویوتا ' . $modName;
+                        }
+                    ?>
                     <h1 class="text-xl sm:text-2xl font-black text-white">
-                        کاتالوگ و قیمت لوازم یدکی تویوتا
+                        <?= e($h1_title) ?>
                     </h1>
-                    <p class="text-xs text-gray-400 mt-1">تامین قطعات جنیون پارتس و OEM اصلی با ضمانت تطابق شاسی (VIN)
-                    </p>
+                    <p class="text-xs text-gray-400 mt-1">تامین قطعات جنیون پارتس و OEM اصلی با ضمانت تطابق شاسی (VIN)</p>
                 </div>
 
                 <!-- نوار جستجو و دکمه فیلتر موبایل -->

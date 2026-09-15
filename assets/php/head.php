@@ -6,7 +6,7 @@ $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" :
 $host = $_SERVER['HTTP_HOST'] ?? 'pradoyadak.com';
 $hostUrl = $protocol . "://" . $host;
 
-$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$uri = (string) (parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?? '');
 if ($uri !== '/' && substr($uri, -1) === '/') {
     $uri = rtrim($uri, '/');
 }
@@ -113,11 +113,31 @@ $ogType = (str_starts_with($uri, '/product') || $uri === '/product') ? 'product'
 <meta property="og:locale" content="fa_IR">
 <meta property="og:image" content="<?= e($ogImage); ?>">
 <meta property="og:image:alt" content="<?= e($pageTitle); ?>">
-
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="<?= e($pageTitle); ?>">
 <meta name="twitter:description" content="<?= e($finalMetaDesc); ?>">
 <meta name="twitter:image" content="<?= e($ogImage); ?>">
+
+<?php if ($uri === '/parts' && isset($page) && isset($totalPages) && $totalPages > 1): ?>
+    <?php
+    $buildUrl = function ($pageNum) use ($hostUrl, $canonicalParams) {
+        $params = $canonicalParams ?? [];
+        if ($pageNum > 1) {
+            $params['page'] = $pageNum;
+        } else {
+            unset($params['page']);
+        }
+        $query = http_build_query($params);
+        return $hostUrl . '/parts' . ($query ? '?' . $query : '');
+    };
+    ?>
+    <?php if ($page > 1): ?>
+        <link rel="prev" href="<?= e($buildUrl($page - 1)); ?>">
+    <?php endif; ?>
+    <?php if ($page < $totalPages): ?>
+        <link rel="next" href="<?= e($buildUrl($page + 1)); ?>">
+    <?php endif; ?>
+<?php endif; ?>
 
 <!-- آیکون‌ها -->
 <link rel="icon" type="image/webp" href="/assets/logo/logo.webp">

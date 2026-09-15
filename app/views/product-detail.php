@@ -44,7 +44,7 @@
                         $mainImage = !empty($images) ? "/image?id=" . e($images[0]) : "/assets/logo/logo.webp";
                         ?>
                         <div id="main-product-inner" class="w-full h-full flex items-center justify-center">
-                            <img src="<?= $mainImage ?>" alt="<?= e($product['name']) ?>" loading="lazy"
+                            <img src="<?= $mainImage ?>" alt="<?= e($product['name']) ?>"
                                 class="max-w-full max-h-full object-contain drop-shadow-2xl transition transform group-hover:scale-110 duration-300">
                         </div>
 

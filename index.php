@@ -229,7 +229,7 @@ try {
 }
 
 $router = new Router();
-$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$uri = (string) (parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?? '');
 
 if ($uri !== '/' && substr($uri, -1) === '/') {
     $uri = rtrim($uri, '/');

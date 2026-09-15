@@ -37,7 +37,7 @@ class Router
                 $pattern = preg_replace('/\{([a-zA-Z0-9_]+)\}/', '(?P<\1>[a-zA-Z0-9_\-\x{0600}-\x{06FF}\s%]+)', $routeUri);
                 $pattern = "@^" . $pattern . "$@u";
 
-                if (preg_match($pattern, urldecode($uri), $matches)) {
+                if (preg_match($pattern, urldecode((string)$uri), $matches)) {
                     foreach ($matches as $key => $match) {
                         if (is_string($key)) {
                             $_GET[$key] = trim($match);

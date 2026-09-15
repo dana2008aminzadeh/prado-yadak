@@ -596,6 +596,32 @@ global $settings;
         </div>
     </section>
 
+    <!-- بخش محتوای سئو (SEO Text) صفحه اصلی -->
+    <section class="py-12 bg-black border-t border-white/5">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="bg-brand-dark/50 border border-white/10 rounded-3xl p-6 sm:p-10">
+                <h2 class="text-lg sm:text-xl font-black text-white mb-4">خرید لوازم یدکی و قطعات استوک تویوتا</h2>
+                <div class="text-xs sm:text-sm text-gray-400 leading-loose text-justify space-y-4">
+                    <p>
+                        مجموعه <strong>پرادو یدک</strong> به عنوان یکی از معتبرترین مراجع تامین قطعات خودروهای تویوتا و
+                        لکسوس، افتخار دارد کامل‌ترین سبد محصولات شامل <strong>لوازم استوک تویوتا</strong> و
+                        <strong>قطعات نو</strong> را به مشتریان عزیز ارائه دهد. ما با درک دغدغه‌های صاحبان خودرو، تلاش
+                        کرده‌ایم تا بهترین <strong>قیمت قطعات اصلی جنیون (Toyota Genuine Parts)</strong> را با تضمین
+                        ۱۰۰٪ اصالت کالا و تطابق دقیق با شماره شاسی (VIN) فراهم کنیم.
+                    </p>
+                    <p>
+                        یکی از سوالات متداول خریداران، <strong>تفاوت قطعات OEM و اورجینال</strong> است. قطعات اورجینال
+                        دقیقاً همان قطعاتی هستند که در کارخانه روی خودرو نصب می‌شوند و با بسته‌بندی رسمی کمپانی تویوتا
+                        عرضه می‌گردند. اما قطعات OEM (تولیدکننده تجهیزات اصلی) توسط همان کارخانه‌هایی (مانند آیسین، دنسو
+                        و کایابا) تولید می‌شوند که تامین‌کننده رسمی تویوتا هستند، با این تفاوت که در بسته‌بندی شرکت
+                        سازنده قطعه و با قیمت اقتصادی‌تری به فروش می‌رسند. در فروشگاه ما، هر دو نوع قطعه با شفافیت کامل
+                        و فاکتور رسمی به فروش می‌رسد.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <?php include 'assets/php/footer.php'; ?>
 
     <script src="assets/js/main.js"></script>
