@@ -37,7 +37,7 @@ class Router
                 $pattern = preg_replace('/\{([a-zA-Z0-9_]+)\}/', '(?P<\1>[a-zA-Z0-9_\-\x{0600}-\x{06FF}\s%]+)', $routeUri);
                 $pattern = "@^" . $pattern . "$@u";
 
-                if (preg_match($pattern, urldecode((string)$uri), $matches)) {
+                if (preg_match($pattern, urldecode((string) $uri), $matches)) {
                     foreach ($matches as $key => $match) {
                         if (is_string($key)) {
                             $_GET[$key] = trim($match);
@@ -97,7 +97,6 @@ class Router
 
         $this->get('/login', 'AuthController@loginForm', ['guest']);
         $this->get('/profile', 'UserController@profile', ['auth']);
-        $this->get('/checkout', 'OrderController@checkout', ['auth']);
 
         $this->post('/cart/add', 'CartController@add');
         $this->post('/api/auth/check', 'AuthController@checkUser');
@@ -105,6 +104,11 @@ class Router
         $this->post('/api/auth/send-otp', 'AuthController@sendOtp');
         $this->post('/api/auth/verify-otp', 'AuthController@verifyOtp');
         $this->post('/api/logout', 'AuthController@logout');
+
+        $this->get('/checkout', 'OrderController@checkout', ['auth']);
+        $this->post('/checkout/process', 'OrderController@processCheckout', ['auth']);
+        $this->post('/api/checkout/validate-coupon', 'OrderController@apiValidateCoupon', ['auth']);
+        $this->get('/order/success', 'OrderController@orderSuccess', ['auth']);
     }
 
     private function abort($code = 404)
