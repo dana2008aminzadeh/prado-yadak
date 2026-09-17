@@ -255,6 +255,166 @@ global $settings;
         </div>
     </section>
 
+    <!-- اسلایدر جدیدترین قطعات (نسخه ارتقایافته UX موبایل) -->
+    <section id="digikala-latest" class="pt-1 pb-6 sm:pt-4 sm:pb-10 bg-brand-dark overflow-hidden select-none">
+        <div class="max-w-7xl mx-auto px-4">
+            
+            <div class="relative rounded-3xl p-3 sm:p-6 shadow-[0_15px_35px_rgba(43,23,12,0.06)] border border-[#a88d7c]/35 overflow-hidden"
+                style="background: linear-gradient(135deg, #f5efe9 0%, #eae0d6 50%, #f5efe9 100%);">
+
+                <!-- در موبایل: هدر افقی کم‌جا | در دسکتاپ: بنر عمودی سمت راست -->
+                <div class="flex flex-col lg:flex-row items-stretch gap-3 sm:gap-6 relative z-10">
+                    
+                    <!-- باکس هدر (در موبایل کاملاً جمع‌وجور و افقی می‌شود) -->
+                    <div class="shrink-0 flex flex-row lg:flex-col justify-between items-center text-right lg:text-center p-3 sm:p-5 rounded-2xl bg-white/70 border border-[#a88d7c]/30 backdrop-blur-sm lg:w-52">
+                        <div class="space-y-1 lg:space-y-2.5">
+                            <div class="inline-flex items-center gap-1.5 bg-[#eae0d6] border border-[#a88d7c]/50 rounded-full px-2.5 py-0.5 text-[#2b170c] text-[10px] sm:text-[11px] font-bold">
+                                <span class="w-1.5 h-1.5 rounded-full bg-brand-red animate-pulse"></span>
+                                <span>ورودی‌های جدید</span>
+                            </div>
+                            
+                            <h2 class="text-sm sm:text-2xl font-black text-[#2b170c] leading-tight">
+                                جدیدترین قطعات انبار
+                            </h2>
+                            
+                            <p class="hidden lg:block text-[#5c473b] text-xs leading-relaxed max-w-[170px] mx-auto font-medium">
+                                تضمین ۱۰۰٪ اصالت جنیون با تطابق شماره شاسی (VIN)
+                            </p>
+                        </div>
+
+                        <a href="/parts?sort=newest" 
+                        class="bg-brand-red hover:bg-red-700 text-white font-bold py-2 px-3.5 sm:py-2.5 sm:px-4 rounded-xl text-[11px] sm:text-xs transition flex items-center gap-1 shadow-sm shrink-0 lg:w-full lg:mt-4 justify-center">
+                            <span>مشاهده همه</span>
+                            <i data-lucide="chevron-left" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+                        </a>
+                    </div>
+
+                    <!-- ریل متحرک افقی کارت‌ها (نمایش ۲ کارت کامل + لبه کارت سوم جهت راهنمایی اسکرول) -->
+                    <div class="flex-1 min-w-0 relative">
+                        <div id="latest-slider-track" 
+                            class="flex gap-2.5 sm:gap-4 overflow-x-auto scroll-smooth py-1 px-0.5 scrollbar-none snap-x snap-mandatory h-full"
+                            style="scrollbar-width: none; -ms-overflow-style: none;">
+                            
+                            <?php if (!empty($latestProducts)): ?>
+                                <?php foreach ($latestProducts as $part): 
+                                    $safeSlug = urlencode($part['slug']);
+                                    $imgSrc = !empty($part['images']) ? "/image?id=" . e($part['images'][0]) : "/assets/logo/logo.webp";
+                                    $modelData = $GLOBALS['car_models'][$part['model']] ?? $part['model'];
+                                    $modelName = is_array($modelData) ? ($modelData['name'] ?? $part['model']) : $modelData;
+                                    $productUrl = "/product/" . $safeSlug;
+                                ?>
+                                <article itemscope itemtype="https://schema.org/Product"
+                                        class="slider-card shrink-0 w-[44%] sm:w-[240px] snap-start bg-white border border-[#a88d7c]/25 rounded-2xl p-2.5 sm:p-4 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative group">
+                                    
+                                    <div>
+                                        <!-- نشان‌های وضعیت -->
+                                        <div class="flex items-center justify-between gap-1 mb-2">
+                                            <?php if ($part['isGenuine']): ?>
+                                                <span class="bg-brand-red/10 text-brand-red text-[8px] sm:text-[10px] px-1.5 py-0.5 rounded font-bold border border-brand-red/20 truncate">
+                                                    اصلی Genuine
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="bg-[#eae0d6] text-[#5c473b] text-[8px] sm:text-[10px] px-1.5 py-0.5 rounded font-bold border border-[#a88d7c]/30 truncate">
+                                                    وارداتی OEM
+                                                </span>
+                                            <?php endif; ?>
+
+                                            <?php if ($part['inStock']): ?>
+                                                <span class="text-emerald-600 text-[8px] sm:text-[10px] font-bold flex items-center gap-0.5 shrink-0">
+                                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> موجود
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="text-rose-500 text-[8px] sm:text-[10px] font-bold shrink-0">ناموجود</span>
+                                            <?php endif; ?>
+                                        </div>
+
+                                        <!-- قاب تصویر محصول با مکانیزم جلوگیری از شکستگی تصویر -->
+                                        <a href="<?= $productUrl ?>" 
+                                        class="w-full h-24 sm:h-36 bg-[#f8f6f0] rounded-xl flex items-center justify-center p-1.5 sm:p-3 mb-2 sm:mb-3 relative overflow-hidden border border-[#a88d7c]/20 block group"
+                                        title="<?= e($part['name']) ?>">
+                                            <img src="<?= $imgSrc ?>" 
+                                                alt="<?= e($part['name']) ?>" 
+                                                loading="lazy" 
+                                                itemprop="image"
+                                                onerror="this.onerror=null; this.src='/assets/logo/logo.webp'; this.className='max-w-[60%] max-h-[60%] object-contain opacity-40';"
+                                                class="max-w-full max-h-full object-contain transition-transform duration-500 group-hover:scale-105">
+                                            
+                                            <?php if (!empty($part['oem'])): ?>
+                                                <span class="absolute bottom-1 left-1 text-[7px] sm:text-[9px] font-mono text-[#5c473b] bg-white/95 px-1 py-0.5 rounded border border-[#a88d7c]/30 shadow-2xs" dir="ltr">
+                                                    <?= e($part['oem']) ?>
+                                                </span>
+                                            <?php endif; ?>
+                                        </a>
+
+                                        <!-- عنوان قطعه -->
+                                        <a href="<?= $productUrl ?>" class="block">
+                                            <h3 itemprop="name" 
+                                                class="font-bold text-[10px] sm:text-xs text-[#2b170c] leading-snug line-clamp-2 hover:text-brand-red transition-colors min-h-[28px] sm:min-h-[34px]">
+                                                <?= e($part['name']) ?>
+                                            </h3>
+                                        </a>
+
+                                        <p class="text-[9px] sm:text-[11px] text-[#5c473b] mt-1 flex items-center gap-1">
+                                            <i data-lucide="car" class="w-3 h-3 text-[#8b533a] shrink-0"></i>
+                                            <span class="truncate"><?= e($modelName) ?></span>
+                                        </p>
+
+                                        <meta itemprop="mpn" content="<?= e($part['oem'] ?? 'PRD-' . $part['id']) ?>">
+                                        <meta itemprop="sku" content="<?= e($part['oem'] ?? 'PRD-' . $part['id']) ?>">
+                                    </div>
+
+                                    <!-- بخش قیمت و دکمه خرید -->
+                                    <div itemprop="offers" itemscope itemtype="https://schema.org/Offer" 
+                                        class="mt-2.5 pt-2 sm:pt-3 border-t border-[#a88d7c]/15 flex items-center justify-between gap-1">
+                                        <meta itemprop="priceCurrency" content="IRR">
+                                        <meta itemprop="price" content="<?= ((float)$part['price']) * 10 ?>">
+                                        <link itemprop="availability" href="<?= $part['inStock'] ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock' ?>">
+                                        <link itemprop="url" href="<?= $productUrl ?>">
+
+                                        <div class="min-w-0">
+                                            <span class="text-[8px] text-[#5c473b] block leading-none mb-0.5">قیمت:</span>
+                                            <span class="font-black text-[10px] sm:text-xs text-brand-red truncate block">
+                                                <?= number_format($part['price']) ?> <span class="text-[8px] sm:text-[9px] text-[#5c473b] font-normal">تومان</span>
+                                            </span>
+                                        </div>
+
+                                        <?php if ($part['inStock']): ?>
+                                            <button type="button"
+                                                    onclick="addToCart(<?= (int) $part['id'] ?>); event.preventDefault();"
+                                                    aria-label="افزودن به سبد خرید"
+                                                    class="p-1.5 sm:p-2.5 rounded-xl transition bg-brand-red hover:bg-red-700 text-white shadow-2xs active:scale-90 shrink-0">
+                                                <i data-lucide="shopping-cart" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+                                            </button>
+                                        <?php else: ?>
+                                            <button type="button"
+                                                    disabled
+                                                    aria-label="ناموجود"
+                                                    class="p-1.5 sm:p-2.5 rounded-xl transition bg-[#f0ebe1] text-gray-400 cursor-not-allowed shrink-0">
+                                                <i data-lucide="shopping-cart" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
+                                </article>
+                                <?php endforeach; ?>
+                            <?php endif; ?>
+
+                            <!-- کارت انتها: مشاهده کل کاتالوگ -->
+                            <div class="slider-card shrink-0 w-28 sm:w-40 snap-start bg-white/70 border border-dashed border-[#a88d7c]/40 rounded-2xl p-2.5 flex flex-col items-center justify-center text-center group hover:border-brand-red transition">
+                                <a href="/parts?sort=newest" class="flex flex-col items-center gap-1.5">
+                                    <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-[#eae0d6] border border-[#a88d7c]/40 text-[#8b533a] flex items-center justify-center group-hover:scale-110 group-hover:bg-brand-red group-hover:text-white transition-all duration-300">
+                                        <i data-lucide="arrow-left" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                                    </div>
+                                    <span class="text-[10px] sm:text-xs font-bold text-[#2b170c] group-hover:text-brand-red transition">مشاهده همه</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </section>
+
     <section id="features" class="py-16 md:py-24 bg-black">
         <div class="max-w-7xl mx-auto px-4">
             <div class="text-center mb-14 scroll-reveal">

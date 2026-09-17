@@ -3,6 +3,8 @@ namespace App\controllers;
 
 class HomeController extends Controller
 {
+    // app/controllers/HomeController.php
+
     public function index()
     {
         global $settings;
@@ -13,6 +15,10 @@ class HomeController extends Controller
         $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
         $host = $_SERVER['HTTP_HOST'] ?? 'pradoyadak.com';
         $hostUrl = $protocol . "://" . $host;
+
+        // دریافت ۶ محصول جدیدتر از دیتابیس
+        $latestProductsData = \App\models\Product::search([], 1, 6);
+        $latestProducts = $latestProductsData['items'] ?? [];
 
         $schemaWebSite = [
             '@context' => 'https://schema.org',
@@ -55,8 +61,26 @@ class HomeController extends Controller
             ]
         ];
 
+        // اسکیمای اختصاصی گوگل برای لیست جدیدترین محصولات (Rich Results)
+        $itemListElements = [];
+        foreach ($latestProducts as $idx => $prod) {
+            $itemListElements[] = [
+                '@type' => 'ListItem',
+                'position' => $idx + 1,
+                'url' => $hostUrl . '/product/' . urlencode($prod['slug']),
+                'name' => $prod['name']
+            ];
+        }
+        $schemaLatestProducts = [
+            '@context' => 'https://schema.org',
+            '@type' => 'ItemList',
+            'name' => 'جدیدترین قطعات یدکی تویوتا در پرادو یدک',
+            'itemListElement' => $itemListElements
+        ];
+
         $schemaMarkup = "<script type=\"application/ld+json\">\n" . json_encode($schemaWebSite, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n</script>\n";
-        $schemaMarkup .= "<script type=\"application/ld+json\">\n" . json_encode($schemaAutoPartsStore, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n</script>";
+        $schemaMarkup .= "<script type=\"application/ld+json\">\n" . json_encode($schemaAutoPartsStore, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n</script>\n";
+        $schemaMarkup .= "<script type=\"application/ld+json\">\n" . json_encode($schemaLatestProducts, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n</script>";
 
         $latestArticles = \App\models\Article::getAll('published', null, 3);
         require_once VIEWS_PATH . '/index.php';
