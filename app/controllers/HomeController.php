@@ -58,9 +58,6 @@ class HomeController extends Controller
         $schemaMarkup = "<script type=\"application/ld+json\">\n" . json_encode($schemaWebSite, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n</script>\n";
         $schemaMarkup .= "<script type=\"application/ld+json\">\n" . json_encode($schemaAutoPartsStore, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n</script>";
 
-        $newest_parts_data = \App\models\Product::search(['sort' => 'newest', 'inStock' => 'true'], 1, 8);
-        $newest_parts = $newest_parts_data['items'];
-
         $latestArticles = \App\models\Article::getAll('published', null, 3);
         require_once VIEWS_PATH . '/index.php';
     }
