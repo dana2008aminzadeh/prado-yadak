@@ -1,4 +1,5 @@
 <?php
+
 namespace App\controllers;
 
 use App\models\Order;
@@ -6,27 +7,24 @@ use App\models\Cart;
 use App\models\Product;
 use App\models\Coupon;
 use App\models\Notice;
-use Core\Database;
+use App\models\Location;
+use App\models\Address;
+use App\models\User;
 
 class OrderController extends Controller
 {
     public function checkout()
     {
-        $userId = $_SESSION['user_id'];
+        $userId = (int) $_SESSION['user_id'];
         global $settings;
         $siteName = $settings['site_title'] ?? 'پرادو یدک';
         $pageTitle = 'تسویه حساب و پرداخت نهایی | ' . $siteName;
 
+        // تمام فراخوانی‌ها فقط از طریق مدل‌ها انجام می‌شود
         $notices = Notice::getForPage('checkout');
-
-        $db = Database::getInstance();
-        $stmt = $db->prepare("SELECT * FROM user_addresses WHERE user_id = ? ORDER BY is_default DESC, id DESC");
-        $stmt->execute([$userId]);
-        $savedAddresses = $stmt->fetchAll() ?: [];
-
-        $userStmt = $db->prepare("SELECT full_name, phone FROM users WHERE id = ?");
-        $userStmt->execute([$userId]);
-        $currentUser = $userStmt->fetch();
+        $provinces = Location::getActiveProvinces();
+        $savedAddresses = Address::getByUserId($userId);
+        $currentUser = User::findById($userId);
 
         require_once VIEWS_PATH . '/checkout.php';
     }
@@ -43,8 +41,7 @@ class OrderController extends Controller
 
     public function processCheckout()
     {
-        $userId = $_SESSION['user_id'];
-
+        $userId = (int) $_SESSION['user_id'];
         $recipientName = trim($_POST['recipient_name'] ?? '');
         $recipientPhone = trim($_POST['recipient_phone'] ?? '');
         $province = trim($_POST['province'] ?? '');
@@ -66,6 +63,13 @@ class OrderController extends Controller
 
         if (!preg_match('/^09[0-9]{9}$/', $recipientPhone)) {
             $_SESSION['checkout_error'] = 'شماره همراه تحویل‌گیرنده نامعتبر است (مثال: 09189998852).';
+            header('Location: /checkout');
+            exit;
+        }
+
+        // اعتبارسنجی تطابق استان و شهر در مدل Location
+        if (!Location::validateProvinceAndCity($province, $city)) {
+            $_SESSION['checkout_error'] = 'استان یا شهر انتخاب‌شده معتبر نیست.';
             header('Location: /checkout');
             exit;
         }
@@ -194,26 +198,8 @@ class OrderController extends Controller
             exit;
         }
 
-        // ذخیره خودکار آدرس کاربر در صورت عدم تکرار
-        try {
-            $db = Database::getInstance();
-            $chkAddr = $db->prepare("SELECT id FROM user_addresses WHERE user_id = ? AND address_detail = ? LIMIT 1");
-            $chkAddr->execute([$userId, $addressDetail]);
-
-            if (!$chkAddr->fetch()) {
-                $countStmt = $db->prepare("SELECT COUNT(*) FROM user_addresses WHERE user_id = ?");
-                $countStmt->execute([$userId]);
-                $isFirst = ((int) $countStmt->fetchColumn() === 0) ? 1 : 0;
-
-                $insAddr = $db->prepare("
-                    INSERT INTO user_addresses (user_id, province_city, address_detail, postal_code, is_default, created_at) 
-                    VALUES (?, ?, ?, ?, ?, NOW())
-                ");
-                $insAddr->execute([$userId, $provinceCity, $addressDetail, $postalCode ?: '', $isFirst]);
-            }
-        } catch (\Exception $e) {
-            error_log("Auto-save address error: " . $e->getMessage());
-        }
+        // ذخیره آدرس از طریق مدل Address بدون درج مستقیم SQL در کنترلر
+        Address::saveIfNotExists($userId, $provinceCity, $addressDetail, $postalCode);
 
         header('Location: /order/success?code=' . urlencode($trackingCode));
         exit;
@@ -248,6 +234,7 @@ class OrderController extends Controller
             echo json_encode(['status' => 'error', 'message' => 'کد رهگیری را وارد کنید.']);
             exit;
         }
+
         $order = Order::findByTrackingCode($code);
         if ($order) {
             $statusMap = [

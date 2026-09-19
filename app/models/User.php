@@ -77,4 +77,12 @@ class User
         $stmt = $db->prepare("DELETE FROM login_attempts WHERE phone = ?");
         $stmt->execute([$phone]);
     }
+
+    public static function findById(int $id): ?array
+    {
+        $db = Database::getInstance();
+        $stmt = $db->prepare("SELECT id, full_name, phone, email, role, wallet_balance FROM users WHERE id = ? LIMIT 1");
+        $stmt->execute([$id]);
+        return $stmt->fetch(\PDO::FETCH_ASSOC) ?: null;
+    }
 }

@@ -109,6 +109,8 @@ class Router
         $this->post('/checkout/process', 'OrderController@processCheckout', ['auth']);
         $this->post('/api/checkout/validate-coupon', 'OrderController@apiValidateCoupon', ['auth']);
         $this->get('/order/success', 'OrderController@orderSuccess', ['auth']);
+        $this->get('/api/locations/provinces', 'LocationController@provinces');
+        $this->get('/api/locations/cities', 'LocationController@cities');
     }
 
     private function abort($code = 404)
