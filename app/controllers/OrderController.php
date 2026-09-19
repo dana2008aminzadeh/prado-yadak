@@ -15,12 +15,13 @@ class OrderController extends Controller
 {
     public function checkout()
     {
+        header('X-Robots-Tag: noindex, nofollow', true);
+
         $userId = (int) $_SESSION['user_id'];
         global $settings;
         $siteName = $settings['site_title'] ?? 'پرادو یدک';
         $pageTitle = 'تسویه حساب و پرداخت نهایی | ' . $siteName;
 
-        // تمام فراخوانی‌ها فقط از طریق مدل‌ها انجام می‌شود
         $notices = Notice::getForPage('checkout');
         $provinces = Location::getActiveProvinces();
         $savedAddresses = Address::getByUserId($userId);
@@ -42,21 +43,31 @@ class OrderController extends Controller
     public function processCheckout()
     {
         $userId = (int) $_SESSION['user_id'];
-        $recipientName = trim($_POST['recipient_name'] ?? '');
+
+        // ۱. جلوگیری از اسپم فاکتور (حداقل ۳۰ ثانیه فاصله بین ثبت فاکتورهای متوالی)
+        $now = time();
+        if (isset($_SESSION['last_checkout_time']) && ($now - (int) $_SESSION['last_checkout_time']) < 30) {
+            $_SESSION['checkout_error'] = 'یک سفارش از سمت شما در حال پردازش است. لطفاً چند لحظه صبر کنید.';
+            header('Location: /checkout');
+            exit;
+        }
+
+        // ۲. دریافت و پالایش امن ورودی‌های متنی با سقف طول مجاز
+        $recipientName = mb_substr(trim(strip_tags($_POST['recipient_name'] ?? '')), 0, 100, 'UTF-8');
         $recipientPhone = trim($_POST['recipient_phone'] ?? '');
-        $province = trim($_POST['province'] ?? '');
-        $city = trim($_POST['city'] ?? '');
-        $addressDetail = trim($_POST['address_detail'] ?? '');
+        $province = mb_substr(trim(strip_tags($_POST['province'] ?? '')), 0, 50, 'UTF-8');
+        $city = mb_substr(trim(strip_tags($_POST['city'] ?? '')), 0, 50, 'UTF-8');
+        $addressDetail = mb_substr(trim(strip_tags($_POST['address_detail'] ?? '')), 0, 300, 'UTF-8');
         $postalCode = trim($_POST['postal_code'] ?? '');
-        $userNotes = trim($_POST['user_notes'] ?? '');
+        $userNotes = mb_substr(trim(strip_tags($_POST['user_notes'] ?? '')), 0, 500, 'UTF-8');
         $couponCode = trim($_POST['applied_discount_code'] ?? '');
         $rawCartData = $_POST['cart_data'] ?? '';
 
         $provinceCity = $province . ' - ' . $city;
         $shippingAddress = $province . '، ' . $city . '، ' . $addressDetail;
 
-        if (empty($recipientName) || empty($recipientPhone) || empty($province) || empty($city) || empty($addressDetail)) {
-            $_SESSION['checkout_error'] = 'لطفاً تمامی فیلدهای الزامی مشخصات تحویل‌گیرنده و آدرس را تکمیل کنید.';
+        if (empty($recipientName) || empty($recipientPhone) || empty($province) || empty($city) || empty($addressDetail) || empty($postalCode)) {
+            $_SESSION['checkout_error'] = 'لطفاً تمامی فیلدهای الزامی شامل مشخصات تحویل‌گیرنده، آدرس و کد پستی را تکمیل کنید.';
             header('Location: /checkout');
             exit;
         }
@@ -67,13 +78,20 @@ class OrderController extends Controller
             exit;
         }
 
-        // اعتبارسنجی تطابق استان و شهر در مدل Location
+        if (!preg_match('/^[0-9]{10}$/', $postalCode)) {
+            $_SESSION['checkout_error'] = 'کد پستی نامعتبر است (باید دقیقاً یک عدد ۱۰ رقمی باشد).';
+            header('Location: /checkout');
+            exit;
+        }
+
+        // بررسی اعتبار استان و شهر در پایگاه داده
         if (!Location::validateProvinceAndCity($province, $city)) {
             $_SESSION['checkout_error'] = 'استان یا شهر انتخاب‌شده معتبر نیست.';
             header('Location: /checkout');
             exit;
         }
 
+        // ۳. بررسی قیمت، تعداد و موجودی واقعی انبار
         $clientItems = json_decode($rawCartData, true) ?: [];
         $validatedItems = [];
         $subtotal = 0.0;
@@ -81,10 +99,19 @@ class OrderController extends Controller
         if (!empty($clientItems)) {
             foreach ($clientItems as $ci) {
                 $pid = (int) ($ci['product']['id'] ?? $ci['id'] ?? 0);
-                $qty = max(1, (int) ($ci['quantity'] ?? 1));
+                // محدود کردن بازه مجاز تعداد (بین ۱ تا ۱۰ عدد برای هر قطعه جهت جلوگیری از سرریز قیمت)
+                $qty = max(1, min(10, (int) ($ci['quantity'] ?? 1)));
+
                 if ($pid > 0) {
                     $prod = Product::findById($pid);
                     if ($prod) {
+                        // کنترل وضعیت موجودی در لحظه تسویه
+                        if (!$prod['inStock']) {
+                            $_SESSION['checkout_error'] = "متأسفانه قطعه «{$prod['name']}» در انبار ناموجود است.";
+                            header('Location: /checkout');
+                            exit;
+                        }
+
                         $itemPrice = (float) $prod['price'];
                         $subtotal += ($itemPrice * $qty);
                         $validatedItems[] = [
@@ -98,27 +125,13 @@ class OrderController extends Controller
             }
         }
 
-        if (empty($validatedItems)) {
-            $dbCart = Cart::get($userId);
-            foreach ($dbCart as $ci) {
-                $itemPrice = (float) $ci['price'];
-                $qty = (int) $ci['quantity'];
-                $subtotal += ($itemPrice * $qty);
-                $validatedItems[] = [
-                    'id' => (int) $ci['id'],
-                    'name' => $ci['name'],
-                    'price' => $itemPrice,
-                    'quantity' => $qty
-                ];
-            }
-        }
-
         if (empty($validatedItems) || $subtotal <= 0) {
             $_SESSION['checkout_error'] = 'سبد خرید شما خالی است.';
             header('Location: /checkout');
             exit;
         }
 
+        // ۴. بررسی تخفیف
         $discountAmount = 0.0;
         $appliedCouponCode = null;
         if (!empty($couponCode)) {
@@ -131,6 +144,7 @@ class OrderController extends Controller
 
         $totalAmount = max(0, $subtotal - $discountAmount);
 
+        // ۵. اعتبارسنجی چندلایه فایل رسید بانکی
         if (!isset($_FILES['receipt_image']) || $_FILES['receipt_image']['error'] !== UPLOAD_ERR_OK) {
             $_SESSION['checkout_error'] = 'آپلود تصویر یا فایل رسید بانکی الزامی است.';
             header('Location: /checkout');
@@ -138,36 +152,67 @@ class OrderController extends Controller
         }
 
         $file = $_FILES['receipt_image'];
+
+        // الف) بررسی حجم فایل (حداکثر ۵ مگابایت)
+        $maxSizeBytes = 5 * 1024 * 1024;
+        if ($file['size'] > $maxSizeBytes || $file['size'] < 1024) {
+            $_SESSION['checkout_error'] = 'حجم فایل رسید نامعتبر است (باید بین ۱ کیلوبایت تا ۵ مگابایت باشد).';
+            header('Location: /checkout');
+            exit;
+        }
+
+        // ب) تشخیص MIME واقعی از هدرهای درونی فایل
         $finfo = new \finfo(FILEINFO_MIME_TYPE);
         $mimeType = $finfo->file($file['tmp_name']);
         $allowedMimes = [
             'image/jpeg' => 'jpg',
-            'image/pjpeg' => 'jpg',
             'image/png' => 'png',
             'image/webp' => 'webp',
             'application/pdf' => 'pdf'
         ];
 
         if (!array_key_exists($mimeType, $allowedMimes)) {
-            $_SESSION['checkout_error'] = 'فرمت رسید نامعتبر است (فقط JPG, PNG, WEBP و PDF مجاز است).';
+            $_SESSION['checkout_error'] = 'فرمت رسید نامعتبر است (تنها JPG, PNG, WEBP و PDF مجاز است).';
             header('Location: /checkout');
             exit;
         }
 
+        // ج) بررسی بایت‌های جادویی (Magic Bytes) و ساختار باینری
+        if ($mimeType === 'application/pdf') {
+            $header = file_get_contents($file['tmp_name'], false, null, 0, 5);
+            if (strncmp($header, '%PDF-', 5) !== 0) {
+                $_SESSION['checkout_error'] = 'فایل PDF بارگذاری‌شده معتبر نیست.';
+                header('Location: /checkout');
+                exit;
+            }
+        } else {
+            // برای فایل‌های تصویری، اعتبارسنجی از طریق موتور GD انجام می‌شود
+            $imgInfo = @getimagesize($file['tmp_name']);
+            if ($imgInfo === false) {
+                $_SESSION['checkout_error'] = 'تصویر رسید بانکی مخدوش یا دستکاری شده است.';
+                header('Location: /checkout');
+                exit;
+            }
+        }
+
+        // د) ذخیره‌سازی با نام کاملاً تصادفی و پسوند کنترل‌شده
         $extension = $allowedMimes[$mimeType];
         $uploadDir = BASE_PATH . '/assets/uploads/receipts';
         if (!is_dir($uploadDir)) {
             mkdir($uploadDir, 0755, true);
         }
 
-        $uniqueFileName = 'rcpt_' . date('Ymd_His') . '_' . bin2hex(random_bytes(8)) . '.' . $extension;
+        $uniqueFileName = 'rcpt_' . date('Ymd_His') . '_' . bin2hex(random_bytes(16)) . '.' . $extension;
         $destination = $uploadDir . '/' . $uniqueFileName;
 
         if (!move_uploaded_file($file['tmp_name'], $destination)) {
-            $_SESSION['checkout_error'] = 'خطا در ذخیره‌سازی فایل رسید روی هاست.';
+            $_SESSION['checkout_error'] = 'خطا در ذخیره‌سازی فایل رسید.';
             header('Location: /checkout');
             exit;
         }
+
+        // تغییر مجوز دسترسی فایل آپلود شده به حالت غیرقابل اجرا (Read-Only برای وب‌سرور)
+        @chmod($destination, 0644);
 
         $receiptRelativePath = '/assets/uploads/receipts/' . $uniqueFileName;
         $trackingCode = Order::generateUniqueTrackingCode();
@@ -192,13 +237,16 @@ class OrderController extends Controller
         $orderResult = Order::createOrder($orderPayload, $validatedItems);
 
         if (!$orderResult['success']) {
-            @unlink($destination);
-            $_SESSION['checkout_error'] = 'خطا در ثبت نهایی فاکتور در دیتابیس.';
+            @unlink($destination); // حذف فایل آپلود شده در صورت شکست دیتابیس
+            $_SESSION['checkout_error'] = 'خطا در ثبت نهایی فاکتور در پایگاه داده.';
             header('Location: /checkout');
             exit;
         }
 
-        // ذخیره آدرس از طریق مدل Address بدون درج مستقیم SQL در کنترلر
+        // ثبت زمان موفق جهت اعمال Rate Limit
+        $_SESSION['last_checkout_time'] = time();
+
+        // ذخیره نشانی در دفترچه کاربر
         Address::saveIfNotExists($userId, $provinceCity, $addressDetail, $postalCode);
 
         header('Location: /order/success?code=' . urlencode($trackingCode));
@@ -207,6 +255,8 @@ class OrderController extends Controller
 
     public function orderSuccess()
     {
+        header('X-Robots-Tag: noindex, nofollow', true);
+
         $code = trim($_GET['code'] ?? '');
         if (empty($code)) {
             header('Location: /profile');
@@ -214,7 +264,9 @@ class OrderController extends Controller
         }
 
         $order = Order::findByTrackingCode($code);
-        if (!$order || $order['user_id'] != $_SESSION['user_id']) {
+
+        // جلوگیری از IDOR با بررسی سخت‌گیرانه نوع داده و شناسه کاربر
+        if (!$order || (int) $order['user_id'] !== (int) $_SESSION['user_id']) {
             header('Location: /404');
             exit;
         }
@@ -229,9 +281,26 @@ class OrderController extends Controller
     public function trackOrder()
     {
         header('Content-Type: application/json; charset=utf-8');
+
+        // محدودسازی درخواست‌های پیگیری جهت جلوگیری از بروت‌فورس کدهای رهگیری (حداکثر ۲۰ درخواست در ۵ دقیقه)
+        if (!isset($_SESSION['track_attempts'])) {
+            $_SESSION['track_attempts'] = ['count' => 0, 'first_attempt' => time()];
+        }
+
+        if (time() - $_SESSION['track_attempts']['first_attempt'] > 300) {
+            $_SESSION['track_attempts'] = ['count' => 1, 'first_attempt' => time()];
+        } else {
+            $_SESSION['track_attempts']['count']++;
+            if ($_SESSION['track_attempts']['count'] > 20) {
+                http_response_code(429);
+                echo json_encode(['status' => 'error', 'message' => 'تعداد تلاش‌های شما بیش از حد مجاز است. لطفاً ۵ دقیقه دیگر تلاش کنید.']);
+                exit;
+            }
+        }
+
         $code = trim($_POST['code'] ?? '');
-        if (empty($code)) {
-            echo json_encode(['status' => 'error', 'message' => 'کد رهگیری را وارد کنید.']);
+        if (empty($code) || !preg_match('/^[a-zA-Z0-9_-]{6,20}$/', $code)) {
+            echo json_encode(['status' => 'error', 'message' => 'کد رهگیری وارد شده نامعتبر است.']);
             exit;
         }
 

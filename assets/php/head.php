@@ -11,7 +11,6 @@ if ($uri !== '/' && substr($uri, -1) === '/') {
     $uri = rtrim($uri, '/');
 }
 
-// محاسبه یکتا و استاندارد Canonical URL بدون بازنویسی مجدد
 if ($uri === '/' || $uri === '/index' || $uri === '') {
     $canonicalUrl = $hostUrl . '/';
 } elseif ((str_starts_with($uri, '/product') || $uri === '/product') && isset($product['slug'])) {
@@ -50,6 +49,7 @@ if (!isset($pageTitle)) {
         '/profile' => 'پنل کاربری | ' . $site_name,
         '/terms' => 'قوانین و ضمانت اصالت کالا | ' . $site_name,
         '/checkout' => 'تسویه حساب و پرداخت | ' . $site_name,
+        '/order/success' => 'سفارش با موفقیت ثبت شد | ' . $site_name,
         '/404' => 'صفحه مورد نظر یافت نشد | ' . $site_name
     ];
 
@@ -73,22 +73,26 @@ if (!isset($pageTitle)) {
 $defaultDesc = 'فروشگاه تخصصی پرادو یدک؛ تامین قطعات اصلی جنیون پارت تویوتا و لکسوس با ضمانت ۱۰۰٪ اصالت، تطابق با شماره شاسی (VIN) و ارسال سریع به سراسر کشور.';
 $finalMetaDesc = $metaDescription ?? $defaultDesc;
 
-// کنترل تگ Robots جهت جلوگیری از ایندکس صفحات با فیلترهای پویا و تکراری
-$noindexParams = ['sort', 'maxPrice', 'q', 'inStock'];
-$shouldNoIndex = false;
+$privatePages = ['/404', '/checkout', '/order/success', '/profile', '/login'];
+$isPrivateUri = in_array($uri, $privatePages, true) || str_starts_with($uri, '/order/');
 
+$noindexParams = ['sort', 'maxPrice', 'q', 'inStock'];
+$hasFilterParam = false;
 foreach ($noindexParams as $param) {
     if (isset($_GET[$param]) && trim((string) $_GET[$param]) !== '') {
-        $shouldNoIndex = true;
+        $hasFilterParam = true;
         break;
     }
 }
 
-if (http_response_code() === 404 || in_array($uri, ['/404', '/checkout', '/profile', '/login'])) {
-    $shouldNoIndex = true;
+if (http_response_code() === 404 || $isPrivateUri) {
+    $robotsMeta = 'noindex, nofollow';
+} elseif ($hasFilterParam) {
+    $robotsMeta = 'noindex, follow';
+} else {
+    $robotsMeta = 'index, follow';
 }
 
-$robotsMeta = $shouldNoIndex ? 'noindex, follow' : 'index, follow';
 $ogImage = $pageImage ?? ($hostUrl . '/assets/logo/logo.webp');
 $ogType = (str_starts_with($uri, '/product') || $uri === '/product') ? 'product' : 'website';
 ?>

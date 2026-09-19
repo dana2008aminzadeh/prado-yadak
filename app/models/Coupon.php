@@ -63,4 +63,19 @@ class Coupon
         $stmt = $db->prepare("UPDATE discount_coupons SET used_count = used_count + 1 WHERE code = ?");
         $stmt->execute([$code]);
     }
+
+    public static function consumeCouponAtomic(string $code, PDO $db): bool
+    {
+        $code = trim(strtoupper($code));
+        $stmt = $db->prepare("
+            UPDATE discount_coupons 
+            SET used_count = used_count + 1 
+            WHERE BINARY code = ? 
+              AND is_active = 1 
+              AND (usage_limit IS NULL OR used_count < usage_limit)
+              AND (expires_at IS NULL OR expires_at > NOW())
+        ");
+        $stmt->execute([$code]);
+        return $stmt->rowCount() > 0;
+    }
 }

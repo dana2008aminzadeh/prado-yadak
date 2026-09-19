@@ -19,7 +19,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 function registerEventListeners() {
     const form = document.getElementById('checkout-form');
     if (form) {
-        form.addEventListener('submit', () => {
+        // حذف خطای کادر قرمز به محض تغییر یا تایپ در فیلدها
+        form.querySelectorAll('input, select, textarea').forEach(input => {
+            input.addEventListener('input', () => clearFieldHighlight(input));
+            input.addEventListener('change', () => clearFieldHighlight(input));
+        });
+
+        // مدیریت اعتبارسنجی هنگام کلیک روی ثبت نهایی
+        form.addEventListener('submit', (e) => {
+            const validation = validateCheckoutFields();
+            if (!validation.isValid) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                highlightAndScrollToField(validation.field, validation.message);
+                return false;
+            }
+
             const btn = document.getElementById('submit-order-btn');
             if (btn) {
                 btn.disabled = true;
@@ -47,6 +63,7 @@ function registerEventListeners() {
     if (receiptInput) {
         receiptInput.addEventListener('change', (e) => {
             previewReceiptFile(e.target);
+            clearFieldHighlight(e.target);
         });
     }
 
@@ -83,11 +100,99 @@ function registerEventListeners() {
     }
 }
 
+// تابع بررسی و اعتبارسنجی تک‌تک فیلدهای فرم
+function validateCheckoutFields() {
+    const fields = [
+        {
+            id: 'rec_name',
+            message: 'لطفاً نام و نام‌خانوادگی تحویل‌گیرنده را وارد کنید.',
+            validate: el => el.value.trim().length >= 3
+        },
+        {
+            id: 'rec_phone',
+            message: 'لطفاً شماره موبایل معتبر وارد کنید (مثال: 09189998852).',
+            validate: el => /^09[0-9]{9}$/.test(el.value.trim())
+        },
+        {
+            id: 'province-select',
+            message: 'لطفاً استان مقصد را انتخاب کنید.',
+            validate: el => el.value.trim() !== ''
+        },
+        {
+            id: 'city-select',
+            message: 'لطفاً شهر مقصد را انتخاب کنید.',
+            validate: el => el.value.trim() !== ''
+        },
+        {
+            id: 'rec_address_detail',
+            message: 'لطفاً نشانی پستی دقیق را وارد کنید.',
+            validate: el => el.value.trim().length >= 6
+        },
+        {
+            id: 'rec_postal',
+            message: 'کد پستی ۱۰ رقمی الزامی است و باید دقیقاً یک عدد ۱۰ رقمی باشد.',
+            validate: el => /^[0-9]{10}$/.test(el.value.trim())
+        },
+        {
+            id: 'receipt-file-input',
+            message: 'لطفاً تصویر یا فایل فیش واریز را بارگذاری نمایید.',
+            validate: el => el.files && el.files.length > 0
+        }
+    ];
+
+    for (const item of fields) {
+        const el = document.getElementById(item.id);
+        if (el && !item.validate(el)) {
+            return {
+                isValid: false,
+                field: el,
+                message: item.message
+            };
+        }
+    }
+
+    return { isValid: true };
+}
+
+// نمایش کادر قرمز و اسکرول نرم به سمت فیلد جا افتاده
+function highlightAndScrollToField(element, message) {
+    if (!element) return;
+
+    const target = element.id === 'receipt-file-input'
+        ? element.closest('.border-dashed')
+        : element;
+
+    if (target) {
+        target.classList.add('!border-rose-500', '!ring-2', '!ring-rose-200');
+    }
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    if (element.focus && element.type !== 'file') {
+        element.focus({ preventScroll: true });
+    }
+
+    if (typeof showAlert === 'function') {
+        showAlert(message, 'danger');
+    } else {
+        alert(message);
+    }
+}
+
+function clearFieldHighlight(element) {
+    const target = element.id === 'receipt-file-input'
+        ? element.closest('.border-dashed')
+        : element;
+
+    if (target) {
+        target.classList.remove('!border-rose-500', '!ring-2', '!ring-rose-200');
+    }
+}
+
 async function initProvinces() {
     const provinceSelect = document.getElementById('province-select');
     if (!provinceSelect) return;
 
-    // در صورتی که استان‌ها سمت سرور توسط PHP در HTML رندر شده باشند
     if (provinceSelect.options.length > 1) {
         provinceSelect.disabled = false;
         return;
@@ -112,7 +217,7 @@ async function initProvinces() {
         }
     } catch (e) {
         console.error('Error fetching provinces:', e);
-        provinceSelect.innerHTML = '<option value="">خطا در دریافت استان‌ها</option>';
+        provinceSelect.innerHTML = '<option value="">خطا در بارگذاری استان‌ها</option>';
     }
 }
 
@@ -126,13 +231,12 @@ async function loadCities(provinceName, selectedCity = '') {
         return;
     }
 
-    // بررسی کش مرورگر برای جلوگیری از کوئری مجدد
     if (cachedCities[provinceName]) {
         populateCitySelect(citySelect, cachedCities[provinceName], selectedCity);
         return;
     }
 
-    citySelect.innerHTML = '<option value="">در حال دریافت لیست شهرها...</option>';
+    citySelect.innerHTML = '<option value="">در حال بارگذاری شهرها...</option>';
     citySelect.disabled = true;
 
     const provOption = document.querySelector(`#province-select option[value="${provinceName}"]`);
@@ -238,16 +342,16 @@ function renderCheckoutItems(cart) {
         const imgSrc = (prod.images && prod.images[0]) ? '/image?id=' + encodeURIComponent(prod.images[0]) : '/assets/logo/logo.webp';
 
         const html = `
-            <div class="flex items-center gap-3 bg-brand-dark/50 border border-white/5 p-3 rounded-2xl">
-                <img src="${imgSrc}" alt="${escapeHtml(prod.name)}" class="w-14 h-14 object-contain rounded-xl bg-brand-dark p-1 border border-white/10 shrink-0">
+            <div class="flex items-center gap-3 bg-[#F8F6F0] border border-[#E8E2D9] p-3 rounded-2xl">
+                <img src="${imgSrc}" alt="${escapeHtml(prod.name)}" class="w-14 h-14 object-contain rounded-xl bg-white p-1 border border-[#E8E2D9] shrink-0">
                 <div class="flex-1 min-w-0">
-                    <h4 class="font-bold text-xs text-white truncate mb-0.5">${escapeHtml(prod.name)}</h4>
-                    <div class="flex items-center justify-between text-[11px] text-gray-400">
-                        <span>کد فنی: <span class="font-mono text-gray-300" dir="ltr">${escapeHtml(prod.oem || '---')}</span></span>
-                        <span class="bg-brand-dark px-2 py-0.5 rounded text-white font-bold">${qty} عدد</span>
+                    <h4 class="font-bold text-xs text-[#251E1B] truncate mb-0.5">${escapeHtml(prod.name)}</h4>
+                    <div class="flex items-center justify-between text-[11px] text-[#5F605C]">
+                        <span>کد فنی: <span class="font-mono text-[#251E1B]" dir="ltr">${escapeHtml(prod.oem || '---')}</span></span>
+                        <span class="bg-white px-2 py-0.5 rounded text-[#251E1B] font-bold border border-[#E8E2D9]">${qty} عدد</span>
                     </div>
                     <div class="text-left mt-1">
-                        <span class="text-xs font-black text-brand-red">${lineTotal.toLocaleString('fa-IR')} تومان</span>
+                        <span class="text-xs font-bold text-emerald-600">${lineTotal.toLocaleString('fa-IR')} تومان</span>
                     </div>
                 </div>
             </div>`;
@@ -294,14 +398,14 @@ function showCouponMessage(message, type = 'error', autoHideDuration = 5000) {
 
     let colorClasses = '';
     if (type === 'success') {
-        colorClasses = 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30';
+        colorClasses = 'bg-emerald-50 text-emerald-700 border-emerald-200';
     } else if (type === 'warning') {
-        colorClasses = 'bg-amber-500/10 text-amber-500 border-amber-500/30';
+        colorClasses = 'bg-amber-50 text-amber-700 border-amber-200';
     } else {
-        colorClasses = 'bg-rose-500/10 text-rose-500 border-rose-500/30';
+        colorClasses = 'bg-rose-50 text-rose-700 border-rose-200';
     }
 
-    msgEl.className = `mt-2 text-xs font-bold px-3 py-2 rounded-lg border block transition-opacity duration-300 ${colorClasses}`;
+    msgEl.className = `mt-2 text-xs font-bold px-3 py-2 rounded-xl border block transition-opacity duration-300 ${colorClasses}`;
     msgEl.innerText = message;
     msgEl.classList.remove('hidden');
 
@@ -342,7 +446,7 @@ async function validateCouponAjax() {
 
         if (btn) {
             btn.disabled = false;
-            btn.innerText = 'اعمال';
+            btn.innerText = 'اعمال کد';
         }
 
         if (res.ok && data.valid) {
@@ -358,7 +462,7 @@ async function validateCouponAjax() {
     } catch (e) {
         if (btn) {
             btn.disabled = false;
-            btn.innerText = 'اعمال';
+            btn.innerText = 'اعمال کد';
         }
         showCouponMessage('خطا در برقراری ارتباط با سرور.', 'error', 5000);
     }
