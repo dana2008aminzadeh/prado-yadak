@@ -244,6 +244,51 @@
                                     class="w-full bg-white border border-[#D5CAC0] rounded-xl px-4 py-3 text-sm text-[#251E1B] focus:outline-none focus:border-[#8B533A] transition">
                             </div>
                         </div>
+
+                        <!-- ================= بخش انتخاب شیوه ارسال و باکس توضیحات پس‌کرایه ================= -->
+                        <div class="space-y-4 pt-4 border-t border-[#F0EBE1]" id="shipping-method-section">
+                            <label class="block text-xs font-bold text-[#251E1B]">
+                                انتخاب شیوه ارسال مرسوله *
+                            </label>
+
+                            <?php if (!empty($shippingMethods)): ?>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <?php foreach ($shippingMethods as $index => $sm): ?>
+                                        <label
+                                            class="relative flex items-center gap-3 p-3.5 bg-[#FAF8F5] border border-[#D5CAC0] rounded-2xl cursor-pointer hover:border-[#8B533A] transition has-checked:border-[#8B533A] has-checked:bg-[#8B533A]/5 has-checked:ring-1 has-checked:ring-[#8B533A]">
+                                            <input type="radio" name="shipping_method_id" value="<?= (int) $sm['id'] ?>"
+                                                class="accent-[#8B533A] w-4 h-4" <?= $index === 0 ? 'checked' : '' ?>>
+                                            <div class="text-xs">
+                                                <span class="block font-bold text-[#251E1B]"><?= e($sm['title']) ?></span>
+                                                <?php if (!empty($sm['subtitle'])): ?>
+                                                    <span class="text-[10px] text-[#5F605C]"><?= e($sm['subtitle']) ?></span>
+                                                <?php endif; ?>
+                                            </div>
+                                        </label>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php else: ?>
+                                <div class="p-3 rounded-xl bg-rose-50 text-rose-700 text-xs border border-rose-200">
+                                    شیوه ارسالی تعریف نشده است. لطفاً با پشتیبانی تماس بگیرید.
+                                </div>
+                            <?php endif; ?>
+
+                            <!-- باکس توضیحات هزینه ارسال (پس‌کرایه) -->
+                            <div
+                                class="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-4 flex items-start gap-3 shadow-xs">
+                                <i data-lucide="alert-circle" class="w-5 h-5 text-amber-600 shrink-0 mt-0.5"></i>
+                                <div class="text-xs leading-relaxed text-amber-950 space-y-1">
+                                    <h5 class="font-bold text-amber-900">هزینه ارسال به‌صورت «پس‌کرایه» (پرداخت هنگام
+                                        تحویل):</h5>
+                                    <p>
+                                        با توجه به متغیر بودن ابعاد، وزن و نوع بسته‌بندی لوازم یدکی، کرایه حمل در
+                                        پیش‌فاکتور محاسبه نشده است؛ بنابراین <strong>پرداخت کل هزینه ارسال کاملاً بر
+                                            عهده خریدار بوده و باید هنگام تحویل کالا، مستقیماً به مأمور ارسال یا شرکت
+                                            باربری پرداخت شود.</strong>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- ============================================== -->

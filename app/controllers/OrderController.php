@@ -9,6 +9,7 @@ use App\models\Coupon;
 use App\models\Notice;
 use App\models\Location;
 use App\models\Address;
+use App\models\ShippingMethod;
 use App\models\User;
 
 class OrderController extends Controller
@@ -16,16 +17,15 @@ class OrderController extends Controller
     public function checkout()
     {
         header('X-Robots-Tag: noindex, nofollow', true);
-
         $userId = (int) $_SESSION['user_id'];
         global $settings;
         $siteName = $settings['site_title'] ?? 'پرادو یدک';
         $pageTitle = 'تسویه حساب و پرداخت نهایی | ' . $siteName;
-
         $notices = Notice::getForPage('checkout');
         $provinces = Location::getActiveProvinces();
         $savedAddresses = Address::getByUserId($userId);
         $currentUser = User::findById($userId);
+        $shippingMethods = ShippingMethod::getActiveMethods(); // دریافت روش‌های فعال از دیتابیس
 
         require_once VIEWS_PATH . '/checkout.php';
     }
@@ -60,6 +60,7 @@ class OrderController extends Controller
         $addressDetail = mb_substr(trim(strip_tags($_POST['address_detail'] ?? '')), 0, 300, 'UTF-8');
         $postalCode = trim($_POST['postal_code'] ?? '');
         $userNotes = mb_substr(trim(strip_tags($_POST['user_notes'] ?? '')), 0, 500, 'UTF-8');
+        $shippingMethod = mb_substr(trim(strip_tags($_POST['shipping_method'] ?? 'تیپاکس')), 0, 100, 'UTF-8');
         $couponCode = trim($_POST['applied_discount_code'] ?? '');
         $rawCartData = $_POST['cart_data'] ?? '';
 
@@ -217,6 +218,18 @@ class OrderController extends Controller
         $receiptRelativePath = '/assets/uploads/receipts/' . $uniqueFileName;
         $trackingCode = Order::generateUniqueTrackingCode();
 
+        $shippingMethodId = (int) ($_POST['shipping_method_id'] ?? 0);
+        $selectedShipping = ShippingMethod::findById($shippingMethodId);
+
+        if (!$selectedShipping) {
+            $_SESSION['checkout_error'] = 'لطفاً یک شیوه ارسال معتبر را انتخاب کنید.';
+            header('Location: /checkout');
+            exit;
+        }
+
+        $shippingTitle = $selectedShipping['title'];
+        $fullNotes = "روش ارسال انتخابی: " . $shippingTitle . ($userNotes !== '' ? " | یادداشت کاربر: " . $userNotes : "");
+
         $orderPayload = [
             'user_id' => $userId,
             'tracking_code' => $trackingCode,
@@ -231,7 +244,7 @@ class OrderController extends Controller
             'recipient_phone' => $recipientPhone,
             'shipping_address' => $shippingAddress,
             'postal_code' => $postalCode,
-            'user_notes' => $userNotes
+            'user_notes' => $fullNotes
         ];
 
         $orderResult = Order::createOrder($orderPayload, $validatedItems);
@@ -243,12 +256,10 @@ class OrderController extends Controller
             exit;
         }
 
-        // ثبت زمان موفق جهت اعمال Rate Limit
+        $this->sendOrderNotificationSms($recipientPhone, $recipientName, $trackingCode);
+
         $_SESSION['last_checkout_time'] = time();
-
-        // ذخیره نشانی در دفترچه کاربر
         Address::saveIfNotExists($userId, $provinceCity, $addressDetail, $postalCode);
-
         header('Location: /order/success?code=' . urlencode($trackingCode));
         exit;
     }
@@ -319,5 +330,33 @@ class OrderController extends Controller
             echo json_encode(['status' => 'error', 'message' => 'سفارشی با این کد رهگیری در سیستم یافت نشد.']);
         }
         exit;
+    }
+
+    private function sendOrderNotificationSms(string $mobile, string $name, string $trackingCode): void
+    {
+        $apiKey = 'RL2qyUkahbb5FM1gLvqFTQeiXDuULlsa7F1aLlBPobQ2tIQL';
+        $templateId = 989878;
+
+        $data = [
+            "mobile" => $mobile,
+            "templateId" => $templateId,
+            "parameters" => [
+                ["name" => "NAME", "value" => (string) $name],
+                ["name" => "CODE", "value" => (string) $trackingCode]
+            ]
+        ];
+
+        $ch = curl_init("https://api.sms.ir/v1/send/verify");
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            "Content-Type: application/json",
+            "Accept: text/plain",
+            "x-api-key: " . $apiKey
+        ]);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+        curl_exec($ch);
+        curl_close($ch);
     }
 }

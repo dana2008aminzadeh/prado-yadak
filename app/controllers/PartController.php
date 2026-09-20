@@ -1,4 +1,5 @@
 <?php
+
 namespace App\controllers;
 
 use App\models\Product;
@@ -7,6 +8,9 @@ class PartController extends Controller
 {
     public function index()
     {
+        global $settings;
+        $siteName = $settings['site_title'] ?? 'پرادو یدک';
+
         $toArray = function ($input) {
             if (empty($input))
                 return [];
@@ -30,8 +34,24 @@ class PartController extends Controller
         $products = $data['items'];
         $totalCount = (int) $data['total'];
         $totalPages = (int) ceil($totalCount / $perPage);
-
         $brands = Product::getDistinctBrands();
+
+        $selectedCat = !empty($_GET['category']) ? $_GET['category'] : null;
+        $selectedModel = !empty($_GET['model']) ? $_GET['model'] : null;
+
+        if ($selectedCat && isset($GLOBALS['part_categories'][$selectedCat])) {
+            $catInfo = $GLOBALS['part_categories'][$selectedCat];
+            $catName = is_array($catInfo) ? ($catInfo['name'] ?? $selectedCat) : $catInfo;
+            $metaDescription = "خرید انواع قطعات و لوازم یدکی {$catName} تویوتا اصل جنیون پارت و وارداتی OEM با تضمین ۱۰۰٪ اصالت و ارسال سریع از فروشگاه {$siteName}.";
+        } elseif ($selectedModel && isset($GLOBALS['car_models'][$selectedModel])) {
+            $modInfo = $GLOBALS['car_models'][$selectedModel];
+            $modName = is_array($modInfo) ? ($modInfo['name'] ?? $selectedModel) : $modInfo;
+            $metaDescription = "کاتالوگ جامع قطعات یدکی تویوتا {$modName}؛ استعلام قیمت، تطابق با شماره شاسی (VIN) و خرید آنلاین با ضمانت اصالت کالا در {$siteName}.";
+        } elseif (!empty($filters['q'])) {
+            $metaDescription = "نتایج جستجو برای قطعه «" . htmlspecialchars($filters['q']) . "» در فروشگاه {$siteName}؛ خرید آنلاین قطعات اصلی تویوتا با ارسال فوری به سراسر کشور.";
+        } else {
+            $metaDescription = "کاتالوگ و لیست قیمت روز انواع لوازم یدکی و قطعات مصرفی تویوتا و لکسوس؛ ضمانت ۱۰۰٪ اصالت جنیون پارتس با امکان مرجوعی در فروشگاه {$siteName}.";
+        }
 
         require_once VIEWS_PATH . '/parts.php';
     }
@@ -69,13 +89,30 @@ class PartController extends Controller
         $site_name = $settings['site_title'] ?? 'پرادو یدک';
         $pageTitle = $product['name'] . ' | ' . $site_name;
 
+        $cleanDesc = !empty($product['desc']) ? trim(preg_replace('/\s+/u', ' ', strip_tags($product['desc']))) : '';
+        $oemTag = !empty($product['oem']) ? " با کد فنی {$product['oem']}" : '';
+
+        if (!empty($cleanDesc)) {
+            $metaDescription = mb_substr("خرید {$product['name']}{$oemTag}. " . $cleanDesc, 0, 155, 'UTF-8');
+        } else {
+            $metaDescription = "خرید و استعلام قیمت آنلاین {$product['name']}{$oemTag} تویوتا اصل جنیون و وارداتی با ضمانت اصالت کالا و ارسال سریع در {$site_name}.";
+        }
+
+        // تصویر محصول برای اشتراک‌گذاری در شبکه‌های اجتماعی (og:image)
+        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
+        $host = $_SERVER['HTTP_HOST'] ?? 'pradoyadak.com';
+        if (!empty($product['images']) && is_array($product['images']) && !empty($product['images'][0])) {
+            $pageImage = $protocol . "://" . $host . "/image?id=" . urlencode($product['images'][0]);
+        }
+
         $similar_parts_data = \App\models\Product::search(['categories' => [$product['category']]], 1, 4);
         $similar_parts = $similar_parts_data['items'];
+
         $newest_parts_data = \App\models\Product::search([], 1, 4);
         $newest_parts = $newest_parts_data['items'];
+
         $comments = \App\models\Product::getComments($id);
         $can_comment = false;
-
         if (isset($_SESSION['user_id'])) {
             $can_comment = \App\models\Product::canUserComment($id, $_SESSION['user_id']);
         }

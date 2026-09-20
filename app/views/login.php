@@ -132,9 +132,11 @@ $current_page = '/login';
                 <!-- فیلد مشترک کد تایید -->
                 <div>
                     <label class="block text-xs font-bold text-gray-400 mb-2">کد ۵ رقمی پیامک شده</label>
-                    <input type="text" id="auth-otp-code" name="otp" autocomplete="one-time-code" inputmode="numeric"
+                    <!-- جایگزین خط مربوط به فیلد auth-otp-code در login.php -->
+                    <input type="text" id="auth-otp-code" name="one-time-code" autocomplete="one-time-code"
+                        inputmode="numeric"
                         class="w-full h-12 bg-black/20 border border-white/10 rounded-xl px-4 text-center text-white text-lg tracking-[0.5em] font-mono focus:border-brand-red focus:ring-1 focus:ring-brand-red outline-none transition"
-                        placeholder="- - - - -" maxlength="5" dir="ltr">
+                        placeholder="- - - - -" maxlength="8" dir="ltr">
                 </div>
 
                 <button type="submit"

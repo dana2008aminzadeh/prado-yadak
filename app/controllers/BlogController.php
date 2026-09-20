@@ -93,9 +93,22 @@ class BlogController extends Controller
             exit;
         }
 
-        Article::incrementViews($article['id']);
-        $relatedArticles = Article::getRelated($article['category'], $article['id'], 2);
+        // =========================================================================
+        // اصلاح شمارنده بازدید: نادیده گرفتن ربات‌ها و ممانعت از ثبت بازدید تکراری در رفرش
+        // =========================================================================
+        if (!$this->isBot()) {
+            if (!isset($_SESSION['viewed_articles']) || !is_array($_SESSION['viewed_articles'])) {
+                $_SESSION['viewed_articles'] = [];
+            }
 
+            // اگر کاربر در این سشن قبلاً این مقاله را ندیده باشد، بازدید را ثبت کن
+            if (!in_array($article['id'], $_SESSION['viewed_articles'], true)) {
+                Article::incrementViews($article['id']);
+                $_SESSION['viewed_articles'][] = (int) $article['id'];
+            }
+        }
+
+        $relatedArticles = Article::getRelated($article['category'], $article['id'], 2);
         $pageTitle = $article['title'] . ' | ' . $siteName;
         $metaDescription = mb_substr(strip_tags($article['summary']), 0, 160, 'UTF-8');
         $pageImage = !empty($article['cover_image']) ? $article['cover_image'] : null;
@@ -160,5 +173,44 @@ class BlogController extends Controller
         $schemaMarkup .= "<script type=\"application/ld+json\">\n" . json_encode($schemaBreadcrumb, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n</script>";
 
         require_once VIEWS_PATH . '/blog-detail.php';
+    }
+
+    private function isBot(): bool
+    {
+        $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+        if (empty($userAgent)) {
+            return true;
+        }
+
+        $botPatterns = [
+            'googlebot',
+            'bingbot',
+            'yandexbot',
+            'duckduckbot',
+            'baiduspider',
+            'slurp',
+            'twitterbot',
+            'facebookexternalhit',
+            'facebot',
+            'linkedinbot',
+            'embedly',
+            'quora link preview',
+            'showyoubot',
+            'outbrain',
+            'pinterest',
+            'slackbot',
+            'vkShare',
+            'W3C_Validator',
+            'whatsapp',
+            'telegrambot',
+            'curl',
+            'wget',
+            'python',
+            'postman',
+            'crawler',
+            'spider'
+        ];
+
+        return (bool) preg_match('/(' . implode('|', $botPatterns) . ')/i', $userAgent);
     }
 }

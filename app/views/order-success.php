@@ -19,17 +19,19 @@
                 <i data-lucide="check" class="w-10 h-10 stroke-[2.5]"></i>
             </div>
 
-            <!-- پیام موفقیت -->
-            <div class="space-y-2.5">
+            <div class="space-y-3 text-center">
                 <span
                     class="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-3.5 py-1.5 rounded-full border border-emerald-200 shadow-2xs">
                     <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
                     <span>پرداخت و ثبت فاکتور موفق</span>
                 </span>
-                <h1 class="text-2xl sm:text-3xl font-black text-[#251E1B]">فاکتور شما با موفقیت ثبت گردید</h1>
+
+                <h1 class="text-2xl sm:text-3xl font-black text-[#251E1B]">
+                    جناب
+                    <?= e($order['recipient_name']) ?> عزیز؛
+                </h1>
                 <p class="text-xs sm:text-sm text-[#5F605C] leading-relaxed max-w-md mx-auto">
-                    فیش پرداختی شما تحویل واحد حسابداری شد. پس از تایید تراکنش و تطابق با شماره شاسی، فرآیند بسته‌بندی و
-                    ارسال انجام می‌شود.
+                    سفارش شما با موفقیت ثبت شد و فیش پرداختی جهت بررسی به واحد حسابداری تحویل گردید.
                 </p>
             </div>
 
@@ -63,6 +65,20 @@
                     <span class="font-medium text-[#251E1B] leading-relaxed sm:text-left">
                         <?= e($order['shipping_address']) ?>
                     </span>
+                </div>
+            </div>
+
+            <div
+                class="bg-amber-50 border border-amber-200/90 rounded-2xl p-4 sm:p-5 text-right flex items-start gap-3 shadow-xs">
+                <i data-lucide="clock" class="w-5 h-5 text-amber-600 shrink-0 mt-0.5"></i>
+                <div class="text-xs leading-relaxed space-y-1">
+                    <strong class="text-amber-900 font-bold block text-sm">نکته مهم در صورت پرداخت با شماره
+                        شبا:</strong>
+                    <p class="text-amber-950">
+                        اگر مبلغ ارسالی را به صورت <strong>حواله پایا / شبا</strong> انتقال داده‌اید، با توجه به
+                        چرخه‌های تسویه بین‌بانکی، <strong>تایید نهایی رسید و شروع فرآیند ارسال تا ۲۴ ساعت کاری زمان
+                            می‌برد.</strong>
+                    </p>
                 </div>
             </div>
 

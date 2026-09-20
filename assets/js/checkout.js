@@ -100,7 +100,6 @@ function registerEventListeners() {
     }
 }
 
-// تابع بررسی و اعتبارسنجی تک‌تک فیلدهای فرم
 function validateCheckoutFields() {
     const fields = [
         {
@@ -134,6 +133,11 @@ function validateCheckoutFields() {
             validate: el => /^[0-9]{10}$/.test(el.value.trim())
         },
         {
+            id: 'shipping-method-section',
+            message: 'لطفاً روش ارسال سفارش را انتخاب کنید.',
+            validate: () => !!document.querySelector('input[name="shipping_method_id"]:checked')
+        },
+        {
             id: 'receipt-file-input',
             message: 'لطفاً تصویر یا فایل فیش واریز را بارگذاری نمایید.',
             validate: el => el.files && el.files.length > 0
@@ -150,7 +154,6 @@ function validateCheckoutFields() {
             };
         }
     }
-
     return { isValid: true };
 }
 

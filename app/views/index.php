@@ -205,51 +205,39 @@ global $settings;
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 <?php foreach ($GLOBALS['part_categories'] as $slug => $cat):
-                    // خواندن امن مقادیر (اگر آرایه کامل از دیتابیس آمد، آن‌ها را می‌خوانیم)
                     $catName = is_array($cat) ? ($cat['name'] ?? '') : $cat;
                     $catIcon = is_array($cat) && !empty($cat['icon_svg']) ? $cat['icon_svg'] : '<i data-lucide="box" style="width:36px;height:36px;"></i>';
                     $catDesc = is_array($cat) && !empty($cat['description']) ? $cat['description'] : '';
-
-                    // تبدیل رشته متنی تگ‌ها (که در دیتابیس با کاما جدا شده‌اند) به آرایه
                     $catTags = [];
                     if (is_array($cat) && !empty($cat['tags'])) {
                         $catTags = explode(',', $cat['tags']);
                     }
-                    ?>
-                    <div onclick="window.location.href='/parts?category=<?= e($slug) ?>'"
-                        class="cat-card bg-brand-grey rounded-2xl p-8 border border-white/5 cursor-pointer scroll-reveal">
-                        <div class="relative z-10 flex flex-col h-full">
-                            <div
-                                class="cat-icon w-16 h-16 bg-brand-accent/10 rounded-xl flex items-center justify-center mb-5 text-brand-accent">
-                                <?= $catIcon ?>
+                ?>
+                <a href="/parts?category=<?= e($slug) ?>"
+                class="cat-card bg-brand-grey rounded-2xl p-8 border border-white/5 block scroll-reveal group">
+                    <div class="relative z-10 flex flex-col h-full">
+                        <div class="cat-icon w-16 h-16 bg-brand-accent/10 rounded-xl flex items-center justify-center mb-5 text-brand-accent">
+                            <?= $catIcon ?>
+                        </div>
+                        <h4 class="text-xl font-bold mb-2 text-white"><?= e($catName) ?></h4>
+
+                        <?php if (!empty($catDesc)): ?>
+                            <p class="text-gray-400 text-sm leading-relaxed mb-4 flex-grow"><?= e($catDesc) ?></p>
+                        <?php endif; ?>
+
+                        <?php if (!empty($catTags)): ?>
+                            <div class="flex flex-wrap gap-2 mb-5">
+                                <?php foreach ($catTags as $tag): ?>
+                                    <span class="bg-white/5 text-xs px-3 py-1 rounded-full text-gray-300"><?= e(trim($tag)) ?></span>
+                                <?php endforeach; ?>
                             </div>
+                        <?php endif; ?>
 
-                            <h4 class="text-xl font-bold mb-2"><?= e($catName) ?></h4>
-
-                            <!-- توضیحات (اگر در دیتابیس وجود داشت) -->
-                            <?php if (!empty($catDesc)): ?>
-                                <p class="text-gray-400 text-sm leading-relaxed mb-4 flex-grow">
-                                    <?= e($catDesc) ?>
-                                </p>
-                            <?php endif; ?>
-
-                            <!-- تگ‌ها (اگر در دیتابیس وجود داشت) -->
-                            <?php if (!empty($catTags)): ?>
-                                <div class="flex flex-wrap gap-2 mb-5">
-                                    <?php foreach ($catTags as $tag): ?>
-                                        <span class="bg-white/5 text-xs px-3 py-1 rounded-full text-gray-300">
-                                            <?= e(trim($tag)) ?>
-                                        </span>
-                                    <?php endforeach; ?>
-                                </div>
-                            <?php endif; ?>
-
-                            <div
-                                class="flex items-center gap-2 text-brand-accent text-sm font-bold <?= empty($catTags) ? 'mt-auto' : '' ?>">
-                                مشاهده قطعات <i data-lucide="arrow-left" style="width:16px;height:16px;"></i>
-                            </div>
+                        <div class="flex items-center gap-2 text-brand-accent text-sm font-bold <?= empty($catTags) ? 'mt-auto' : '' ?>">
+                            مشاهده قطعات <i data-lucide="arrow-left" style="width:16px;height:16px;"></i>
                         </div>
                     </div>
+                </a>
                 <?php endforeach; ?>
             </div>
         </div>

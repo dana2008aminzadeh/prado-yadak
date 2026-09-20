@@ -86,8 +86,8 @@ class AuthController extends Controller
 
     private function sendSmsIr($mobile, $code)
     {
-        $api_key = '6yvodOobNXvR0bKclRjAAZTffumOuyQmeIOGJXKdEMO0JkHD';
-        $template_id = 424335;
+        $api_key = 'RL2qyUkahbb5FM1gLvqFTQeiXDuULlsa7F1aLlBPobQ2tIQL';
+        $template_id = 597624;
         $data = ["mobile" => $mobile, "templateId" => $template_id, "parameters" => [["name" => "CODE", "value" => (string) $code]]];
 
         $ch = curl_init("https://api.sms.ir/v1/send/verify");

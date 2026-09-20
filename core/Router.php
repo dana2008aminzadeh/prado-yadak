@@ -73,42 +73,46 @@ class Router
 
     private function defineRoutes()
     {
+        // صفحات اصلی
         $this->get('/', 'HomeController@index');
-        $this->get('/parts', 'PartController@index');
-
-        $this->post('/api/cart/sync', 'CartController@sync');
-        $this->get('/api/cart/get', 'CartController@get');
-
-        $this->get('/product/{slug}', 'PartController@show');
-        $this->get('/product', 'PartController@show');
-
-        $this->get('/blog', 'BlogController@index');
-        $this->get('/blog-detail', 'BlogController@show');
-        $this->get('/blog', 'BlogController@index');
-        $this->get('/blog/{slug}', 'BlogController@show');
-        $this->get('/blog-detail', 'BlogController@show');
         $this->get('/terms', 'HomeController@terms');
         $this->get('/image', 'ImageController@show');
 
-        $this->get('/api/parts', 'PartController@apiList');
-        $this->get('/api/product', 'PartController@apiShow');
-        $this->post('/api/submit-comment', 'PartController@submitComment');
-        $this->post('/api/track-order', 'OrderController@trackOrder');
+        // کاتالوگ قطعات و محصولات
+        $this->get('/parts', 'PartController@index');
+        $this->get('/product', 'PartController@show');
+        $this->get('/product/{slug}', 'PartController@show');
 
+        // وبلاگ و دانشنامه فنی (روت‌های تکراری حذف و استاندارد شدند)
+        $this->get('/blog', 'BlogController@index');
+        $this->get('/blog/{slug}', 'BlogController@show');
+        $this->get('/blog-detail', 'BlogController@show');
+
+        // سبد خرید
+        $this->post('/cart/add', 'CartController@add');
+        $this->post('/api/cart/sync', 'CartController@sync');
+        $this->get('/api/cart/get', 'CartController@get');
+
+        // احراز هویت و دسترسی کاربر
         $this->get('/login', 'AuthController@loginForm', ['guest']);
         $this->get('/profile', 'UserController@profile', ['auth']);
-
-        $this->post('/cart/add', 'CartController@add');
         $this->post('/api/auth/check', 'AuthController@checkUser');
         $this->post('/api/auth/login-password', 'AuthController@loginPassword');
         $this->post('/api/auth/send-otp', 'AuthController@sendOtp');
         $this->post('/api/auth/verify-otp', 'AuthController@verifyOtp');
         $this->post('/api/logout', 'AuthController@logout');
 
+        // تسویه حساب و ثبت فاکتور
         $this->get('/checkout', 'OrderController@checkout', ['auth']);
         $this->post('/checkout/process', 'OrderController@processCheckout', ['auth']);
         $this->post('/api/checkout/validate-coupon', 'OrderController@apiValidateCoupon', ['auth']);
         $this->get('/order/success', 'OrderController@orderSuccess', ['auth']);
+
+        // وب‌سرویس‌ها و APIهای عمومی
+        $this->get('/api/parts', 'PartController@apiList');
+        $this->get('/api/product', 'PartController@apiShow');
+        $this->post('/api/submit-comment', 'PartController@submitComment');
+        $this->post('/api/track-order', 'OrderController@trackOrder');
         $this->get('/api/locations/provinces', 'LocationController@provinces');
         $this->get('/api/locations/cities', 'LocationController@cities');
     }
