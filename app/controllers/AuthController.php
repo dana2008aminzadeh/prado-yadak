@@ -188,6 +188,22 @@ class AuthController extends Controller
     {
         session_unset();
         session_destroy();
+
+        // اگر درخواست AJAX/JSON بود
+        $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+        $isJson = str_contains($accept, 'application/json')
+            || (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+            || str_starts_with($_SERVER['CONTENT_TYPE'] ?? '', 'application/json');
+
+        if ($isJson || ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+            // برای POST از profile.js — اگر هنوز session_start نشده بعد destroy، فقط JSON بده
+            if (!headers_sent()) {
+                header('Content-Type: application/json; charset=utf-8');
+            }
+            echo json_encode(['success' => true, 'message' => 'خروج انجام شد.', 'redirect' => '/login']);
+            exit;
+        }
+
         header('Location: /login');
         exit;
     }

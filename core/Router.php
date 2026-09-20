@@ -95,7 +95,6 @@ class Router
 
         // احراز هویت و دسترسی کاربر
         $this->get('/login', 'AuthController@loginForm', ['guest']);
-        $this->get('/profile', 'UserController@profile', ['auth']);
         $this->post('/api/auth/check', 'AuthController@checkUser');
         $this->post('/api/auth/login-password', 'AuthController@loginPassword');
         $this->post('/api/auth/send-otp', 'AuthController@sendOtp');
@@ -115,6 +114,44 @@ class Router
         $this->post('/api/track-order', 'OrderController@trackOrder');
         $this->get('/api/locations/provinces', 'LocationController@provinces');
         $this->get('/api/locations/cities', 'LocationController@cities');
+
+        $this->get('/profile', 'UserController@profile', ['auth']);
+        $this->post('/api/profile/update', 'UserController@apiUpdateProfile', ['auth']);
+        $this->post('/api/profile/change-password', 'UserController@apiChangePassword', ['auth']);
+
+        // ---- API سفارش‌ها ----
+        $this->get('/api/profile/orders', 'UserController@apiOrders', ['auth']);
+        $this->get('/api/profile/orders/detail', 'UserController@apiOrderDetail', ['auth']);
+
+        // ---- API آدرس‌ها ----
+        $this->get('/api/profile/addresses', 'UserController@apiAddresses', ['auth']);
+        $this->post('/api/profile/addresses/create', 'UserController@apiAddressCreate', ['auth']);
+        $this->post('/api/profile/addresses/update', 'UserController@apiAddressUpdate', ['auth']);
+        $this->post('/api/profile/addresses/delete', 'UserController@apiAddressDelete', ['auth']);
+        $this->post('/api/profile/addresses/set-default', 'UserController@apiAddressSetDefault', ['auth']);
+
+        // ---- API خودروها ----
+        $this->get('/api/profile/vehicles', 'UserController@apiVehicles', ['auth']);
+        $this->post('/api/profile/vehicles/create', 'UserController@apiVehicleCreate', ['auth']);
+        $this->post('/api/profile/vehicles/update', 'UserController@apiVehicleUpdate', ['auth']);
+        $this->post('/api/profile/vehicles/delete', 'UserController@apiVehicleDelete', ['auth']);
+        $this->post('/api/profile/vehicles/set-primary', 'UserController@apiVehicleSetPrimary', ['auth']);
+
+        // ---- API نشان‌شده‌ها ----
+        $this->get('/api/profile/wishlist', 'UserController@apiWishlist', ['auth']);
+        $this->post('/api/profile/wishlist/toggle', 'UserController@apiWishlistToggle', ['auth']);
+        $this->post('/api/profile/wishlist/remove', 'UserController@apiWishlistRemove', ['auth']);
+
+        // ---- API کیف پول ----
+        $this->get('/api/profile/wallet', 'UserController@apiWallet', ['auth']);
+        $this->post('/api/profile/wallet/charge', 'UserController@apiWalletCharge', ['auth']);
+
+        // ---- API تیکت پشتیبانی ----
+        $this->get('/api/profile/tickets', 'UserController@apiTickets', ['auth']);
+        $this->get('/api/profile/tickets/detail', 'UserController@apiTicketDetail', ['auth']);
+        $this->post('/api/profile/tickets/create', 'UserController@apiTicketCreate', ['auth']);
+        $this->post('/api/profile/tickets/reply', 'UserController@apiTicketReply', ['auth']);
+        $this->post('/api/profile/tickets/close', 'UserController@apiTicketClose', ['auth']);
     }
 
     private function abort($code = 404)
