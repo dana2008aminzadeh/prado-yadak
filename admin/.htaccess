@@ -1,0 +1,15 @@
+RewriteEngine On
+RewriteBase /admin/
+
+# فایل‌های داخلی پنل مستقیماً قابل دسترس نباشند
+RewriteRule ^(core|controllers|views)/ - [F,L]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php [QSA,L]
+
+<IfModule mod_headers.c>
+    Header set X-Robots-Tag "noindex, nofollow, noarchive"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-Content-Type-Options "nosniff"
+</IfModule>
