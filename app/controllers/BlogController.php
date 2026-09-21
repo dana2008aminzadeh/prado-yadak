@@ -16,7 +16,7 @@ class BlogController extends Controller
         $metaDescription = 'راهنمای جامع تشخیص اصالت لوازم یدکی تویوتا، سرویس‌های دوره‌ای و عیب‌یابی خودرو توسط کارشناسان ' . $siteName . '.';
 
         $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
-        $host = $_SERVER['HTTP_HOST'] ?? 'pradoyadak.com';
+        $host = SITE_URL;
         $hostUrl = $protocol . "://" . $host;
 
         $schemaArticles = [];
@@ -89,7 +89,8 @@ class BlogController extends Controller
         }
 
         if (!$article) {
-            header("Location: /404");
+            http_response_code(404);
+            require_once VIEWS_PATH . '/404.php';
             exit;
         }
 
@@ -114,7 +115,7 @@ class BlogController extends Controller
         $pageImage = !empty($article['cover_image']) ? $article['cover_image'] : null;
 
         $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
-        $host = $_SERVER['HTTP_HOST'] ?? 'pradoyadak.com';
+        $host = SITE_URL;
         $hostUrl = $protocol . "://" . $host;
         $articleUrl = $hostUrl . '/blog/' . urlencode($article['slug']);
 

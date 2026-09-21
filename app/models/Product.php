@@ -194,7 +194,7 @@ class Product
     public static function generateSchema($product, $comments = [])
     {
         $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
-        $host = $_SERVER['HTTP_HOST'] ?? 'pradoyadak.com';
+        $host = SITE_URL;
         $hostUrl = $protocol . "://" . $host;
         $productUrl = $hostUrl . "/product/" . urlencode($product['slug']);
 

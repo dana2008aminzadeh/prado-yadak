@@ -3,12 +3,16 @@ global $settings;
 $site_name = $settings['site_title'] ?? 'پرادو یدک';
 
 $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
-$host = $_SERVER['HTTP_HOST'] ?? 'pradoyadak.com';
+$host = SITE_URL;
 $hostUrl = $protocol . "://" . $host;
 
 $uri = (string) (parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?? '');
-if ($uri !== '/' && substr($uri, -1) === '/') {
-    $uri = rtrim($uri, '/');
+$rawUri = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?? '';
+if ($rawUri !== '/' && substr($rawUri, -1) === '/') {
+    $qs = $_SERVER['QUERY_STRING'] ?? '';
+    header('HTTP/1.1 301 Moved Permanently');
+    header('Location: ' . rtrim($rawUri, '/') . ($qs ? '?' . $qs : ''));
+    exit;
 }
 
 if ($uri === '/' || $uri === '/index' || $uri === '') {

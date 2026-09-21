@@ -68,19 +68,22 @@ class PartController extends Controller
                 header("Location: /product/" . urlencode($product['slug']));
                 exit;
             }
-            header("Location: /404");
+            http_response_code(404);
+            require_once VIEWS_PATH . '/404.php';
             exit;
         }
 
         if ($slug) {
             $product = \App\models\Product::findBySlug($slug);
         } else {
-            header("Location: /404");
+            http_response_code(404);
+            require_once VIEWS_PATH . '/404.php';
             exit;
         }
 
         if (!$product) {
-            header("Location: /404");
+            http_response_code(404);
+            require_once VIEWS_PATH . '/404.php';
             exit;
         }
 
@@ -100,7 +103,7 @@ class PartController extends Controller
 
         // تصویر محصول برای اشتراک‌گذاری در شبکه‌های اجتماعی (og:image)
         $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
-        $host = $_SERVER['HTTP_HOST'] ?? 'pradoyadak.com';
+        $host = SITE_URL;
         if (!empty($product['images']) && is_array($product['images']) && !empty($product['images'][0])) {
             $pageImage = $protocol . "://" . $host . "/image?id=" . urlencode($product['images'][0]);
         }

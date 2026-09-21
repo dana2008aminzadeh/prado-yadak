@@ -13,7 +13,7 @@ class HomeController extends Controller
         $address = $settings['address'] ?? 'استان کردستان سقز جاده کانی جژنی صنوف آلاینده-2 پلاک 350 فروشگاه پرادو یدک';
 
         $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
-        $host = $_SERVER['HTTP_HOST'] ?? 'pradoyadak.com';
+        $host = SITE_URL;
         $hostUrl = $protocol . "://" . $host;
 
         // دریافت ۶ محصول جدیدتر از دیتابیس
@@ -114,7 +114,7 @@ class HomeController extends Controller
         ];
 
         $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
-        $host = $_SERVER['HTTP_HOST'] ?? 'pradoyadak.com';
+        $host = SITE_URL;
         $hostUrl = $protocol . "://" . $host;
 
         $faqSchema = [

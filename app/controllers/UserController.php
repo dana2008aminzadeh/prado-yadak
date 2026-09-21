@@ -102,7 +102,7 @@ class UserController extends Controller
             'registration_number' => $settings['registration_number'] ?? '',
             'postal_code' => $settings['shop_postal_code'] ?? '6681898204',
             'website' => ($protocol = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http'))
-                . '://' . ($_SERVER['HTTP_HOST'] ?? 'pradoyadak.com'),
+                . '://' . (SITE_URL),
         ];
 
         // تب اولیه از query string (اختیاری)

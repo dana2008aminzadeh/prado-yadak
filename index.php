@@ -16,6 +16,8 @@ error_reporting(E_ALL);                 // گزارش‌گیری از تمام �
 ini_set('log_errors', 1);               // روشن کردن لاگ در فایل
 ini_set('error_log', __DIR__ . '/php-error.log'); // مسیر ذخیره فایل ارور لاگ
 
+define('SITE_URL', 'https://pradoyadak.com');
+
 function e($string)
 {
     return htmlspecialchars($string ?? '', ENT_QUOTES, 'UTF-8');
@@ -256,8 +258,12 @@ try {
 $router = new Router();
 $uri = (string) (parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?? '');
 
-if ($uri !== '/' && substr($uri, -1) === '/') {
-    $uri = rtrim($uri, '/');
+$rawUri = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?? '';
+if ($rawUri !== '/' && substr($rawUri, -1) === '/') {
+    $qs = $_SERVER['QUERY_STRING'] ?? '';
+    header('HTTP/1.1 301 Moved Permanently');
+    header('Location: ' . rtrim($rawUri, '/') . ($qs ? '?' . $qs : ''));
+    exit;
 }
 
 if ($uri === '/index' || $uri === '/index.php') {
