@@ -1,9 +1,11 @@
 RewriteEngine On
 RewriteBase /admin/
 
-# فایل‌های داخلی پنل مستقیماً قابل دسترس نباشند
-RewriteRule ^(core|controllers|views)/ - [F,L]
+# مسدودسازی دسترسی مستقیم به فایل‌های داخلی پنل
+RewriteRule ^(core|controllers|views|migrations|storage)/ - [F,L]
+RewriteRule \.(sql|log|md|json|lock)$ - [F,L]
 
+# همه درخواست‌ها به فرانت‌کنترلر
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]
@@ -12,4 +14,13 @@ RewriteRule ^(.*)$ index.php [QSA,L]
     Header set X-Robots-Tag "noindex, nofollow, noarchive"
     Header set X-Frame-Options "SAMEORIGIN"
     Header set X-Content-Type-Options "nosniff"
+    Header set Referrer-Policy "same-origin"
+    Header always edit Set-Cookie (.*) "$1; HttpOnly; SameSite=Strict"
 </IfModule>
+
+# جلوگیری از اجرای فایل‌های آپلودشده در صورت قرارگیری اشتباه
+<FilesMatch "\.(sql|sql\.gz|log|ini|sh|bak)$">
+    Require all denied
+</FilesMatch>
+
+php_flag display_errors off

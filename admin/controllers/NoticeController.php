@@ -7,6 +7,12 @@ class NoticeController extends BaseController
 {
     protected string $section = 'notices';
 
+    protected array $permissions = [
+        'save'   => 'notices.edit',
+        'toggle' => 'notices.edit',
+        'delete' => 'notices.edit',
+    ];
+
     public function index($id = 0): void
     {
         $notices = Model::all('SELECT * FROM site_notices ORDER BY is_active DESC, priority DESC, id DESC');
@@ -17,33 +23,53 @@ class NoticeController extends BaseController
     public function save($id = 0): void
     {
         $title = trim((string) post('title'));
-        if ($title === '') { flash('error', 'عنوان اطلاعیه الزامی است.'); redirect(admin_url('notices')); }
+        if ($title === '') {
+            flash('error', 'عنوان اطلاعیه الزامی است.');
+            back(admin_url('notices'));
+        }
+
         $data = [
             'page'      => trim((string) post('page')) ?: 'checkout',
             'type'      => in_array(post('type'), ['info', 'warning', 'danger'], true) ? (string) post('type') : 'info',
-            'title'     => $title,
+            'title'     => mb_substr($title, 0, 255),
             'message'   => (string) post('message'),
             'icon'      => trim((string) post('icon')) ?: 'info',
             'is_active' => post('is_active') ? 1 : 0,
             'priority'  => (int) post('priority', 0),
         ];
+
         $eid = (int) post('id', 0);
-        if ($eid) { Model::update('site_notices', $eid, $data); flash('success', 'اطلاعیه به‌روزرسانی شد.'); }
-        else { Model::insert('site_notices', $data); flash('success', 'اطلاعیه ایجاد شد.'); }
+        if ($eid) {
+            $old = Model::find('site_notices', $eid);
+            Model::update('site_notices', $eid, $data);
+            $this->audit('notice.update', 'notice', $eid, 'ویرایش اطلاعیه: ' . $title, $old, $data);
+            flash('success', 'اطلاعیه به‌روزرسانی شد.');
+        } else {
+            $newId = Model::insert('site_notices', $data);
+            $this->audit('notice.update', 'notice', $newId, 'ایجاد اطلاعیه: ' . $title);
+            flash('success', 'اطلاعیه ایجاد شد.');
+        }
         redirect(admin_url('notices'));
     }
 
     public function toggle($id = 0): void
     {
-        Model::exec('UPDATE site_notices SET is_active = 1 - is_active WHERE id = ?', [(int) $id]);
+        $nid = (int) post('notice_id', $id);
+        Model::exec('UPDATE site_notices SET is_active = 1 - is_active WHERE id = ?', [$nid]);
+        $this->audit('notice.update', 'notice', $nid, 'تغییر وضعیت نمایش اطلاعیه');
         flash('success', 'وضعیت اطلاعیه تغییر کرد.');
         redirect(admin_url('notices'));
     }
 
     public function delete($id = 0): void
     {
-        Model::delete('site_notices', (int) $id);
-        flash('success', 'اطلاعیه حذف شد.');
+        $nid = (int) post('notice_id', $id);
+        $n = Model::find('site_notices', $nid);
+        if ($n) {
+            Model::delete('site_notices', $nid);
+            $this->audit('notice.update', 'notice', $nid, 'حذف اطلاعیه: ' . $n['title'], $n, null);
+            flash('success', 'اطلاعیه حذف شد.');
+        }
         redirect(admin_url('notices'));
     }
 }

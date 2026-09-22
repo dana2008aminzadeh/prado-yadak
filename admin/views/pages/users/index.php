@@ -10,31 +10,44 @@
                     <option value="">همه</option>
                     <option value="admin" <?= $role === 'admin' ? 'selected' : '' ?>>مدیر</option>
                     <option value="user" <?= $role === 'user' ? 'selected' : '' ?>>کاربر عادی</option>
-                </select>
-            </div>
+                </select></div>
+            <div class="f"><label class="fl">مرتب‌سازی</label>
+                <select name="sort">
+                    <option value="new" <?= $sort === 'new' ? 'selected' : '' ?>>جدیدترین</option>
+                    <option value="spent" <?= $sort === 'spent' ? 'selected' : '' ?>>بیشترین خرید</option>
+                    <option value="orders" <?= $sort === 'orders' ? 'selected' : '' ?>>بیشترین سفارش</option>
+                    <option value="wallet" <?= $sort === 'wallet' ? 'selected' : '' ?>>بیشترین موجودی</option>
+                    <option value="name" <?= $sort === 'name' ? 'selected' : '' ?>>نام (الفبا)</option>
+                </select></div>
             <button class="btn btn-primary" type="submit">فیلتر</button>
             <a class="btn" href="<?= admin_url('users') ?>">حذف فیلتر</a>
             <a class="btn" href="<?= admin_url('users/export') ?>"><i data-lucide="download" style="width:14px"></i> CSV</a>
-            <button class="btn btn-primary" type="button" onclick="document.getElementById('newUser').style.display='block'">+ کاربر جدید</button>
+            <?php if (can('users.edit')): ?>
+                <button class="btn btn-primary" type="button" onclick="document.getElementById('newUser').style.display='block'">+ کاربر جدید</button>
+            <?php endif; ?>
         </form>
     </div>
 </div>
 
-<div class="card mb" id="newUser" style="display:none">
-    <div class="card-head"><h3>ایجاد کاربر جدید</h3>
-        <button class="btn btn-sm" onclick="document.getElementById('newUser').style.display='none'">بستن</button></div>
-    <form method="POST" action="<?= admin_url('users/create') ?>" class="card-body">
-        <input type="hidden" name="_csrf" value="<?= e(Auth::csrf()) ?>">
-        <div class="grid g4">
-            <div class="field"><label class="fl">نام و نام خانوادگی</label><input type="text" name="full_name"></div>
-            <div class="field"><label class="fl">موبایل *</label><input type="tel" name="phone" class="mono" required></div>
-            <div class="field"><label class="fl">رمز عبور *</label><input type="text" name="password" class="mono" required></div>
-            <div class="field"><label class="fl">نقش</label>
-                <select name="role"><option value="user">کاربر عادی</option><option value="admin">مدیر</option></select></div>
-        </div>
-        <button class="btn btn-primary" type="submit">ایجاد کاربر</button>
-    </form>
-</div>
+<?php if (can('users.edit')): ?>
+    <div class="card mb" id="newUser" style="display:none">
+        <div class="card-head"><h3>ایجاد کاربر جدید</h3>
+            <button class="btn btn-sm" onclick="document.getElementById('newUser').style.display='none'">بستن</button></div>
+        <form method="POST" action="<?= admin_url('users/store') ?>" class="card-body">
+            <?= Auth::csrfField() ?>
+            <div class="grid g4">
+                <div class="field"><label class="fl">نام و نام خانوادگی</label><input type="text" name="full_name"></div>
+                <div class="field"><label class="fl">موبایل *</label><input type="tel" name="phone" class="mono" required></div>
+                <div class="field"><label class="fl">رمز عبور * (حداقل ۸ کاراکتر)</label><input type="text" name="password" class="mono" required minlength="8"></div>
+                <?php if (can('users.roles')): ?>
+                    <div class="field"><label class="fl">نقش</label>
+                        <select name="role"><option value="user">کاربر عادی</option><option value="admin">مدیر</option></select></div>
+                <?php endif; ?>
+            </div>
+            <button class="btn btn-primary" type="submit">ایجاد کاربر</button>
+        </form>
+    </div>
+<?php endif; ?>
 
 <div class="card">
     <div class="card-head"><h3>کاربران (<?= money($pg['total']) ?>)</h3></div>
