@@ -34,7 +34,8 @@ class Router
 
         foreach ($this->routes[$method] as $routeUri => $route) {
             if (strpos($routeUri, '{') !== false) {
-                $pattern = preg_replace('/\{([a-zA-Z0-9_]+)\}/', '(?P<\1>[a-zA-Z0-9_\-\x{0600}-\x{06FF}\s%]+)', $routeUri);
+                // نقطه و ممیز مجاز شد تا آدرس تصاویر سئوشده (مثلا نام-قطعه--id.jpg) هم بخورد
+                $pattern = preg_replace('/\{([a-zA-Z0-9_]+)\}/', '(?P<\1>[a-zA-Z0-9_\-\.\x{0600}-\x{06FF}\s%]+)', $routeUri);
                 $pattern = "@^" . $pattern . "$@u";
 
                 if (preg_match($pattern, urldecode((string) $uri), $matches)) {
@@ -47,6 +48,15 @@ class Router
                     return;
                 }
             }
+        }
+
+        // ------------------------------------------------------------------
+        // میان‌افزار سئو: پیش از نمایش ۴۰۴، بررسی کن آیا این آدرس قبلاً
+        // تغییر کرده است؛ در این صورت با ۳۰۱ دائمی به آدرس جدید منتقل شود.
+        // ------------------------------------------------------------------
+        if ($method === 'GET') {
+            \App\models\Redirect::handle((string) $uri, (string) ($_SERVER['QUERY_STRING'] ?? ''));
+            \App\models\Redirect::log404((string) $uri);
         }
 
         $this->abort();
@@ -78,8 +88,24 @@ class Router
         $this->get('/terms', 'HomeController@terms');
         $this->get('/image', 'ImageController@show');
 
+        // سرو تصاویر با آدرس سئوشده (به‌جای شناسه هش‌شده بی‌معنی)
+        $this->get('/media/{file}', 'ImageController@seo');
+
+        // ---- نقشه سایت پویا و شاخه‌ای ----
+        $this->get('/sitemap.xml', 'SitemapController@index');
+        $this->get('/sitemap-static.xml', 'SitemapController@statics');
+        $this->get('/sitemap-products.xml', 'SitemapController@products');
+        $this->get('/sitemap-categories.xml', 'SitemapController@categories');
+        $this->get('/sitemap-models.xml', 'SitemapController@models');
+        $this->get('/sitemap-brands.xml', 'SitemapController@brands');
+        $this->get('/sitemap-landing.xml', 'SitemapController@landing');
+        $this->get('/sitemap-articles.xml', 'SitemapController@articles');
+        $this->get('/sitemap-images.xml', 'SitemapController@images');
+
         // کاتالوگ قطعات و محصولات
         $this->get('/parts', 'PartController@index');
+        // لندینگ‌پیج‌های اختصاصی سئو با آدرس تمیز (مثلا /parts/لوازم-یدکی-کمری-لنت-ترمز)
+        $this->get('/parts/{landing}', 'PartController@landing');
         $this->get('/product', 'PartController@show');
         $this->get('/product/{slug}', 'PartController@show');
 

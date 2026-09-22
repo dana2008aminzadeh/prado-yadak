@@ -74,6 +74,9 @@ abstract class BaseController
             if (Auth::can('products.view')) {
                 $b['products'] = count(Inventory::lowStock(99));
             }
+            if (Auth::can('seo.view') && Model::hasTable('seo_404_logs')) {
+                $b['seo'] = Model::count('seo_404_logs', 'resolved = 0');
+            }
         } catch (\Throwable $e) {
             // جداول ممکن است هنوز مهاجرت نشده باشند
         }

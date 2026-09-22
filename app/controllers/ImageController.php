@@ -3,6 +3,28 @@ namespace App\controllers;
 
 class ImageController
 {
+    /**
+     * سرو تصویر با آدرس سئوشده:
+     *   /media/لنت-ترمز-جلو-پرادو-04465-60280--AgACAgQAAxk.jpg
+     * بخش قبل از «--» صرفاً برای موتورهای جستجو است و بخش بعد از آن شناسه واقعی فایل.
+     * این متد پس از استخراج شناسه، همان منطق show() را اجرا می‌کند.
+     */
+    public function seo()
+    {
+        $raw = (string) ($_GET['file'] ?? '');
+        $raw = rawurldecode($raw);
+
+        // حذف پسوند
+        $raw = preg_replace('/\.(jpe?g|png|webp|gif)$/i', '', $raw) ?? $raw;
+
+        // شناسه واقعی، آخرین بخش بعد از «--» است
+        $pos = strrpos($raw, '--');
+        $fileId = $pos !== false ? substr($raw, $pos + 2) : $raw;
+
+        $_GET['id'] = $fileId;
+        return $this->show();
+    }
+
     public function show()
     {
         if (!isset($_GET['id']) || empty($_GET['id'])) {
@@ -59,9 +81,11 @@ class ImageController
         $telegram_file_url = "https://api.telegram.org/file/bot{$bot_token}/{$file_path}";
 
         $etag = md5($file_id);
-        header("Cache-Control: public, max-age=31536000");
+        header("Cache-Control: public, max-age=31536000, immutable");
         header("Expires: " . gmdate("D, d M Y H:i:s", time() + 31536000) . " GMT");
         header("Etag: $etag");
+        // اجازه ایندکس شدن تصویر در Google Images
+        header("X-Robots-Tag: all");
 
         if (isset($_SERVER['HTTP_IF_NONE_MATCH']) && trim($_SERVER['HTTP_IF_NONE_MATCH']) == $etag) {
             header("HTTP/1.1 304 Not Modified");

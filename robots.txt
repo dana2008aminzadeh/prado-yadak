@@ -5,7 +5,15 @@ Disallow: /order/
 Disallow: /api/
 Disallow: /profile
 Disallow: /login
+Disallow: /admin
 Disallow: /assets/uploads/receipts/
+
+# صفحات حاصل جستجو و مرتب‌سازی، ارزش خزش ندارند
+Disallow: /*?*q=
+Disallow: /*?*sort=
+Disallow: /*?*maxPrice=
+Disallow: /*?*inStock=
+Disallow: /*?*utm_
 
 # اجازه خزش به صفحات اصلی
 Allow: /
@@ -14,8 +22,17 @@ Allow: /product/
 Allow: /blog
 Allow: /blog/
 Allow: /terms
+Allow: /media/
+Allow: /image
 Allow: /assets/css/
 Allow: /assets/js/
 Allow: /assets/logo/
 
+# خزنده تصاویر گوگل باید به مسیر سرو تصاویر دسترسی کامل داشته باشد
+User-agent: Googlebot-Image
+Allow: /media/
+Allow: /image
+Allow: /assets/logo/
+
+# نقشه سایت شاخه‌ای (Sitemap Index)
 Sitemap: https://pradoyadak.com/sitemap.xml

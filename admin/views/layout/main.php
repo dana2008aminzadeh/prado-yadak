@@ -40,6 +40,7 @@ $menu = [
         ['key' => 'roles', 'label' => 'نقش‌ها و دسترسی', 'icon' => 'shield-check', 'url' => admin_url('roles'), 'perm' => 'roles.manage'],
         ['key' => 'audit', 'label' => 'لاگ رویدادها', 'icon' => 'scroll-text', 'url' => admin_url('audit'), 'perm' => 'audit.view'],
         ['key' => 'tools', 'label' => 'ابزار و پشتیبان‌گیری', 'icon' => 'database-backup', 'url' => admin_url('tools'), 'perm' => 'tools.backup'],
+        ['key' => 'seo', 'label' => 'دیده‌بان سئو', 'icon' => 'search-check', 'url' => admin_url('seo'), 'perm' => 'seo.view', 'badge' => $badges['seo'] ?? 0, 'badgeClass' => 'warn'],
     ]],
 ];
 ?>

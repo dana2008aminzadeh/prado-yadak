@@ -48,7 +48,9 @@
         <?php if (!empty($article['cover_image'])): ?>
             <div
                 class="w-full aspect-video sm:h-[450px] bg-brand-grey rounded-3xl overflow-hidden relative shadow-2xl border border-white/10 group">
-                <img src="<?= e($article['cover_image']) ?>" alt="<?= e($article['title']) ?>"
+                <img src="<?= e($coverUrl ?? $article['cover_image']) ?>"
+                    alt="<?= e(trim((string) ($article['focus_keyword'] ?? '')) ?: $article['title']) ?>"
+                    width="1200" height="675" fetchpriority="high"
                     class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
                 <div
                     class="absolute inset-0 bg-gradient-to-t from-brand-dark/80 via-transparent to-transparent pointer-events-none">
@@ -60,6 +62,48 @@
         <article
             class="prose prose-invert prose-red max-w-none text-gray-300 text-sm sm:text-base leading-loose sm:leading-loose text-justify space-y-6">
             <?= clean_html($article['content']) ?>
+
+            <!-- قطعات مرتبط با این مقاله (Silo): کارت خرید با قیمت و موجودی -->
+            <?php if (!empty($relatedProducts)): ?>
+                <div class="not-prose bg-brand-dark border border-white/10 rounded-2xl p-5 sm:p-6 mt-10 space-y-5">
+                    <h2 class="text-white font-extrabold text-base sm:text-lg flex items-center gap-2.5">
+                        <span class="w-2 h-6 bg-brand-red rounded-full"></span>
+                        قطعات مرتبط با این مقاله
+                    </h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <?php foreach ($relatedProducts as $rp): ?>
+                            <div class="bg-brand-grey border border-white/5 rounded-2xl p-3 flex gap-3 items-center hover:border-brand-red/40 transition">
+                                <a href="/product/<?= e($rp['slug']) ?>" class="shrink-0">
+                                    <img src="<?= e($rp['image']) ?>" alt="<?= e($rp['alt']) ?>" loading="lazy"
+                                        width="80" height="80"
+                                        class="w-20 h-20 object-contain bg-brand-dark rounded-xl border border-white/5 p-1.5">
+                                </a>
+                                <div class="flex-1 min-w-0 space-y-1.5">
+                                    <a href="/product/<?= e($rp['slug']) ?>"
+                                        class="block text-sm font-bold text-white hover:text-brand-red transition line-clamp-2">
+                                        <?= e($rp['name']) ?>
+                                    </a>
+                                    <?php if (!empty($rp['oem'])): ?>
+                                        <span class="block text-[10px] text-gray-500 font-mono">OEM: <?= e($rp['oem']) ?></span>
+                                    <?php endif; ?>
+                                    <div class="flex items-center justify-between gap-2 pt-1">
+                                        <span class="text-brand-red font-black text-sm">
+                                            <?= number_format($rp['price']) ?> <span class="text-[10px] font-normal text-gray-400">تومان</span>
+                                        </span>
+                                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border <?= $rp['inStock'] ? 'text-emerald-500 border-emerald-500/30 bg-emerald-500/10' : 'text-rose-400 border-rose-500/30 bg-rose-500/10' ?>">
+                                            <?= $rp['inStock'] ? 'موجود' : 'ناموجود' ?>
+                                        </span>
+                                    </div>
+                                    <a href="/product/<?= e($rp['slug']) ?>"
+                                        class="inline-flex items-center gap-1.5 bg-brand-red hover:bg-red-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition mt-1">
+                                        <i data-lucide="shopping-cart" style="width:13px;height:13px;"></i> مشاهده و خرید
+                                    </a>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
 
             <div class="bg-brand-dark border border-white/10 p-6 rounded-2xl text-center mt-10 space-y-4">
                 <h3 class="text-white font-bold text-lg">نیاز به راهنمایی در انتخاب قطعات اصلی دارید؟</h3>

@@ -128,6 +128,7 @@ $controllers = [
     'roles'     => [\Admin\controllers\RoleController::class,      'roles.manage'],
     'audit'     => [\Admin\controllers\AuditController::class,     'audit.view'],
     'tools'     => [\Admin\controllers\ToolController::class,      'tools.backup'],
+    'seo'       => [\Admin\controllers\SeoController::class,       'seo.view'],
     'api'       => [\Admin\controllers\ApiController::class,       'dashboard.view'],
 ];
 
@@ -180,6 +181,7 @@ $readOnlyActions = [
     'index', 'show', 'create', 'edit', 'form', 'view', 'list',
     'export', 'invoice', 'preview', 'search', 'poll', 'notifications',
     'download', 'stock', 'movements', 'log', 'campaign', 'compose', 'products',
+    'issues', 'redirects', 'notfound', 'landing', 'searchproducts', 'suggestseo',
 ];
 
 $isReadOnly = in_array(strtolower($method), $readOnlyActions, true);

@@ -40,11 +40,21 @@
                     <div id="main-product-image" onclick="toggleZoomModal(true)"
                         class="w-full bg-brand-dark rounded-2xl p-6 sm:p-8 border border-white/5 relative flex items-center justify-center cursor-zoom-in group h-64 sm:h-80 overflow-hidden">
                         <?php
-                        $images = $product['images'] ?? [];
-                        $mainImage = !empty($images) ? "/image?id=" . e($images[0]) : "/assets/logo/logo.webp";
+                        // گالری سئوشده: آدرس تصویر شامل نام قطعه/کد فنی است و alt از پنل مدیریت می‌آید
+                        $gallery = $product['gallery'] ?? [];
+                        if (!$gallery && !empty($product['images'])) {
+                            foreach ($product['images'] as $gi => $gid) {
+                                $gallery[] = [
+                                    'url' => \Core\Seo::imageUrl((string) $gid, \Core\Seo::imageSlug((string) $product['name'], $product['oem'] ?? null, $product['model'] ?? null, (int) $gi)),
+                                    'alt' => \Core\Seo::suggestAlt((string) $product['name'], null, $product['oem'] ?? null, (int) $gi),
+                                ];
+                            }
+                        }
+                        $mainImage = $gallery[0]['url'] ?? '/assets/logo/logo.webp';
+                        $mainAlt = $gallery[0]['alt'] ?? $product['name'];
                         ?>
                         <div id="main-product-inner" class="w-full h-full flex items-center justify-center">
-                            <img src="<?= $mainImage ?>" alt="<?= e($product['name']) ?>"
+                            <img src="<?= e($mainImage) ?>" alt="<?= e($mainAlt) ?>" width="600" height="600"
                                 class="max-w-full max-h-full object-contain drop-shadow-2xl transition transform group-hover:scale-110 duration-300">
                         </div>
 
@@ -62,13 +72,14 @@
                     </div>
 
                     <!-- تصاویر کوچک (Thumbnails) -->
-                    <?php if (!empty($images) && count($images) > 1): ?>
+                    <?php if (count($gallery) > 1): ?>
                         <div class="grid grid-cols-5 gap-2 sm:gap-3">
-                            <?php foreach ($images as $index => $img): ?>
-                                <div onclick="changeMainImage('/image?id=<?= e($img) ?>', this)"
+                            <?php foreach ($gallery as $index => $g): ?>
+                                <div onclick="changeMainImage('<?= e($g['url']) ?>', this)"
                                     class="thumb-btn h-16 sm:h-20 border rounded-xl flex items-center justify-center cursor-pointer transition duration-200 hover:border-brand-red/50 p-2 <?= $index === 0 ? 'border-brand-red bg-brand-dark' : 'border-white/5 bg-brand-dark/40' ?>">
-                                    <img src="/image?id=<?= e($img) ?>" loading="lazy" class="max-w-full max-h-full object-contain anim-float"
-                                        alt="Thumbnail">
+                                    <img src="<?= e($g['url']) ?>" loading="lazy" width="120" height="120"
+                                        class="max-w-full max-h-full object-contain anim-float"
+                                        alt="<?= e($g['alt']) ?>">
                                 </div>
                             <?php endforeach; ?>
                         </div>
@@ -155,6 +166,36 @@
                 </div>
             </div>
         </div>
+
+        <!-- راهنمای فنی و سرویس: مقالات آموزشی همین قطعه (ساختار سیلو) -->
+        <?php if (!empty($guideArticles)): ?>
+            <section class="bg-brand-grey border border-white/10 rounded-2xl sm:rounded-3xl p-5 sm:p-8 space-y-6">
+                <div class="flex items-center justify-between border-b border-white/5 pb-4">
+                    <h2 class="text-lg sm:text-xl font-extrabold flex items-center gap-2.5">
+                        <span class="w-2 h-6 bg-brand-accent rounded-full"></span>
+                        راهنمای فنی و سرویس این قطعه
+                    </h2>
+                    <a href="/blog" class="text-xs text-gray-400 hover:text-white transition">همه مقالات</a>
+                </div>
+                <p class="text-xs text-gray-400 leading-relaxed">
+                    پیش از خرید، نحوه تشخیص خرابی، زمان تعویض و روش نصب این قطعه را در مقالات زیر بخوانید.
+                </p>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <?php foreach ($guideArticles as $ga): ?>
+                        <a href="/blog/<?= e($ga['slug']) ?>"
+                            class="bg-brand-dark border border-white/5 rounded-2xl p-4 flex flex-col gap-2 hover:border-brand-red/40 transition group">
+                            <i data-lucide="<?= e($ga['icon'] ?: 'wrench') ?>" style="width:22px;height:22px;"
+                                class="text-brand-red"></i>
+                            <h3 class="text-sm font-bold text-white group-hover:text-brand-red transition line-clamp-2">
+                                <?= e($ga['title']) ?>
+                            </h3>
+                            <span class="text-[10px] text-gray-500 mt-auto">زمان مطالعه:
+                                <?= (int) $ga['reading_time'] ?> دقیقه</span>
+                        </a>
+                    <?php endforeach; ?>
+                </div>
+            </section>
+        <?php endif; ?>
 
         <!-- پیگیری مرسوله -->
         <section class="max-w-2xl mx-auto">

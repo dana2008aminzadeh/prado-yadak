@@ -104,21 +104,7 @@ class Product
         // مپ کردن خروجی
         $mapped = [];
         foreach ($results as $r) {
-            $images = !empty($r['telegram_photo_id']) ? json_decode($r['telegram_photo_id'], true) : [];
-            $mapped[] = [
-                'id' => (int) $r['id'],
-                'name' => $r['name'],
-                'slug' => $r['slug'],
-                'category' => $r['category_slug'],
-                'price' => (float) $r['price'],
-                'oem' => $r['oem_code'],
-                'model' => $r['car_model'],
-                'brand' => $r['brand'],
-                'isGenuine' => (bool) $r['is_genuine'],
-                'inStock' => (bool) $r['in_stock'],
-                'desc' => $r['description'],
-                'images' => is_array($images) ? $images : []
-            ];
+            $mapped[] = self::mapRow($r);
         }
 
         return [
@@ -154,21 +140,98 @@ class Product
         if (!$r)
             return null;
 
-        $images = !empty($r['telegram_photo_id']) ? json_decode($r['telegram_photo_id'], true) : [];
+        return self::mapRow($r, true);
+    }
+
+    /**
+     * تبدیل ردیف خام دیتابیس به آرایه‌ی مورد استفاده‌ی فرانت‌اند.
+     * فیلدهای اختصاصی سئو و گالری تصاویر (به همراه alt) نیز اینجا ضمیمه می‌شوند.
+     */
+    private static function mapRow(array $r, bool $withGallery = false): array
+    {
+        $rawPhoto = (string) ($r['telegram_photo_id'] ?? '');
+        $legacy = $rawPhoto !== '' ? json_decode($rawPhoto, true) : [];
+        $legacy = is_array($legacy) ? $legacy : ($rawPhoto !== '' ? [$rawPhoto] : []);
+
+        $gallery = $withGallery ? self::getGallery((int) $r['id']) : [];
+        $images = $gallery ? array_column($gallery, 'identifier') : $legacy;
+
         return [
             'id' => (int) $r['id'],
             'name' => $r['name'],
             'slug' => $r['slug'],
-            'category' => $r['category_slug'],
+            'category' => $r['category_slug'] ?? null,
             'price' => (float) $r['price'],
             'oem' => $r['oem_code'],
             'model' => $r['car_model'],
             'brand' => $r['brand'],
             'isGenuine' => (bool) $r['is_genuine'],
             'inStock' => (bool) $r['in_stock'],
+            'stock_qty' => isset($r['stock_qty']) ? (int) $r['stock_qty'] : null,
             'desc' => $r['description'],
-            'images' => is_array($images) ? $images : []
+            'images' => $images,
+            'gallery' => $gallery,
+            // ---- فیلدهای اختصاصی سئو (اولویت با مقدار دستی مدیر) ----
+            'meta_title' => $r['meta_title'] ?? null,
+            'meta_description' => $r['meta_description'] ?? null,
+            'focus_keyword' => $r['focus_keyword'] ?? null,
+            'robots_directive' => $r['robots_directive'] ?? 'default',
+            'canonical_url' => $r['canonical_url'] ?? null,
+            'updated_at' => $r['updated_at'] ?? ($r['created_at'] ?? null),
+            'created_at' => $r['created_at'] ?? null,
         ];
+    }
+
+    /**
+     * گالری تصاویر با متن جایگزین و آدرس سئوشده.
+     * اگر مدیر alt ننوشته باشد، پیشنهاد خودکار بر اساس نام قطعه، مدل خودرو و کد فنی ساخته می‌شود.
+     */
+    public static function getGallery(int $productId): array
+    {
+        try {
+            $db = Database::getInstance();
+            $stmt = $db->prepare(
+                'SELECT pi.*, p.name, p.oem_code, p.car_model
+                 FROM product_images pi
+                 JOIN products p ON p.id = pi.product_id
+                 WHERE pi.product_id = ?
+                 ORDER BY pi.is_primary DESC, pi.sort_order ASC, pi.id ASC'
+            );
+            $stmt->execute([$productId]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $modelName = null;
+        $out = [];
+        foreach ($rows as $i => $row) {
+            $identifier = $row['telegram_file_id'] ?: ($row['image_path'] ?? '');
+            if ($identifier === '') {
+                continue;
+            }
+            if ($modelName === null) {
+                $md = $GLOBALS['car_models'][$row['car_model'] ?? ''] ?? ($row['car_model'] ?? '');
+                $modelName = is_array($md) ? ($md['name'] ?? '') : (string) $md;
+            }
+
+            $alt = trim((string) ($row['alt_text'] ?? ''));
+            if ($alt === '') {
+                $alt = \Core\Seo::suggestAlt((string) $row['name'], $modelName ?: null, $row['oem_code'] ?? null, (int) $i);
+            }
+
+            $seoName = trim((string) ($row['seo_filename'] ?? ''))
+                ?: \Core\Seo::imageSlug((string) $row['name'], $row['oem_code'] ?? null, $modelName ?: null, (int) $i);
+
+            $out[] = [
+                'id' => (int) $row['id'],
+                'identifier' => $identifier,
+                'url' => \Core\Seo::imageUrl($identifier, $seoName),
+                'alt' => $alt,
+                'is_primary' => (int) ($row['is_primary'] ?? 0) === 1,
+            ];
+        }
+        return $out;
     }
 
     public static function getComments($productId)
@@ -191,173 +254,224 @@ class Product
         return $stmt->fetch() ? true : false;
     }
 
+    /**
+     * تولید داده‌های ساختاریافته محصول به صورت یک گراف یکپارچه (@graph).
+     * ---------------------------------------------------------------------
+     * به‌جای چند اسکریپت مجزا، فروشگاه، وب‌سایت، صفحه، نان‌ریزه، محصول،
+     * پیشنهاد فروش و دیدگاه‌ها همگی در یک بلوک به هم گره می‌خورند.
+     * ویژگی‌های تخصصی خودرو (برند سازگار، MPN، شماره فنی) نیز درج می‌شود تا
+     * قابلیت‌های Merchant Listings و نتایج خرید گوگل فعال شوند.
+     */
     public static function generateSchema($product, $comments = [])
     {
-        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
-        $host = SITE_URL;
-        $hostUrl = $protocol . "://" . $host;
-        $productUrl = $hostUrl . "/product/" . urlencode($product['slug']);
+        $settings = $GLOBALS['settings'] ?? [];
+        $siteName = $settings['site_title'] ?? 'پرادو یدک';
 
+        $base = \Core\Seo::base();
+        $productUrl = $base . '/product/' . rawurlencode((string) $product['slug']);
+
+        // ---------- تصاویر با آدرس سئوشده ----------
         $images = [];
-        if (!empty($product['images']) && is_array($product['images'])) {
-            foreach ($product['images'] as $img) {
-                $images[] = $hostUrl . "/image?id=" . urlencode($img);
+        if (!empty($product['gallery']) && is_array($product['gallery'])) {
+            foreach ($product['gallery'] as $g) {
+                $images[] = $base . $g['url'];
             }
-        } else {
-            $images[] = $hostUrl . "/assets/logo/logo.webp";
+        } elseif (!empty($product['images']) && is_array($product['images'])) {
+            foreach ($product['images'] as $i => $img) {
+                $seoName = \Core\Seo::imageSlug((string) $product['name'], $product['oem'] ?? null, $product['model'] ?? null, (int) $i);
+                $images[] = $base . \Core\Seo::imageUrl((string) $img, $seoName);
+            }
+        }
+        if (!$images) {
+            $images[] = $base . '/assets/logo/logo.webp';
         }
 
-        $schemaCommentCount = count($comments ?? []);
-        $schemaAvgRating = 5.0;
-        $reviewsSchema = [];
-
-        if ($schemaCommentCount > 0) {
-            $schemaSum = 0;
-            foreach ($comments as $c) {
-                $ratingVal = (float) ($c['rating'] ?? 5);
-                $schemaSum += $ratingVal;
-
-                $reviewsSchema[] = [
-                    "@type" => "Review",
-                    "reviewRating" => [
-                        "@type" => "Rating",
-                        "ratingValue" => (string) $ratingVal,
-                        "bestRating" => "5",
-                        "worstRating" => "1"
-                    ],
-                    "author" => [
-                        "@type" => "Person",
-                        "name" => !empty($c['name']) ? $c['name'] : 'خریدار قطعه'
-                    ],
-                    "datePublished" => !empty($c['created_at']) ? date('Y-m-d', strtotime($c['created_at'])) : date('Y-m-d'),
-                    "reviewBody" => strip_tags($c['comment_text'] ?? '')
-                ];
-            }
-            $schemaAvgRating = round($schemaSum / $schemaCommentCount, 1);
-        }
-
-        $priceInRials = ((float) ($product['price'] ?? 0)) * 10;
-        $validUntil = date('Y-12-31', strtotime('+1 year'));
-
-        $schemaProduct = [
-            "@context" => "https://schema.org",
-            "@type" => "Product",
-            "name" => $product['name'],
-            "image" => $images,
-            "description" => mb_substr(strip_tags($product['desc'] ?? $product['name']), 0, 300, 'UTF-8'),
-            "sku" => (string) (!empty($product['oem']) ? $product['oem'] : 'PRD-' . $product['id']),
-            "mpn" => (string) (!empty($product['oem']) ? $product['oem'] : 'PRD-' . $product['id']),
-            "brand" => [
-                "@type" => "Brand",
-                "name" => !empty($product['brand']) ? $product['brand'] : 'Toyota'
-            ],
-            "offers" => [
-                "@type" => "Offer",
-                "url" => $productUrl,
-                "priceCurrency" => "IRR",
-                "price" => (string) $priceInRials,
-                "priceValidUntil" => $validUntil,
-                "itemCondition" => "https://schema.org/NewCondition",
-                "availability" => !empty($product['inStock']) ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
-                "seller" => [
-                    "@type" => "Organization",
-                    "name" => "پرادو یدک",
-                    "url" => $hostUrl
+        // ---------- دیدگاه‌ها ----------
+        $commentCount = count($comments ?? []);
+        $reviews = [];
+        $sum = 0;
+        foreach ($comments ?? [] as $c) {
+            $rating = (float) ($c['rating'] ?? 5);
+            $sum += $rating;
+            $reviews[] = [
+                '@type' => 'Review',
+                'reviewRating' => [
+                    '@type' => 'Rating',
+                    'ratingValue' => (string) $rating,
+                    'bestRating' => '5',
+                    'worstRating' => '1',
                 ],
-                "hasMerchantReturnPolicy" => [
-                    "@type" => "MerchantReturnPolicy",
-                    "applicableCountry" => "IR",
-                    "returnPolicyCategory" => "https://schema.org/MerchantReturnFiniteReturnWindow",
-                    "merchantReturnDays" => 7,
-                    "returnMethod" => "https://schema.org/ReturnByMail",
-                    "returnFees" => "https://schema.org/FreeReturn"
+                'author' => [
+                    '@type' => 'Person',
+                    'name' => !empty($c['name']) ? $c['name'] : 'خریدار قطعه',
                 ],
-                "shippingDetails" => [
-                    "@type" => "OfferShippingDetails",
-                    "shippingRate" => [
-                        "@type" => "MonetaryAmount",
-                        "value" => "0",
-                        "currency" => "IRR"
-                    ],
-                    "shippingDestination" => [
-                        [
-                            "@type" => "DefinedRegion",
-                            "addressCountry" => "IR"
-                        ]
-                    ],
-                    "deliveryTime" => [
-                        "@type" => "ShippingDeliveryTime",
-                        "handlingTime" => [
-                            "@type" => "QuantitativeValue",
-                            "minValue" => 0,
-                            "maxValue" => 1,
-                            "unitCode" => "d"
-                        ],
-                        "transitTime" => [
-                            "@type" => "QuantitativeValue",
-                            "minValue" => 1,
-                            "maxValue" => 3,
-                            "unitCode" => "d"
-                        ]
-                    ]
-                ]
-            ]
-        ];
-
-        if ($schemaCommentCount > 0) {
-            $schemaProduct["aggregateRating"] = [
-                "@type" => "AggregateRating",
-                "ratingValue" => (string) $schemaAvgRating,
-                "reviewCount" => (string) $schemaCommentCount,
-                "bestRating" => "5",
-                "worstRating" => "1"
+                'datePublished' => !empty($c['created_at']) ? date('Y-m-d', strtotime($c['created_at'])) : date('Y-m-d'),
+                'reviewBody' => \Core\Seo::clean($c['comment_text'] ?? ''),
             ];
-            $schemaProduct["review"] = $reviewsSchema;
         }
 
-        $breadcrumbItems = [
-            [
-                "@type" => "ListItem",
-                "position" => 1,
-                "name" => "صفحه اصلی",
-                "item" => $hostUrl . "/"
-            ],
-            [
-                "@type" => "ListItem",
-                "position" => 2,
-                "name" => "کاتالوگ قطعات",
-                "item" => $hostUrl . "/parts"
-            ]
-        ];
+        $metaTitle = trim((string) ($product['meta_title'] ?? '')) ?: \Core\Seo::productTitle($product, $siteName);
+        $metaDesc = trim((string) ($product['meta_description'] ?? '')) ?: \Core\Seo::productDescription($product, $siteName);
 
-        $pos = 3;
+        // ---------- نان‌ریزه ----------
+        $crumbs = [
+            ['name' => 'صفحه اصلی', 'url' => '/'],
+            ['name' => 'کاتالوگ قطعات', 'url' => '/parts'],
+        ];
         if (!empty($product['category'])) {
-            $catName = $GLOBALS['part_categories'][$product['category']]['name'] ?? $product['category'];
-            $breadcrumbItems[] = [
-                "@type" => "ListItem",
-                "position" => $pos++,
-                "name" => $catName,
-                "item" => $hostUrl . "/parts?category=" . urlencode($product['category'])
+            $catData = $GLOBALS['part_categories'][$product['category']] ?? null;
+            $catName = is_array($catData) ? ($catData['name'] ?? $product['category']) : ($catData ?: $product['category']);
+            $crumbs[] = ['name' => $catName, 'url' => '/parts?category=' . rawurlencode((string) $product['category'])];
+        }
+        $crumbs[] = ['name' => $product['name'], 'url' => '/product/' . rawurlencode((string) $product['slug'])];
+
+        // ---------- شناسه‌های قطعه ----------
+        $oem = trim((string) ($product['oem'] ?? ''));
+        $sku = $oem !== '' ? $oem : 'PRD-' . $product['id'];
+
+        $modelData = $GLOBALS['car_models'][$product['model'] ?? ''] ?? ($product['model'] ?? '');
+        $modelName = is_array($modelData) ? ($modelData['name'] ?? '') : (string) $modelData;
+
+        $productNode = [
+            '@type' => ['Product', 'IndividualProduct'],
+            '@id' => $productUrl . '#product',
+            'name' => $product['name'],
+            'url' => $productUrl,
+            'image' => $images,
+            'description' => $metaDesc,
+            'sku' => (string) $sku,
+            'mpn' => (string) $sku,
+            'productID' => 'oem:' . $sku,
+            'category' => $GLOBALS['part_categories'][$product['category'] ?? '']['name'] ?? 'قطعات یدکی خودرو',
+            'brand' => [
+                '@type' => 'Brand',
+                'name' => !empty($product['brand']) ? $product['brand'] : 'Toyota',
+            ],
+            'manufacturer' => [
+                '@type' => 'Organization',
+                'name' => !empty($product['brand']) ? $product['brand'] : 'Toyota',
+            ],
+            'itemCondition' => 'https://schema.org/NewCondition',
+            'mainEntityOfPage' => ['@id' => $productUrl . '#webpage'],
+        ];
+
+        // ---- ویژگی‌های تخصصی خودرو: سازگاری قطعه با مدل‌ها ----
+        if ($modelName !== '') {
+            $productNode['isAccessoryOrSparePartFor'] = [
+                '@type' => 'Product',
+                'name' => 'تویوتا ' . $modelName,
+            ];
+            $productNode['audience'] = [
+                '@type' => 'Audience',
+                'name' => 'مالکان تویوتا ' . $modelName,
             ];
         }
 
-        $breadcrumbItems[] = [
-            "@type" => "ListItem",
-            "position" => $pos,
-            "name" => $product['name'],
-            "item" => $productUrl
+        $additional = [];
+        if ($oem !== '') {
+            $additional[] = ['@type' => 'PropertyValue', 'name' => 'شماره فنی سازنده (OEM)', 'value' => $oem];
+        }
+        if ($modelName !== '') {
+            $additional[] = ['@type' => 'PropertyValue', 'name' => 'خودرو سازگار', 'value' => 'تویوتا ' . $modelName];
+        }
+        $additional[] = [
+            '@type' => 'PropertyValue',
+            'name' => 'اصالت کالا',
+            'value' => !empty($product['isGenuine']) ? 'جنیون پارت اصلی' : 'OEM وارداتی معتبر',
+        ];
+        $productNode['additionalProperty'] = $additional;
+
+        // ---------- پیشنهاد فروش ----------
+        // قیمت‌های دیتابیس به تومان‌اند؛ واحد رسمی قابل قبول گوگل برای ایران IRR است.
+        $productNode['offers'] = [
+            '@type' => 'Offer',
+            '@id' => $productUrl . '#offer',
+            'url' => $productUrl,
+            'priceCurrency' => 'IRR',
+            'price' => \Core\Seo::priceIRR((float) ($product['price'] ?? 0)),
+            'priceValidUntil' => date('Y-m-d', strtotime('+6 months')),
+            'itemCondition' => 'https://schema.org/NewCondition',
+            'availability' => \Core\Seo::availability($product),
+            'seller' => ['@id' => $base . '/#organization'],
+            'hasMerchantReturnPolicy' => [
+                '@type' => 'MerchantReturnPolicy',
+                'applicableCountry' => 'IR',
+                'returnPolicyCategory' => 'https://schema.org/MerchantReturnFiniteReturnWindow',
+                'merchantReturnDays' => 7,
+                'returnMethod' => 'https://schema.org/ReturnByMail',
+                'returnFees' => 'https://schema.org/FreeReturn',
+            ],
+            'shippingDetails' => [
+                '@type' => 'OfferShippingDetails',
+                'shippingRate' => [
+                    '@type' => 'MonetaryAmount',
+                    'value' => '0',
+                    'currency' => 'IRR',
+                ],
+                'shippingDestination' => [
+                    ['@type' => 'DefinedRegion', 'addressCountry' => 'IR'],
+                ],
+                'deliveryTime' => [
+                    '@type' => 'ShippingDeliveryTime',
+                    'handlingTime' => ['@type' => 'QuantitativeValue', 'minValue' => 0, 'maxValue' => 1, 'unitCode' => 'DAY'],
+                    'transitTime' => ['@type' => 'QuantitativeValue', 'minValue' => 1, 'maxValue' => 3, 'unitCode' => 'DAY'],
+                ],
+            ],
         ];
 
-        $schemaBreadcrumb = [
-            "@context" => "https://schema.org",
-            "@type" => "BreadcrumbList",
-            "itemListElement" => $breadcrumbItems
-        ];
+        if ($commentCount > 0) {
+            $productNode['aggregateRating'] = [
+                '@type' => 'AggregateRating',
+                'ratingValue' => (string) round($sum / $commentCount, 1),
+                'reviewCount' => (string) $commentCount,
+                'bestRating' => '5',
+                'worstRating' => '1',
+            ];
+            $productNode['review'] = $reviews;
+        }
 
-        $output = "<script type=\"application/ld+json\">\n" . json_encode($schemaProduct, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n</script>\n";
-        $output .= "<script type=\"application/ld+json\">\n" . json_encode($schemaBreadcrumb, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n</script>";
+        return \Core\Seo::graph([
+            \Core\Seo::organizationNode($settings),
+            \Core\Seo::websiteNode($settings),
+            \Core\Seo::webPageNode($productUrl, $metaTitle, $metaDesc, $images[0] ?? null),
+            \Core\Seo::breadcrumbNode($crumbs, $productUrl),
+            $productNode,
+        ]);
+    }
 
-        return $output;
+    /**
+     * مقالات آموزشی مرتبط با این قطعه — بخش «راهنمای فنی و سرویس» صفحه محصول.
+     * ابتدا مقالاتی که مدیر صراحتاً به این محصول متصل کرده، سپس مقالات هم‌موضوع.
+     */
+    public static function getRelatedArticles(int $productId, int $limit = 3): array
+    {
+        try {
+            $db = Database::getInstance();
+            $stmt = $db->prepare(
+                "SELECT a.id, a.title, a.slug, a.summary, a.reading_time, a.icon, a.category_label
+                 FROM article_products ap
+                 JOIN articles a ON a.id = ap.article_id
+                 WHERE ap.product_id = ? AND a.status = 'published'
+                 ORDER BY ap.sort_order, a.id DESC
+                 LIMIT " . (int) $limit
+            );
+            $stmt->execute([$productId]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /** ذخیره امتیاز سئوی محاسبه‌شده */
+    public static function saveSeoScore(int $productId, int $score): void
+    {
+        try {
+            Database::getInstance()
+                ->prepare('UPDATE products SET seo_score = ? WHERE id = ?')
+                ->execute([max(0, min(100, $score)), $productId]);
+        } catch (\Throwable $e) {
+            // ستون هنوز مهاجرت نشده
+        }
     }
 
     public static function findByOem($oemCode)
