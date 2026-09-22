@@ -54,6 +54,13 @@ $coverUrl = $article['cover_image']
                 </div>
             </div>
 
+            <?php
+            $seoEntity = $article;
+            $seoType = 'article';
+            $seoUrlBase = '/blog/';
+            require ADMIN_PATH . '/views/partials/seo-box.php';
+            ?>
+
             <div class="card mb">
                 <div class="card-head"><h3>دسته‌بندی</h3></div>
                 <div class="card-body">
@@ -87,6 +94,38 @@ $coverUrl = $article['cover_image']
             </div>
         </div>
     </div>
+
+        <!-- محصولات مرتبط (ساختار سیلو: اتصال وبلاگ به فروشگاه) -->
+        <div class="card mt">
+            <div class="card-head">
+                <h3>محصولات مرتبط با این مقاله</h3>
+                <span class="hint">کارت خرید این قطعات با قیمت و موجودی داخل بدنه مقاله نمایش داده می‌شود.</span>
+            </div>
+            <div class="card-body">
+                <div class="field">
+                    <label class="fl">جستجوی قطعه (نام یا کد فنی)</label>
+                    <input type="text" id="prod-search" autocomplete="off" placeholder="مثلا: لنت ترمز جلو یا 04465-33471">
+                    <div id="prod-results" style="display:none;border:1px solid var(--line);border-radius:11px;margin-top:6px;max-height:220px;overflow:auto"></div>
+                </div>
+                <div id="related-products-list" class="flex gap wrap">
+                    <?php foreach (($linkedProducts ?? []) as $lp): ?>
+                        <div class="flex gap" data-pid="<?= (int) $lp['id'] ?>"
+                             style="align-items:center;border:1px solid var(--line);border-radius:11px;padding:6px 10px">
+                            <input type="hidden" name="related_product_ids[]" value="<?= (int) $lp['id'] ?>">
+                            <span style="font-size:12px;font-weight:700"><?= e(excerpt($lp['name'], 45)) ?></span>
+                            <?php if ($lp['oem_code']): ?>
+                                <span class="hint mono"><?= e($lp['oem_code']) ?></span>
+                            <?php endif; ?>
+                            <button type="button" class="btn btn-sm btn-danger"
+                                    onclick="this.parentElement.remove()">×</button>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+                <?php if (empty($linkedProducts)): ?>
+                    <div class="hint mt" id="no-related">هنوز محصولی متصل نشده است. مقاله بدون کارت خرید، نرخ تبدیل ندارد.</div>
+                <?php endif; ?>
+            </div>
+        </div>
 </form>
 
 <?php if ($aid && can('articles.edit')): ?>
@@ -100,3 +139,61 @@ $coverUrl = $article['cover_image']
         </div>
     </div>
 <?php endif; ?>
+
+
+<script>
+// ---- انتخاب محصولات مرتبط (جستجوی زنده) ----
+(function () {
+    var input = document.getElementById('prod-search');
+    var box = document.getElementById('prod-results');
+    var list = document.getElementById('related-products-list');
+    if (!input) return;
+
+    var timer = null;
+    input.addEventListener('input', function () {
+        clearTimeout(timer);
+        var q = input.value.trim();
+        if (q.length < 2) { box.style.display = 'none'; return; }
+
+        timer = setTimeout(function () {
+            fetch('<?= admin_url('articles/searchProducts') ?>?q=' + encodeURIComponent(q), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    box.innerHTML = '';
+                    (d.items || []).forEach(function (p) {
+                        var row = document.createElement('div');
+                        row.style.cssText = 'padding:8px 11px;cursor:pointer;border-bottom:1px solid var(--line);font-size:12px';
+                        row.textContent = p.name + (p.oem_code ? '  —  ' + p.oem_code : '');
+                        row.onmouseenter = function () { row.style.background = '#f6f7fb'; };
+                        row.onmouseleave = function () { row.style.background = ''; };
+                        row.onclick = function () { addProduct(p); };
+                        box.appendChild(row);
+                    });
+                    box.style.display = (d.items || []).length ? 'block' : 'none';
+                });
+        }, 250);
+    });
+
+    function addProduct(p) {
+        if (list.querySelector('[data-pid="' + p.id + '"]')) return;
+        var el = document.createElement('div');
+        el.className = 'flex gap';
+        el.dataset.pid = p.id;
+        el.style.cssText = 'align-items:center;border:1px solid var(--line);border-radius:11px;padding:6px 10px';
+        el.innerHTML = '<input type="hidden" name="related_product_ids[]" value="' + p.id + '">'
+            + '<span style="font-size:12px;font-weight:700"></span>'
+            + (p.oem_code ? '<span class="hint mono">' + p.oem_code + '</span>' : '')
+            + '<button type="button" class="btn btn-sm btn-danger">×</button>';
+        el.querySelector('span').textContent = p.name;
+        el.querySelector('button').onclick = function () { el.remove(); };
+        list.appendChild(el);
+
+        var empty = document.getElementById('no-related');
+        if (empty) empty.remove();
+        box.style.display = 'none';
+        input.value = '';
+    }
+})();
+</script>

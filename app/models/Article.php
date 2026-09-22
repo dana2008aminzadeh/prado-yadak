@@ -81,6 +81,62 @@ class Article
         return $stmt->execute([(int) $id]);
     }
 
+    /**
+     * محصولات مرتبط با مقاله (ساختار سیلو).
+     * کارت خرید این قطعات همراه با قیمت و موجودی داخل بدنه مقاله نمایش داده می‌شود.
+     */
+    public static function getRelatedProducts($articleId, $limit = 4)
+    {
+        try {
+            $db = Database::getInstance();
+            $stmt = $db->prepare(
+                "SELECT p.id, p.name, p.slug, p.price, p.oem_code, p.brand, p.in_stock,
+                        p.stock_qty, p.is_genuine, p.car_model, p.telegram_photo_id
+                 FROM article_products ap
+                 JOIN products p ON p.id = ap.product_id
+                 WHERE ap.article_id = ?
+                 ORDER BY ap.sort_order, ap.id
+                 LIMIT " . (int) $limit
+            );
+            $stmt->execute([(int) $articleId]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($rows as $r) {
+            $gallery = Product::getGallery((int) $r['id']);
+            $primary = $gallery[0] ?? null;
+
+            $out[] = [
+                'id' => (int) $r['id'],
+                'name' => $r['name'],
+                'slug' => $r['slug'],
+                'price' => (float) $r['price'],
+                'oem' => $r['oem_code'],
+                'brand' => $r['brand'],
+                'inStock' => (bool) $r['in_stock'],
+                'isGenuine' => (bool) $r['is_genuine'],
+                'image' => $primary['url'] ?? \Core\Seo::imageUrl($r['telegram_photo_id'] ?? null, (string) $r['name']),
+                'alt' => $primary['alt'] ?? \Core\Seo::suggestAlt((string) $r['name'], null, $r['oem_code'] ?? null),
+            ];
+        }
+        return $out;
+    }
+
+    /** تعداد محصولات متصل (برای موتور سنجش سئو) */
+    public static function countRelatedProducts($articleId): int
+    {
+        try {
+            $st = Database::getInstance()->prepare('SELECT COUNT(*) FROM article_products WHERE article_id = ?');
+            $st->execute([(int) $articleId]);
+            return (int) $st->fetchColumn();
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
     public static function getPopular($limit = 3)
     {
         $db = Database::getInstance();

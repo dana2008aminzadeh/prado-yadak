@@ -130,21 +130,33 @@
             <div class="flex-1 space-y-6">
                 <div class="pb-2">
                     <?php
-                        $h1_title = 'کاتالوگ و قیمت لوازم یدکی تویوتا';
-                        if (!empty($_GET['category']) && isset($GLOBALS['part_categories'][$_GET['category']])) {
-                            $catData = $GLOBALS['part_categories'][$_GET['category']];
-                            $catName = is_array($catData) ? ($catData['name'] ?? '') : $catData;
-                            $h1_title = 'خرید لوازم ' . $catName . ' تویوتا';
-                        } elseif (!empty($_GET['model']) && isset($GLOBALS['car_models'][$_GET['model']])) {
-                            $modData = $GLOBALS['car_models'][$_GET['model']];
-                            $modName = is_array($modData) ? ($modData['name'] ?? '') : $modData;
-                            $h1_title = 'قطعات یدکی تویوتا ' . $modName;
+                        // در لندینگ‌پیج اختصاصی، H1 و متن معرفی از پنل مدیریت می‌آید
+                        $isLanding = !empty($landingPage);
+                        if ($isLanding) {
+                            $h1_title = $landingPage['h1'];
+                        } else {
+                            $h1_title = 'کاتالوگ و قیمت لوازم یدکی تویوتا';
+                            if (!empty($_GET['category']) && isset($GLOBALS['part_categories'][$_GET['category']])) {
+                                $catData = $GLOBALS['part_categories'][$_GET['category']];
+                                $catName = is_array($catData) ? ($catData['name'] ?? '') : $catData;
+                                $h1_title = 'خرید لوازم ' . $catName . ' تویوتا';
+                            } elseif (!empty($_GET['model']) && isset($GLOBALS['car_models'][$_GET['model']])) {
+                                $modData = $GLOBALS['car_models'][$_GET['model']];
+                                $modName = is_array($modData) ? ($modData['name'] ?? '') : $modData;
+                                $h1_title = 'قطعات یدکی تویوتا ' . $modName;
+                            }
                         }
                     ?>
                     <h1 class="text-xl sm:text-2xl font-black text-white">
                         <?= e($h1_title) ?>
                     </h1>
                     <p class="text-xs text-gray-400 mt-1">تامین قطعات جنیون پارتس و OEM اصلی با ضمانت تطابق شاسی (VIN)</p>
+
+                    <?php if ($isLanding && !empty($landingPage['intro_html'])): ?>
+                        <div class="mt-4 bg-brand-grey border border-white/10 rounded-2xl p-5 text-sm text-gray-300 leading-loose text-justify">
+                            <?= clean_html($landingPage['intro_html']) ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
 
                 <!-- نوار جستجو و دکمه فیلتر موبایل -->
@@ -198,8 +210,12 @@
                         <?php foreach ($products as $part): ?>
                             <?php
                             $carModelName = $GLOBALS['car_models'][$part['model']]['name'] ?? $part['model'];
-                            $imgSrc = !empty($part['images']) ? "/image?id=" . e($part['images'][0]) : "/assets/logo/logo.webp";
-                            $safeSlug = urlencode($part['slug']);
+                            // آدرس تصویر سئوشده + متن جایگزین معنادار (نام قطعه + خودرو + کد فنی)
+                            $imgSrc = !empty($part['images'][0])
+                                ? \Core\Seo::imageUrl((string) $part['images'][0], \Core\Seo::imageSlug((string) $part['name'], $part['oem'] ?? null, is_string($carModelName) ? $carModelName : null))
+                                : '/assets/logo/logo.webp';
+                            $imgAlt = \Core\Seo::suggestAlt((string) $part['name'], is_string($carModelName) ? $carModelName : null, $part['oem'] ?? null);
+                            $safeSlug = rawurlencode($part['slug']);
                             ?>
                             <div
                                 class="bg-brand-grey border border-white/5 hover:border-brand-red/30 p-5 rounded-2xl flex flex-col justify-between transition duration-300 hover:shadow-[0_10px_35px_rgba(225,6,0,0.12)]">
@@ -227,7 +243,8 @@
 
                                     <a href="/product/<?= $safeSlug ?>"
                                         class="w-full h-40 bg-brand-dark rounded-xl flex items-center justify-center mb-4 text-brand-red relative group overflow-hidden border border-white/5 cursor-pointer block">
-                                        <img src="<?= $imgSrc ?>" alt="<?= e($part['name']) ?>" loading="lazy"
+                                        <img src="<?= e($imgSrc) ?>" alt="<?= e($imgAlt) ?>" loading="lazy"
+                                            width="300" height="300"
                                             class="max-w-full max-h-full object-contain transition transform group-hover:scale-110 duration-300">
                                         <span
                                             class="absolute bottom-2 left-2 text-[10px] text-gray-500 bg-brand-dark/80 px-2 py-0.5 rounded border border-white/10"
@@ -271,21 +288,30 @@
                     <nav aria-label="صفحات محصولات"
                         class="flex justify-center items-center gap-2 py-8 my-4 border-t border-white/5">
                         <?php
-                        $queryParams = $_GET;
+                        // لینک‌های صفحه‌بندی همیشه با ترتیب پارامتر نرمال‌شده ساخته می‌شوند
+                        // تا نسخه‌های موازی از یک صفحه برای گوگل ایجاد نشود.
+                        $listBase = !empty($landingPage) ? '/parts/' . rawurlencode($landingPage['slug']) : '/parts';
+                        $pageLink = function ($n) use ($listBase, $landingPage) {
+                            if (!empty($landingPage)) {
+                                return $listBase . ($n > 1 ? '?page=' . (int) $n : '');
+                            }
+                            $params = $_GET;
+                            $params['page'] = $n;
+                            $qs = \Core\Seo::normalizeQuery($params);
+                            return $listBase . ($qs ? '?' . $qs : '');
+                        };
                         $prevPage = $page > 1 ? $page - 1 : null;
                         $nextPage = $page < $totalPages ? $page + 1 : null;
                         ?>
                         <?php if ($prevPage): ?>
-                            <?php $queryParams['page'] = $prevPage; ?>
-                            <a href="/parts?<?= http_build_query($queryParams) ?>"
+                            <a href="<?= e($pageLink($prevPage)) ?>"
                                 class="px-4 py-2 bg-brand-dark border border-white/10 hover:border-brand-red rounded-xl text-xs font-bold text-gray-300 hover:text-white transition">صفحه
                                 قبل</a>
                         <?php endif; ?>
 
                         <div class="flex gap-1">
                             <?php for ($p = max(1, $page - 2); $p <= min($totalPages, $page + 2); $p++): ?>
-                                <?php $queryParams['page'] = $p; ?>
-                                <a href="/parts?<?= http_build_query($queryParams) ?>"
+                                <a href="<?= e($pageLink($p)) ?>"
                                     class="w-9 h-9 flex items-center justify-center rounded-xl text-xs font-bold transition <?= $p === $page ? 'bg-brand-red text-white' : 'bg-brand-dark border border-white/10 text-gray-400 hover:text-white' ?>">
                                     <?= $p ?>
                                 </a>
@@ -293,8 +319,7 @@
                         </div>
 
                         <?php if ($nextPage): ?>
-                            <?php $queryParams['page'] = $nextPage; ?>
-                            <a href="/parts?<?= http_build_query($queryParams) ?>"
+                            <a href="<?= e($pageLink($nextPage)) ?>"
                                 class="px-4 py-2 bg-brand-dark border border-white/10 hover:border-brand-red rounded-xl text-xs font-bold text-gray-300 hover:text-white transition">صفحه
                                 بعد</a>
                         <?php endif; ?>
@@ -326,6 +351,13 @@
                         حذف فیلترها و نمایش همه
                     </button>
                 </div>
+
+                <?php if (!empty($landingPage) && !empty($landingPage['outro_html'])): ?>
+                    <!-- متن تکمیلی اختصاصی لندینگ‌پیج (محتوای یکتا، نه تکراری) -->
+                    <section class="bg-brand-grey border border-white/10 rounded-2xl p-5 sm:p-7 text-sm text-gray-300 leading-loose text-justify mt-6">
+                        <?= clean_html($landingPage['outro_html']) ?>
+                    </section>
+                <?php endif; ?>
             </div>
         </div>
     </main>

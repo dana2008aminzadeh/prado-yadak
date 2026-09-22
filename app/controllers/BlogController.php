@@ -2,6 +2,7 @@
 namespace App\controllers;
 
 use App\models\Article;
+use Core\Seo;
 
 class BlogController extends Controller
 {
@@ -89,6 +90,143 @@ class BlogController extends Controller
         }
 
         if (!$article) {
+            // احتمال تغییر اسلاگ → بررسی جدول ریدایرکت پیش از نمایش ۴۰۴
+            if ($slug) {
+                \App\models\Redirect::handle('/blog/' . $slug, (string) ($_SERVER['QUERY_STRING'] ?? ''));
+                \App\models\Redirect::log404('/blog/' . $slug);
+            }
+            http_response_code(404);
+            require_once VIEWS_PATH . '/404.php';
+            exit;
+        }
+
+        // =========================================================================
+        // اصلاح شمارنده بازدید: نادیده گرفتن ربات‌ها و ممانعت از ثبت بازدید تکراری در رفرش
+        // =========================================================================
+        if (!$this->isBot()) {
+            if (!isset($_SESSION['viewed_articles']) || !is_array($_SESSION['viewed_articles'])) {
+                $_SESSION['viewed_articles'] = [];
+            }
+
+            // اگر کاربر در این سشن قبلاً این مقاله را ندیده باشد، بازدید را ثبت کن
+            if (!in_array($article['id'], $_SESSION['viewed_articles'], true)) {
+                Article::incrementViews($article['id']);
+                $_SESSION['viewed_articles'][] = (int) $article['id'];
+            }
+        }
+
+        $relatedArticles = Article::getRelated($article['category'], $article['id'], 2);
+
+        // محصولات مرتبط — پل ساختاری بین وبلاگ و فروشگاه (Silo Structure)
+        $relatedProducts = Article::getRelatedProducts($article['id'], 4);
+
+        // ------------------------------------------------------------------
+        // متاتگ‌ها با اولویت سلسله‌مراتبی (دستی → خودکار → پیش‌فرض)
+        // ------------------------------------------------------------------
+        $articleUrl = Seo::absolute('/blog/' . rawurlencode((string) $article['slug']));
+
+        $seo = Seo::resolve($article, [
+            'title'       => Seo::truncate($article['title'] . ' | ' . $siteName, 70),
+            'description' => Seo::articleDescription($article, $siteName),
+            'canonical'   => $articleUrl,
+            'robots'      => 'index, follow',
+        ]);
+
+        $pageTitle = $seo['title'];
+        $metaDescription = $seo['description'];
+        $canonicalUrl = $seo['canonical'];
+        $robotsMeta = $seo['robots'];
+
+        $coverUrl = !empty($article['cover_image'])
+            ? (str_starts_with((string) $article['cover_image'], 'http')
+                ? $article['cover_image']
+                : Seo::base() . Seo::imageUrl((string) $article['cover_image'], Seo::imageSlug((string) $article['title'])))
+            : Seo::base() . '/assets/logo/logo.webp';
+        $pageImage = $coverUrl;
+        $pageImageAlt = $article['title'];
+
+        $plain = Seo::clean($article['content'] ?? '');
+        $wordCount = $plain === '' ? 0 : count(preg_split('/\s+/u', $plain) ?: []);
+
+        $postingNode = [
+            '@type' => 'BlogPosting',
+            '@id' => $articleUrl . '#article',
+            'mainEntityOfPage' => ['@id' => $articleUrl . '#webpage'],
+            'headline' => Seo::truncate($article['title'], 110),
+            'description' => $metaDescription,
+            'image' => [$coverUrl],
+            'datePublished' => date('Y-m-d\TH:i:sP', strtotime($article['created_at'])),
+            'dateModified' => date('Y-m-d\TH:i:sP', strtotime($article['updated_at'] ?? $article['created_at'])),
+            'wordCount' => $wordCount,
+            'inLanguage' => 'fa-IR',
+            'articleSection' => $article['category_label'] ?? 'راهنمای فنی',
+            'author' => [
+                '@type' => 'Person',
+                'name' => $article['author'] ?: 'تیم فنی پرادو یدک',
+                'worksFor' => ['@id' => Seo::base() . '/#organization'],
+            ],
+            'publisher' => ['@id' => Seo::base() . '/#organization'],
+        ];
+
+        if (!empty($article['focus_keyword'])) {
+            $postingNode['keywords'] = $article['focus_keyword'];
+        }
+
+        // قطعاتی که مقاله درباره آن‌هاست، به‌صورت ساختاری به مقاله گره می‌خورند
+        if ($relatedProducts) {
+            $mentions = [];
+            foreach ($relatedProducts as $rp) {
+                $mentions[] = [
+                    '@type' => 'Product',
+                    'name'  => $rp['name'],
+                    'url'   => Seo::absolute('/product/' . rawurlencode((string) $rp['slug'])),
+                    'sku'   => (string) ($rp['oem'] ?: 'PRD-' . $rp['id']),
+                ];
+            }
+            $postingNode['mentions'] = $mentions;
+        }
+
+        $schemaMarkup = Seo::graph([
+            Seo::organizationNode($settings),
+            Seo::websiteNode($settings),
+            Seo::webPageNode($articleUrl, $pageTitle, $metaDescription, $coverUrl),
+            Seo::breadcrumbNode([
+                ['name' => 'صفحه اصلی', 'url' => '/'],
+                ['name' => 'وبلاگ فنی', 'url' => '/blog'],
+                ['name' => $article['title'], 'url' => '/blog/' . rawurlencode((string) $article['slug'])],
+            ], $articleUrl),
+            $postingNode,
+        ]);
+
+        require_once VIEWS_PATH . '/blog.php';
+    }
+
+    public function show()
+    {
+        global $settings;
+        $siteName = $settings['site_title'] ?? 'پرادو یدک';
+
+        $slug = isset($_GET['slug']) ? trim($_GET['slug']) : null;
+        $id = isset($_GET['id']) ? (int) $_GET['id'] : null;
+
+        $article = null;
+        if ($slug) {
+            $article = Article::findBySlug($slug);
+        } elseif ($id) {
+            $article = Article::findById($id);
+            if ($article) {
+                header("HTTP/1.1 301 Moved Permanently");
+                header("Location: /blog/" . urlencode($article['slug']));
+                exit;
+            }
+        }
+
+        if (!$article) {
+            // احتمال تغییر اسلاگ → بررسی جدول ریدایرکت پیش از نمایش ۴۰۴
+            if ($slug) {
+                \App\models\Redirect::handle('/blog/' . $slug, (string) ($_SERVER['QUERY_STRING'] ?? ''));
+                \App\models\Redirect::log404('/blog/' . $slug);
+            }
             http_response_code(404);
             require_once VIEWS_PATH . '/404.php';
             exit;

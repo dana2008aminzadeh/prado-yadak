@@ -128,6 +128,14 @@ $canStock = can('products.stock');
                     </datalist>
                 </div>
             </div>
+
+            <!-- ================= سئو و نمایش در گوگل ================= -->
+            <?php
+            $seoEntity = $product;
+            $seoType = 'product';
+            $seoUrlBase = '/product/';
+            require ADMIN_PATH . '/views/partials/seo-box.php';
+            ?>
         </div>
 
         <div>
@@ -228,29 +236,60 @@ $canStock = can('products.stock');
             </form>
 
             <?php if ($images): ?>
+                <!-- ویرایش متن جایگزین (alt) و نام فایل سئوی هر تصویر -->
+                <form method="POST" action="<?= admin_url('products/saveImageMeta') ?>" id="imgMetaForm">
+                    <?= Auth::csrfField() ?>
+                    <input type="hidden" name="product_id" value="<?= $pid ?>">
                 <div class="img-grid mt">
-                    <?php foreach ($images as $img):
-                        $url = Uploader::url($img['telegram_file_id'] ?? null, $img['image_path'] ?? null); ?>
+                    <?php foreach ($images as $imgIdx => $img):
+                        $url = Uploader::url($img['telegram_file_id'] ?? null, $img['image_path'] ?? null);
+                        $imgId = (int) $img['id'];
+                        $suggestAlt = \Core\Seo::suggestAlt((string) $product['name'], null, $product['oem_code'] ?? null, (int) $imgIdx);
+                        $suggestName = \Core\Seo::imageSlug((string) $product['name'], $product['oem_code'] ?? null, null, (int) $imgIdx);
+                        ?>
                         <div class="img-cell">
-                            <img src="<?= e($url) ?>" alt="" loading="lazy">
+                            <img src="<?= e($url) ?>" alt="<?= e($img['alt_text'] ?? '') ?>" loading="lazy">
                             <?php if ((int) $img['is_primary'] === 1): ?>
                                 <span class="star">شاخص</span>
                             <?php endif; ?>
-                            <div class="ops">
-                                <?php if ((int) $img['is_primary'] !== 1): ?>
-                                    <form method="POST" action="<?= admin_url('products/primaryImage') ?>" style="display:inline">
-                                        <?= Auth::csrfField() ?>
-                                        <input type="hidden" name="image_id" value="<?= (int) $img['id'] ?>">
-                                        <button type="submit" title="تنظیم به‌عنوان شاخص">★ شاخص</button>
-                                    </form>
-                                <?php endif; ?>
-                                <form method="POST" action="<?= admin_url('products/deleteImage') ?>" style="display:inline"
-                                      onsubmit="return confirmDelete('حذف این تصویر؟')">
-                                    <?= Auth::csrfField() ?>
-                                    <input type="hidden" name="image_id" value="<?= (int) $img['id'] ?>">
-                                    <button type="submit" title="حذف">✕ حذف</button>
-                                </form>
+                            <div style="padding:8px">
+                                <input type="text" name="image_alt[<?= $imgId ?>]"
+                                       value="<?= e($img['alt_text'] ?? '') ?>"
+                                       placeholder="<?= e($suggestAlt) ?>"
+                                       style="font-size:11px;padding:6px 8px" title="متن جایگزین تصویر (alt)">
+                                <input type="text" name="image_seo_name[<?= $imgId ?>]" class="mono"
+                                       value="<?= e($img['seo_filename'] ?? '') ?>"
+                                       placeholder="<?= e($suggestName) ?>"
+                                       style="font-size:10.5px;padding:6px 8px;margin-top:5px"
+                                       title="نام فایل سئوشده (در آدرس تصویر دیده می‌شود)">
                             </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+                <div class="flex gap wrap mt">
+                    <button class="btn btn-primary btn-sm" type="submit">
+                        <i data-lucide="save" style="width:13px"></i> ذخیره متن جایگزین تصاویر
+                    </button>
+                    <span class="hint">خالی بگذارید تا مقدار پیشنهادی (خاکستری) به‌صورت خودکار استفاده شود.</span>
+                </div>
+                </form>
+
+                <!-- عملیات حذف/شاخص کردن تصاویر (فرم‌های جدا تا تو در تو نشوند) -->
+                <div class="flex gap wrap mt">
+                    <?php foreach ($images as $img): ?>
+                        <div class="flex gap" style="align-items:center;border:1px solid var(--line);border-radius:10px;padding:4px 8px">
+                            <span class="hint mono">#<?= (int) $img['id'] ?></span>
+                            <?php if ((int) $img['is_primary'] !== 1): ?>
+                                <?= action_button(admin_url('products/primaryImage'), 'شاخص', [
+                                    'class' => 'btn btn-sm', 'fields' => ['image_id' => (int) $img['id']],
+                                ]) ?>
+                            <?php else: ?>
+                                <span class="badge b-green">شاخص</span>
+                            <?php endif; ?>
+                            <?= action_button(admin_url('products/deleteImage'), 'حذف', [
+                                'class' => 'btn btn-sm btn-danger', 'confirm' => 'حذف این تصویر؟',
+                                'fields' => ['image_id' => (int) $img['id']],
+                            ]) ?>
                         </div>
                     <?php endforeach; ?>
                 </div>

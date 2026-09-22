@@ -2,7 +2,9 @@
 
 namespace App\controllers;
 
+use App\models\LandingPage;
 use App\models\Product;
+use Core\Seo;
 
 class PartController extends Controller
 {
@@ -53,7 +55,116 @@ class PartController extends Controller
             $metaDescription = "کاتالوگ و لیست قیمت روز انواع لوازم یدکی و قطعات مصرفی تویوتا و لکسوس؛ ضمانت ۱۰۰٪ اصالت جنیون پارتس با امکان مرجوعی در فروشگاه {$siteName}.";
         }
 
+        // ---- سئوی کاتالوگ: کانونیکال نرمال‌شده + قانون noindex فیلترهای کم‌ارزش ----
+        $canonicalUrl = Seo::catalogCanonical($_GET, '/parts');
+        $robotsMeta = Seo::catalogRobots($_GET);
+
+        $crumbs = [
+            ['name' => 'صفحه اصلی', 'url' => '/'],
+            ['name' => 'کاتالوگ قطعات', 'url' => '/parts'],
+        ];
+        if ($selectedCat) {
+            $catInfo = $GLOBALS['part_categories'][$selectedCat] ?? null;
+            $crumbs[] = [
+                'name' => is_array($catInfo) ? ($catInfo['name'] ?? $selectedCat) : ($catInfo ?: $selectedCat),
+                'url'  => '/parts?category=' . rawurlencode((string) $selectedCat),
+            ];
+        }
+
+        $schemaMarkup = $this->catalogSchema($products, $canonicalUrl, $metaDescription, $crumbs);
+
         require_once VIEWS_PATH . '/parts.php';
+    }
+
+    /**
+     * لندینگ‌پیج اختصاصی سئو با آدرس تمیز — مثلا /parts/لوازم-یدکی-کمری-لنت-ترمز
+     * به‌جای آدرس پارامتردار، یک صفحه یکتا با متن و متاتگ اختصاصی سرو می‌شود.
+     */
+    public function landing()
+    {
+        global $settings;
+        $siteName = $settings['site_title'] ?? 'پرادو یدک';
+
+        $slug = trim((string) ($_GET['landing'] ?? ''));
+        $landing = LandingPage::findBySlug($slug);
+
+        if (!$landing) {
+            \App\models\Redirect::handle('/parts/' . $slug, (string) ($_SERVER['QUERY_STRING'] ?? ''));
+            \App\models\Redirect::log404('/parts/' . $slug);
+            http_response_code(404);
+            require_once VIEWS_PATH . '/404.php';
+            exit;
+        }
+
+        LandingPage::incrementViews((int) $landing['id']);
+
+        $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+        $perPage = 20;
+
+        $filters = LandingPage::toFilters($landing);
+        $data = Product::search($filters, $page, $perPage);
+        $products = $data['items'];
+        $totalCount = (int) $data['total'];
+        $totalPages = (int) ceil($totalCount / $perPage);
+        $brands = Product::getDistinctBrands();
+
+        $selectedCat = $filters['categories'][0] ?? null;
+        $selectedModel = $filters['models'][0] ?? null;
+
+        $canonicalUrl = Seo::absolute('/parts/' . rawurlencode($landing['slug']))
+            . ($page > 1 ? '?page=' . $page : '');
+
+        $resolved = Seo::resolve($landing, [
+            'title'       => $landing['h1'] . ' | ' . $siteName,
+            'description' => Seo::truncate(Seo::clean($landing['intro_html'] ?? $landing['h1']), Seo::DESC_MAX),
+            'canonical'   => $canonicalUrl,
+            'robots'      => 'index, follow',
+        ]);
+
+        $pageTitle = $resolved['title'];
+        $metaDescription = $resolved['description'];
+        $canonicalUrl = $resolved['canonical'];
+        $robotsMeta = $resolved['robots'];
+
+        $crumbs = [
+            ['name' => 'صفحه اصلی', 'url' => '/'],
+            ['name' => 'کاتالوگ قطعات', 'url' => '/parts'],
+            ['name' => $landing['h1'], 'url' => '/parts/' . rawurlencode($landing['slug'])],
+        ];
+        $schemaMarkup = $this->catalogSchema($products, $canonicalUrl, $metaDescription, $crumbs);
+
+        $landingPage = $landing;
+        require_once VIEWS_PATH . '/parts.php';
+    }
+
+    /** گراف اسکیمای صفحات فهرست (ItemList + Breadcrumb + سازمان) */
+    private function catalogSchema(array $products, string $url, string $description, array $crumbs): string
+    {
+        $settings = $GLOBALS['settings'] ?? [];
+        $base = Seo::base();
+
+        $items = [];
+        foreach (array_slice($products, 0, 20) as $i => $p) {
+            $items[] = [
+                '@type'    => 'ListItem',
+                'position' => $i + 1,
+                'url'      => $base . '/product/' . rawurlencode((string) $p['slug']),
+                'name'     => $p['name'],
+            ];
+        }
+
+        return Seo::graph([
+            Seo::organizationNode($settings),
+            Seo::websiteNode($settings),
+            Seo::webPageNode($url, $crumbs[count($crumbs) - 1]['name'] ?? 'کاتالوگ', $description),
+            Seo::breadcrumbNode($crumbs, $url),
+            [
+                '@type' => 'ItemList',
+                '@id'   => $url . '#itemlist',
+                'itemListElement' => $items,
+                'numberOfItems' => count($items),
+            ],
+        ]);
     }
 
     public function show()
@@ -82,6 +193,9 @@ class PartController extends Controller
         }
 
         if (!$product) {
+            // شاید اسلاگ قبلاً تغییر کرده باشد → ریدایرکت ۳۰۱ به آدرس جدید
+            \App\models\Redirect::handle('/product/' . $slug, (string) ($_SERVER['QUERY_STRING'] ?? ''));
+            \App\models\Redirect::log404('/product/' . $slug);
             http_response_code(404);
             require_once VIEWS_PATH . '/404.php';
             exit;
@@ -90,22 +204,35 @@ class PartController extends Controller
         $id = $product['id'];
         global $settings;
         $site_name = $settings['site_title'] ?? 'پرادو یدک';
-        $pageTitle = $product['name'] . ' | ' . $site_name;
 
-        $cleanDesc = !empty($product['desc']) ? trim(preg_replace('/\s+/u', ' ', strip_tags($product['desc']))) : '';
-        $oemTag = !empty($product['oem']) ? " با کد فنی {$product['oem']}" : '';
+        // ------------------------------------------------------------------
+        // سئو با اولویت سلسله‌مراتبی:
+        //   ۱) متای دستی مدیر → ۲) فرمول هوشمند → ۳) پیش‌فرض سراسری
+        // ------------------------------------------------------------------
+        $canonicalUrl = Seo::absolute('/product/' . rawurlencode((string) $product['slug']));
+        $seo = Seo::resolve($product, [
+            'title'       => Seo::productTitle($product, $site_name),
+            'description' => Seo::productDescription($product, $site_name),
+            'canonical'   => $canonicalUrl,
+            'robots'      => 'index, follow',
+        ]);
 
-        if (!empty($cleanDesc)) {
-            $metaDescription = mb_substr("خرید {$product['name']}{$oemTag}. " . $cleanDesc, 0, 155, 'UTF-8');
-        } else {
-            $metaDescription = "خرید و استعلام قیمت آنلاین {$product['name']}{$oemTag} تویوتا اصل جنیون و وارداتی با ضمانت اصالت کالا و ارسال سریع در {$site_name}.";
-        }
+        $pageTitle = $seo['title'];
+        $metaDescription = $seo['description'];
+        $canonicalUrl = $seo['canonical'];
+        $robotsMeta = $seo['robots'];
 
-        // تصویر محصول برای اشتراک‌گذاری در شبکه‌های اجتماعی (og:image)
-        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
-        $host = SITE_URL;
-        if (!empty($product['images']) && is_array($product['images']) && !empty($product['images'][0])) {
-            $pageImage = $protocol . "://" . $host . "/image?id=" . urlencode($product['images'][0]);
+        // تصویر محصول برای اشتراک‌گذاری (og:image) با آدرس سئوشده
+        $gallery = $product['gallery'] ?? [];
+        if (!empty($gallery)) {
+            $pageImage = Seo::base() . $gallery[0]['url'];
+            $pageImageAlt = $gallery[0]['alt'];
+        } elseif (!empty($product['images'][0])) {
+            $pageImage = Seo::base() . Seo::imageUrl(
+                (string) $product['images'][0],
+                Seo::imageSlug((string) $product['name'], $product['oem'] ?? null, $product['model'] ?? null)
+            );
+            $pageImageAlt = Seo::suggestAlt((string) $product['name'], null, $product['oem'] ?? null);
         }
 
         $similar_parts_data = \App\models\Product::search(['categories' => [$product['category']]], 1, 4);
@@ -119,6 +246,9 @@ class PartController extends Controller
         if (isset($_SESSION['user_id'])) {
             $can_comment = \App\models\Product::canUserComment($id, $_SESSION['user_id']);
         }
+
+        // مقالات آموزشی همین قطعه — بخش «راهنمای فنی و سرویس» (ساختار سیلو)
+        $guideArticles = \App\models\Product::getRelatedArticles($id, 3);
 
         $schemaMarkup = \App\models\Product::generateSchema($product, $comments);
 

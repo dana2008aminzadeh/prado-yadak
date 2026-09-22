@@ -22,6 +22,8 @@ class ProductController extends BaseController
         'primaryImage' => 'products.edit',
         'export'       => 'products.view',
         'stock'        => 'products.stock',
+        'saveImageMeta' => 'products.edit',
+        'suggestSeo'   => 'products.edit',
     ];
 
     // ---------------------------------------------------------------- لیست
@@ -104,6 +106,9 @@ class ProductController extends BaseController
             'id' => 0, 'name' => '', 'slug' => '', 'category_id' => null, 'price' => 0, 'oem_code' => '',
             'car_model' => '', 'brand' => '', 'is_genuine' => 0, 'in_stock' => 1, 'description' => '',
             'telegram_photo_id' => '', 'stock_qty' => 0, 'low_stock_threshold' => 3, 'track_stock' => 1,
+            // فیلدهای اختصاصی سئو
+            'meta_title' => '', 'meta_description' => '', 'focus_keyword' => '',
+            'robots_directive' => 'default', 'canonical_url' => '', 'seo_score' => 0,
         ];
         $this->renderForm($product, 'افزودن محصول جدید');
     }
@@ -132,8 +137,14 @@ class ProductController extends BaseController
         $presets    = Model::all('SELECT * FROM attribute_presets ORDER BY sort_order, id');
         $movements  = $pid ? Model::all('SELECT * FROM stock_movements WHERE product_id = ? ORDER BY created_at DESC LIMIT 15', [$pid]) : [];
 
+        // تحلیل سئو سمت سرور (چراغ راهنمای اولیه؛ نسخه زنده در مرورگر به‌روز می‌شود)
+        $seo = \Core\SeoAnalyzer::analyzeProduct($product, [
+            'site_name' => $GLOBALS['settings']['site_title'] ?? 'پرادو یدک',
+            'images'    => $images,
+        ]);
+
         $this->view('products/form',
-            compact('product', 'categories', 'carModels', 'images', 'attributes', 'vehicles', 'presets', 'movements'),
+            compact('product', 'categories', 'carModels', 'images', 'attributes', 'vehicles', 'presets', 'movements', 'seo'),
             $title);
     }
 
@@ -166,8 +177,20 @@ class ProductController extends BaseController
             $slug .= '-' . random_int(100, 999);
         }
 
+        // ------------------------------------------------------------------
+        // تغییر اسلاگ = خطر ۴۰۴ و نابودی رتبه. آدرس قبلی همین‌جا برای
+        // ریدایرکت دائمی ۳۰۱ ثبت می‌شود.
+        // ------------------------------------------------------------------
+        $oldSlug = (string) ($old['slug'] ?? '');
+        $slugChanged = $oldSlug !== '' && $oldSlug !== $slug;
+
         $trackStock = post('track_stock') ? 1 : 0;
         $stockQty = max(0, (int) post('stock_qty', 0));
+
+        $robots = (string) post('robots_directive', 'default');
+        if (!in_array($robots, ['default', 'index', 'noindex', 'noindex_nofollow'], true)) {
+            $robots = 'default';
+        }
 
         $data = [
             'name'                => $name,
@@ -180,6 +203,12 @@ class ProductController extends BaseController
             'description'         => (string) post('description'),
             'low_stock_threshold' => max(0, (int) post('low_stock_threshold', 3)),
             'track_stock'         => $trackStock,
+            // ---- فیلدهای اختصاصی سئو (خالی = استفاده از فرمول خودکار) ----
+            'meta_title'          => mb_substr(trim((string) post('meta_title')), 0, 255, 'UTF-8') ?: null,
+            'meta_description'    => mb_substr(trim((string) post('meta_description')), 0, 320, 'UTF-8') ?: null,
+            'focus_keyword'       => mb_substr(trim((string) post('focus_keyword')), 0, 120, 'UTF-8') ?: null,
+            'robots_directive'    => $robots,
+            'canonical_url'       => mb_substr(trim((string) post('canonical_url')), 0, 255, 'UTF-8') ?: null,
         ];
 
         // موجودی: اگر ردیابی خاموش است، سوییچ دستی موجود/ناموجود
@@ -190,6 +219,7 @@ class ProductController extends BaseController
         $db = Model::db();
         $db->beginTransaction();
         try {
+            $data = Model::filterColumns('products', $data);
             if ($pid) {
                 Model::update('products', $pid, $data);
             } else {
@@ -224,7 +254,24 @@ class ProductController extends BaseController
             back();
         }
 
+        // ---- ثبت ریدایرکت ۳۰۱ برای آدرس قبلی ----
+        if (!empty($slugChanged)) {
+            \App\models\Redirect::add('/product/' . $oldSlug, '/product/' . $slug, [
+                'entity_type' => 'product',
+                'entity_id'   => $pid,
+                'source'      => 'auto',
+                'note'        => 'تغییر خودکار اسلاگ محصول: ' . $name,
+            ]);
+            $this->audit('product.update', 'product', $pid,
+                'ثبت ریدایرکت ۳۰۱ از /product/' . $oldSlug . ' به /product/' . $slug);
+            flash('info', 'آدرس قبلی محصول با ریدایرکت دائمی ۳۰۱ به آدرس جدید منتقل شد.');
+        }
+
         $new = Model::find('products', $pid);
+
+        // ---- محاسبه و ذخیره امتیاز سئو ----
+        $this->refreshSeoScore($pid, $new ?? []);
+
         $this->audit($old ? 'product.update' : 'product.create', 'product', $pid,
             ($old ? 'ویرایش' : 'ایجاد') . ' محصول: ' . $name, $old, $new);
 
@@ -235,6 +282,85 @@ class ProductController extends BaseController
 
         flash('success', $old ? 'محصول با موفقیت به‌روزرسانی شد.' : 'محصول جدید ایجاد شد.');
         redirect(admin_url('products/edit/' . $pid));
+    }
+
+    /** محاسبه و ذخیره امتیاز سئوی محصول */
+    private function refreshSeoScore(int $pid, array $product): void
+    {
+        if (!$product) {
+            return;
+        }
+        try {
+            $images = Model::all('SELECT alt_text FROM product_images WHERE product_id = ?', [$pid]);
+            $res = \Core\SeoAnalyzer::analyzeProduct($product, [
+                'site_name' => $GLOBALS['settings']['site_title'] ?? 'پرادو یدک',
+                'images'    => $images,
+            ]);
+            Model::exec('UPDATE products SET seo_score = ? WHERE id = ?', [(int) $res['score'], $pid]);
+        } catch (\Throwable $e) {
+            // ستون seo_score هنوز مهاجرت نشده
+        }
+    }
+
+    /** ذخیره متن جایگزین (alt) و نام فایل سئوی تصاویر گالری */
+    public function saveImageMeta($id = 0): void
+    {
+        $pid = (int) post('product_id', $id);
+        $alts = (array) post('image_alt', []);
+        $names = (array) post('image_seo_name', []);
+
+        $saved = 0;
+        foreach ($alts as $imgId => $alt) {
+            $imgId = (int) $imgId;
+            $img = Model::find('product_images', $imgId);
+            if (!$img || (int) $img['product_id'] !== $pid) {
+                continue;
+            }
+            Model::update('product_images', $imgId, Model::filterColumns('product_images', [
+                'alt_text'     => mb_substr(trim((string) $alt), 0, 255, 'UTF-8') ?: null,
+                'seo_filename' => mb_substr(trim((string) ($names[$imgId] ?? '')), 0, 160, 'UTF-8') ?: null,
+            ]));
+            $saved++;
+        }
+
+        $this->refreshSeoScore($pid, Model::find('products', $pid) ?? []);
+        $this->audit('product.image', 'product', $pid, 'به‌روزرسانی متن جایگزین ' . $saved . ' تصویر');
+        flash('success', 'متن جایگزین ' . $saved . ' تصویر ذخیره شد.');
+        redirect(admin_url('products/edit/' . $pid));
+    }
+
+    /**
+     * پیشنهاد خودکار متا و alt بر اساس نام قطعه، مدل خودرو و کد فنی (AJAX)
+     */
+    public function suggestSeo($id = 0): void
+    {
+        $pid = (int) post('product_id', $id);
+        $p = Model::find('products', $pid);
+        if (!$p) {
+            $this->json(['success' => false, 'message' => 'محصول یافت نشد.'], 404);
+        }
+
+        $siteName = $GLOBALS['settings']['site_title'] ?? 'پرادو یدک';
+        $modelName = (string) (Model::scalar(
+            'SELECT cm.name FROM product_vehicles pv JOIN car_models cm ON cm.id = pv.car_model_id
+             WHERE pv.product_id = ? ORDER BY pv.id LIMIT 1', [$pid]
+        ) ?: '');
+
+        $entity = $p + ['oem' => $p['oem_code'] ?? null, 'desc' => $p['description'] ?? ''];
+
+        $images = Model::all('SELECT id FROM product_images WHERE product_id = ? ORDER BY is_primary DESC, sort_order', [$pid]);
+        $altSuggestions = [];
+        foreach ($images as $i => $img) {
+            $altSuggestions[(int) $img['id']] = \Core\Seo::suggestAlt((string) $p['name'], $modelName ?: null, $p['oem_code'] ?? null, (int) $i);
+        }
+
+        $this->json([
+            'success' => true,
+            'meta_title' => \Core\Seo::productTitle($entity, $siteName),
+            'meta_description' => \Core\Seo::productDescription($entity, $siteName),
+            'focus_keyword' => trim($p['name'] . ($modelName ? ' ' . $modelName : '')),
+            'alts' => $altSuggestions,
+        ]);
     }
 
     /** ثبت مدل‌های خودرو سازگار */
@@ -330,6 +456,13 @@ class ProductController extends BaseController
         $maxOrder = (int) Model::scalar('SELECT COALESCE(MAX(sort_order), -1) FROM product_images WHERE product_id = ?', [$pid]);
         $hasPrimary = (int) Model::scalar('SELECT COUNT(*) FROM product_images WHERE product_id = ? AND is_primary = 1', [$pid]) > 0;
 
+        // داده‌های لازم برای پیشنهاد خودکار alt و نام فایل سئو
+        $prod = Model::find('products', $pid) ?? [];
+        $modelName = (string) (Model::scalar(
+            'SELECT cm.name FROM product_vehicles pv JOIN car_models cm ON cm.id = pv.car_model_id
+             WHERE pv.product_id = ? ORDER BY pv.id LIMIT 1', [$pid]
+        ) ?: '');
+
         for ($i = 0; $i < $count; $i++) {
             $one = is_array($files['name'])
                 ? ['name' => $files['name'][$i], 'type' => $files['type'][$i], 'tmp_name' => $files['tmp_name'][$i],
@@ -344,14 +477,18 @@ class ProductController extends BaseController
                 continue;
             }
 
-            Model::insert('product_images', [
+            // متن جایگزین و نام فایل سئو به‌صورت خودکار پیشنهاد می‌شوند
+            // (مدیر می‌تواند در همان صفحه ویرایششان کند)
+            $idx = $maxOrder + 1;
+            Model::insert('product_images', Model::filterColumns('product_images', [
                 'product_id'       => $pid,
                 'telegram_file_id' => $res['telegram_file_id'] ?? null,
                 'image_path'       => $res['path'] ?? null,
-                'alt_text'         => null,
+                'alt_text'         => \Core\Seo::suggestAlt((string) ($prod['name'] ?? ''), $modelName ?: null, $prod['oem_code'] ?? null, (int) $idx),
+                'seo_filename'     => \Core\Seo::imageSlug((string) ($prod['name'] ?? ''), $prod['oem_code'] ?? null, $modelName ?: null, (int) $idx),
                 'is_primary'       => (!$hasPrimary && $saved === 0) ? 1 : 0,
                 'sort_order'       => ++$maxOrder,
-            ]);
+            ]));
             $saved++;
         }
 

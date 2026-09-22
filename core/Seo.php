@@ -1,0 +1,475 @@
+<?php
+
+namespace Core;
+
+/**
+ * موتور مرکزی سئو — پرادو یدک
+ * ---------------------------------------------------------------------------
+ * تمام منطق سئوی سایت (متاتگ‌ها، کانونیکال، ربات‌ها، JSON-LD گرافی و آدرس تصاویر)
+ * از همین کلاس تغذیه می‌شود تا هیچ تناقضی بین قالب‌ها و کنترلرها پیش نیاید.
+ *
+ * اصل حاکم بر متاها: «اولویت‌بندی سلسله‌مراتبی»
+ *   ۱) مقدار دستی ثبت‌شده توسط مدیر (meta_title / meta_description)
+ *   ۲) فرمول هوشمند مخصوص همان نوع محتوا
+ *   ۳) مقدار پیش‌فرض سراسری سایت
+ */
+class Seo
+{
+    /** بازه‌های استاندارد پیشنهادی گوگل */
+    public const TITLE_MIN = 50;
+    public const TITLE_MAX = 60;
+    public const DESC_MIN  = 120;
+    public const DESC_MAX  = 155;
+
+    /** پارامترهایی که در کانونیکال نگه داشته می‌شوند (به همین ترتیب ثابت) */
+    public const CANONICAL_PARAMS = ['category', 'model', 'brand', 'page'];
+
+    /** پارامترهایی که همیشه باعث noindex می‌شوند (فیلتر کم‌ارزش/جستجو/مرتب‌سازی) */
+    public const NOINDEX_PARAMS = ['q', 'sort', 'maxPrice', 'minPrice', 'inStock', 'view', 'utm_source', 'utm_medium', 'utm_campaign'];
+
+    // ---------------------------------------------------------------- آدرس‌ها
+
+    /** آدرس مطلق پایه سایت بدون اسلش پایانی (مقاوم در برابر SITE_URL با یا بدون پروتکل) */
+    public static function base(): string
+    {
+        $raw = defined('SITE_URL') ? (string) SITE_URL : ($_SERVER['HTTP_HOST'] ?? 'pradoyadak.com');
+        $raw = trim($raw);
+
+        if (preg_match('#^https?://#i', $raw)) {
+            return rtrim($raw, '/');
+        }
+
+        $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+
+        return rtrim(($https ? 'https' : 'http') . '://' . ltrim($raw, '/'), '/');
+    }
+
+    /** تبدیل یک مسیر نسبی به آدرس مطلق */
+    public static function absolute(string $path): string
+    {
+        if ($path === '') {
+            return self::base() . '/';
+        }
+        if (preg_match('#^https?://#i', $path)) {
+            return $path;
+        }
+        return self::base() . '/' . ltrim($path, '/');
+    }
+
+    /**
+     * نرمال‌سازی رشته‌ی کوئری: ترتیب پارامترها همیشه ثابت است تا
+     * /parts?model=x&category=y و /parts?category=y&model=x یک کانونیکال یکسان بدهند.
+     */
+    public static function normalizeQuery(array $get, array $allowed = self::CANONICAL_PARAMS): string
+    {
+        $clean = [];
+        foreach ($allowed as $key) {
+            if (!isset($get[$key])) {
+                continue;
+            }
+            $value = $get[$key];
+
+            if (is_array($value)) {
+                $value = implode(',', array_map('strval', $value));
+            }
+            $value = trim((string) $value);
+            if ($value === '') {
+                continue;
+            }
+
+            // مقادیر چندتایی (مثل category=a,b) نیز مرتب می‌شوند
+            if (str_contains($value, ',')) {
+                $parts = array_values(array_unique(array_filter(array_map('trim', explode(',', $value)), 'strlen')));
+                sort($parts, SORT_STRING);
+                $value = implode(',', $parts);
+            }
+
+            if ($key === 'page') {
+                $page = (int) $value;
+                if ($page <= 1) {
+                    continue;
+                }
+                $value = (string) $page;
+            }
+
+            $clean[$key] = $value;
+        }
+
+        return $clean ? http_build_query($clean, '', '&', PHP_QUERY_RFC3986) : '';
+    }
+
+    /** آدرس کانونیکال نرمال‌شده‌ی کاتالوگ */
+    public static function catalogCanonical(array $get, string $path = '/parts'): string
+    {
+        $qs = self::normalizeQuery($get);
+        return self::absolute($path) . ($qs ? '?' . $qs : '');
+    }
+
+    /**
+     * تصمیم‌گیری ربات‌ها برای صفحات کاتالوگ:
+     *  - جستجو / مرتب‌سازی / فیلتر قیمت  → noindex, follow
+     *  - ترکیب بیش از دو فیلتر اصلی        → noindex, follow (محتوای کم‌ارزش/تکراری)
+     *  - در غیر این صورت                   → index, follow
+     */
+    public static function catalogRobots(array $get): string
+    {
+        foreach (self::NOINDEX_PARAMS as $param) {
+            if (isset($get[$param]) && trim((string) (is_array($get[$param]) ? implode(',', $get[$param]) : $get[$param])) !== '') {
+                return 'noindex, follow';
+            }
+        }
+
+        $active = 0;
+        foreach (['category', 'model', 'brand'] as $param) {
+            $value = $get[$param] ?? '';
+            $value = is_array($value) ? implode(',', $value) : (string) $value;
+            if (trim($value) === '') {
+                continue;
+            }
+            // چند مقدار هم‌زمان روی یک فیلتر = ترکیب کم‌ارزش
+            $active += count(array_filter(array_map('trim', explode(',', $value)), 'strlen'));
+        }
+
+        return $active > 2 ? 'noindex, follow' : 'index, follow';
+    }
+
+    // ---------------------------------------------------------------- متاها
+
+    /**
+     * حل سلسله‌مراتبی متاتگ‌ها.
+     *
+     * @param array $entity   رکورد محصول/مقاله/لندینگ (ممکن است کلیدهای سئو را نداشته باشد)
+     * @param array $fallback ['title' => ..., 'description' => ..., 'canonical' => ..., 'robots' => ...]
+     * @return array{title:string,description:string,canonical:string,robots:string,source:array}
+     */
+    public static function resolve(array $entity, array $fallback): array
+    {
+        $manualTitle = trim((string) ($entity['meta_title'] ?? ''));
+        $manualDesc  = trim((string) ($entity['meta_description'] ?? ''));
+        $manualCanon = trim((string) ($entity['canonical_url'] ?? ''));
+        $directive   = (string) ($entity['robots_directive'] ?? 'default');
+
+        $title = $manualTitle !== '' ? $manualTitle : (string) ($fallback['title'] ?? '');
+        $desc  = $manualDesc  !== '' ? $manualDesc  : (string) ($fallback['description'] ?? '');
+
+        $robots = (string) ($fallback['robots'] ?? 'index, follow');
+        if ($directive === 'noindex') {
+            $robots = 'noindex, follow';
+        } elseif ($directive === 'noindex_nofollow') {
+            $robots = 'noindex, nofollow';
+        } elseif ($directive === 'index') {
+            $robots = 'index, follow';
+        }
+
+        return [
+            'title'       => self::clean($title),
+            'description' => self::clean($desc),
+            'canonical'   => $manualCanon !== '' ? self::absolute($manualCanon) : (string) ($fallback['canonical'] ?? ''),
+            'robots'      => $robots,
+            'source'      => [
+                'title'       => $manualTitle !== '' ? 'manual' : 'auto',
+                'description' => $manualDesc !== '' ? 'manual' : 'auto',
+            ],
+        ];
+    }
+
+    /** پاک‌سازی متن برای استفاده در متاتگ (حذف تگ‌ها، فاصله‌های اضافه و نیم‌فاصله‌های خراب) */
+    public static function clean(?string $text): string
+    {
+        $text = strip_tags((string) $text);
+        $text = html_entity_decode($text, ENT_QUOTES, 'UTF-8');
+        $text = preg_replace('/\s+/u', ' ', $text) ?? '';
+        return trim($text);
+    }
+
+    /** بریدن متن روی مرز کلمه (نه وسط کلمه) */
+    public static function truncate(?string $text, int $limit): string
+    {
+        $text = self::clean($text);
+        if (mb_strlen($text, 'UTF-8') <= $limit) {
+            return $text;
+        }
+        $cut = mb_substr($text, 0, $limit, 'UTF-8');
+        $pos = mb_strrpos($cut, ' ', 0, 'UTF-8');
+        if ($pos !== false && $pos > $limit * 0.6) {
+            $cut = mb_substr($cut, 0, $pos, 'UTF-8');
+        }
+        return rtrim($cut, ' ،-') . '…';
+    }
+
+    // ------------------------------------------------- فرمول‌های پشتیبان متا
+
+    /** عنوان پیشنهادی محصول: نام + کد فنی + برند + نام سایت (کوتاه‌شده به ۶۰ کاراکتر) */
+    public static function productTitle(array $product, string $siteName): string
+    {
+        $parts = [trim((string) ($product['name'] ?? ''))];
+
+        $oem = trim((string) ($product['oem'] ?? $product['oem_code'] ?? ''));
+        if ($oem !== '') {
+            $parts[] = $oem;
+        }
+
+        $base = implode(' ', $parts);
+        $full = $base . ' | ' . $siteName;
+
+        if (mb_strlen($full, 'UTF-8') > self::TITLE_MAX) {
+            $room = self::TITLE_MAX - mb_strlen(' | ' . $siteName, 'UTF-8');
+            $base = self::truncate($base, max(20, $room));
+            $full = $base . ' | ' . $siteName;
+        }
+        return $full;
+    }
+
+    /** توضیحات پیشنهادی محصول: پیام فروش + کد فنی + وضعیت موجودی */
+    public static function productDescription(array $product, string $siteName): string
+    {
+        $name  = trim((string) ($product['name'] ?? ''));
+        $oem   = trim((string) ($product['oem'] ?? $product['oem_code'] ?? ''));
+        $brand = trim((string) ($product['brand'] ?? ''));
+        $stock = !empty($product['inStock']) || !empty($product['in_stock']);
+
+        $desc = 'خرید ' . $name
+            . ($oem !== '' ? ' با کد فنی ' . $oem : '')
+            . ($brand !== '' ? ' برند ' . $brand : '')
+            . ($stock ? '؛ موجود در انبار' : '؛ استعلام موجودی')
+            . ' با ضمانت ۱۰۰٪ اصالت، فاکتور رسمی و ارسال سریع به سراسر کشور از ' . $siteName . '.';
+
+        if (mb_strlen($desc, 'UTF-8') < self::DESC_MIN) {
+            $extra = self::clean((string) ($product['desc'] ?? $product['description'] ?? ''));
+            if ($extra !== '') {
+                $desc = rtrim($desc, '.') . ' ' . $extra;
+            }
+        }
+
+        return self::truncate($desc, self::DESC_MAX);
+    }
+
+    /** توضیحات پیشنهادی مقاله */
+    public static function articleDescription(array $article, string $siteName): string
+    {
+        $summary = self::clean((string) ($article['summary'] ?? ''));
+        if ($summary === '') {
+            $summary = self::clean((string) ($article['content'] ?? ''));
+        }
+        if ($summary === '') {
+            $summary = 'راهنمای فنی ' . (string) ($article['title'] ?? '') . ' از کارشناسان ' . $siteName . '.';
+        }
+        return self::truncate($summary, self::DESC_MAX);
+    }
+
+    // ---------------------------------------------------------------- تصاویر
+
+    /**
+     * ساخت نام فایل سئوشده برای تصویر قطعه.
+     * خروجی نمونه: «لنت-ترمز-جلو-کمری-04465-33471»
+     */
+    public static function imageSlug(string $productName, ?string $oem = null, ?string $carModel = null, int $index = 0): string
+    {
+        $parts = array_filter([
+            trim($productName),
+            trim((string) $carModel),
+            trim((string) $oem),
+            $index > 0 ? (string) ($index + 1) : '',
+        ], 'strlen');
+
+        $slug = implode('-', $parts);
+        $slug = preg_replace('/[^\p{L}\p{N}\-]+/u', '-', $slug) ?? '';
+        $slug = preg_replace('/-+/u', '-', $slug) ?? '';
+        $slug = trim($slug, '-');
+
+        return $slug !== '' ? mb_substr($slug, 0, 120, 'UTF-8') : 'toyota-part';
+    }
+
+    /** متن جایگزین پیشنهادی تصویر (alt) بر پایه نام قطعه، خودرو و کد فنی */
+    public static function suggestAlt(string $productName, ?string $carModelName = null, ?string $oem = null, int $index = 0): string
+    {
+        $alt = trim($productName);
+        if ($carModelName) {
+            $alt .= ' تویوتا ' . $carModelName;
+        }
+        if ($oem) {
+            $alt .= ' کد فنی ' . $oem;
+        }
+        $alt .= $index > 0 ? ' — نمای ' . ($index + 1) : '';
+        return mb_substr(trim($alt), 0, 160, 'UTF-8');
+    }
+
+    /**
+     * آدرس سرو تصویر با نام سئوشده.
+     * به‌جای /image?id=AgACAgQ... خروجی به شکل
+     * /media/لنت-ترمز-جلو-کمری-04465-33471--AgACAgQ.jpg خواهد بود.
+     */
+    public static function imageUrl(?string $identifier, string $seoName = '', string $ext = 'jpg'): string
+    {
+        $identifier = trim((string) $identifier);
+        if ($identifier === '') {
+            return '/assets/logo/logo.webp';
+        }
+
+        // فایل‌های ذخیره‌شده روی دیسک مستقیم سرو می‌شوند
+        if (str_starts_with($identifier, 'uploads/') || str_starts_with($identifier, '/') || preg_match('#^https?://#i', $identifier)) {
+            return str_starts_with($identifier, 'uploads/') ? '/' . $identifier : $identifier;
+        }
+
+        $seoName = $seoName !== '' ? self::imageSlug($seoName) : 'toyota-part';
+        return '/media/' . rawurlencode($seoName . '--' . $identifier) . '.' . $ext;
+    }
+
+    // ------------------------------------------------------------- JSON-LD
+
+    /**
+     * ساخت یک بلوک واحد JSON-LD بر پایه @graph
+     * @param array<int,array> $nodes گره‌های اسکیما (Product، BlogPosting، BreadcrumbList و ...)
+     */
+    public static function graph(array $nodes): string
+    {
+        $nodes = array_values(array_filter($nodes));
+        if (!$nodes) {
+            return '';
+        }
+
+        $payload = [
+            '@context' => 'https://schema.org',
+            '@graph'   => $nodes,
+        ];
+
+        return '<script type="application/ld+json">' . "\n"
+            . json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT)
+            . "\n" . '</script>';
+    }
+
+    /** گره سازمان/فروشگاه — با @id ثابت تا بقیه گره‌ها به آن ارجاع دهند */
+    public static function organizationNode(array $settings = []): array
+    {
+        $base = self::base();
+        $name = $settings['site_title'] ?? 'پرادو یدک';
+        $phone = $settings['phone_number'] ?? '';
+
+        $node = [
+            '@type' => 'AutoPartsStore',
+            '@id'   => $base . '/#organization',
+            'name'  => $name,
+            'url'   => $base . '/',
+            'logo'  => [
+                '@type' => 'ImageObject',
+                '@id'   => $base . '/#logo',
+                'url'   => $base . '/assets/logo/logo.webp',
+            ],
+            'image'       => $base . '/assets/logo/logo.webp',
+            'description' => $settings['site_description']
+                ?? 'فروشگاه تخصصی قطعات اصلی تویوتا و لکسوس با ضمانت اصالت کالا.',
+            'priceRange'  => '$$',
+            'currenciesAccepted' => 'IRR',
+            'areaServed'  => ['@type' => 'Country', 'name' => 'IR'],
+        ];
+
+        if ($phone) {
+            $node['telephone'] = $phone;
+            $node['contactPoint'] = [
+                '@type'       => 'ContactPoint',
+                'telephone'   => $phone,
+                'contactType' => 'customer service',
+                'areaServed'  => 'IR',
+                'availableLanguage' => ['fa'],
+            ];
+        }
+
+        return $node;
+    }
+
+    /** گره وب‌سایت به همراه SearchAction */
+    public static function websiteNode(array $settings = []): array
+    {
+        $base = self::base();
+        return [
+            '@type'     => 'WebSite',
+            '@id'       => $base . '/#website',
+            'url'       => $base . '/',
+            'name'      => $settings['site_title'] ?? 'پرادو یدک',
+            'inLanguage' => 'fa-IR',
+            'publisher' => ['@id' => $base . '/#organization'],
+            'potentialAction' => [
+                '@type'  => 'SearchAction',
+                'target' => [
+                    '@type'       => 'EntryPoint',
+                    'urlTemplate' => $base . '/parts?q={search_term_string}',
+                ],
+                'query-input' => 'required name=search_term_string',
+            ],
+        ];
+    }
+
+    /** گره صفحه جاری */
+    public static function webPageNode(string $url, string $title, string $description, ?string $image = null): array
+    {
+        $base = self::base();
+        $node = [
+            '@type'      => 'WebPage',
+            '@id'        => $url . '#webpage',
+            'url'        => $url,
+            'name'       => $title,
+            'description' => $description,
+            'inLanguage' => 'fa-IR',
+            'isPartOf'   => ['@id' => $base . '/#website'],
+            'about'      => ['@id' => $base . '/#organization'],
+        ];
+        if ($image) {
+            $node['primaryImageOfPage'] = ['@type' => 'ImageObject', 'url' => $image];
+        }
+        return $node;
+    }
+
+    /** گره نان‌ریزه از روی آرایه [ ['name'=>..., 'url'=>...], ... ] */
+    public static function breadcrumbNode(array $items, string $pageUrl = ''): array
+    {
+        $list = [];
+        $pos = 1;
+        foreach ($items as $item) {
+            $list[] = [
+                '@type'    => 'ListItem',
+                'position' => $pos++,
+                'name'     => $item['name'],
+                'item'     => self::absolute($item['url']),
+            ];
+        }
+
+        return [
+            '@type' => 'BreadcrumbList',
+            '@id'   => ($pageUrl !== '' ? $pageUrl : self::base() . '/') . '#breadcrumb',
+            'itemListElement' => $list,
+        ];
+    }
+
+    /**
+     * نگاشت وضعیت موجودی به مقدار دقیق Schema.org
+     * (گوگل برای Merchant Listings به این مقادیر حساس است.)
+     */
+    public static function availability(array $product): string
+    {
+        $inStock = !empty($product['inStock']) || !empty($product['in_stock']);
+        $qty = isset($product['stock_qty']) ? (int) $product['stock_qty'] : null;
+        $discontinued = !empty($product['discontinued']);
+
+        if ($discontinued) {
+            return 'https://schema.org/Discontinued';
+        }
+        if ($inStock && ($qty === null || $qty > 0)) {
+            return 'https://schema.org/InStock';
+        }
+        if ($qty !== null && $qty <= 0 && $inStock) {
+            return 'https://schema.org/LimitedAvailability';
+        }
+        return 'https://schema.org/OutOfStock';
+    }
+
+    /**
+     * واحد پولی: قیمت‌های دیتابیس «تومان» هستند.
+     * گوگل برای ایران واحد رسمی IRR را می‌شناسد؛ بنابراین مقدار به ریال تبدیل
+     * می‌شود ولی به‌صورت عدد صحیح و بدون اعشار تا خطای Merchant رخ ندهد.
+     */
+    public static function priceIRR(float $tomanPrice): string
+    {
+        return number_format($tomanPrice * 10, 0, '.', '');
+    }
+}
