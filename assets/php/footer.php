@@ -31,7 +31,7 @@ if (!isset($current_page)) {
                         تویوتا، راهنمای نگهداری و شیوه‌های تشخیص قطعات اصلی از تقلبی.</p>
                 <?php elseif (str_starts_with($current_page, '/parts') || str_starts_with($current_page, '/product')): ?>
                     <p class="text-gray-400 text-sm leading-relaxed mb-3">تأمین‌کننده تخصصی قطعات اصلی تویوتا و لکسوس با
-                        ضمانت ۱۰۰٪ اصالت کالا و تطابق با شماره شاسی (VIN).</p>
+                        ضمانت بازگشت وجه در صورت اثبات عدم اصالت کالا و تطابق با شماره شاسی (VIN).</p>
                 <?php else: ?>
                     <p class="text-gray-400 text-sm leading-relaxed mb-3">تأمین‌کننده تخصصی قطعات اصلی تویوتا و لکسوس با بیش
                         از ۱۵ سال تجربه، ضمانت اصالت و ارسال سریع به سراسر کشور.</p>

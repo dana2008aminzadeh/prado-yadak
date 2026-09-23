@@ -29,20 +29,31 @@ class Seo
 
     // ---------------------------------------------------------------- آدرس‌ها
 
-    /** آدرس مطلق پایه سایت بدون اسلش پایانی (مقاوم در برابر SITE_URL با یا بدون پروتکل) */
+    /** دامنه‌ی ثابت و واقعی پروژه — تنها fallback مجاز وقتی SITE_URL تعریف نشده. */
+    private const FALLBACK_HOST = 'pradoyadak.com';
+
+    /**
+     * آدرس مطلق پایه سایت بدون اسلش پایانی.
+     * ---------------------------------------------------------------------
+     * تصمیم امنیتی قطعی پروژه: این متد هرگز از $_SERVER['HTTP_HOST'] یا
+     * X-Forwarded-Host استفاده نمی‌کند، چون این هدرها را کاربر/پراکسی کنترل
+     * می‌کند و اعتماد به آن‌ها باعث «Host Header Injection» در کانونیکال،
+     * Sitemap، OG:url و JSON-LD می‌شود (URL Poisoning). تنها منبع معتبر
+     * ثابت SITE_URL (تعریف‌شده در index.php/admin/index.php) است؛ در نبود
+     * آن هم فقط دامنه‌ی واقعی و ثابت سایت به‌کار می‌رود، نه هدر درخواست.
+     */
     public static function base(): string
     {
-        $raw = defined('SITE_URL') ? (string) SITE_URL : ($_SERVER['HTTP_HOST'] ?? 'pradoyadak.com');
-        $raw = trim($raw);
+        $raw = defined('SITE_URL') ? trim((string) SITE_URL) : '';
+        if ($raw === '') {
+            $raw = self::FALLBACK_HOST;
+        }
 
         if (preg_match('#^https?://#i', $raw)) {
             return rtrim($raw, '/');
         }
 
-        $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-            || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
-
-        return rtrim(($https ? 'https' : 'http') . '://' . ltrim($raw, '/'), '/');
+        return rtrim('https://' . ltrim($raw, '/'), '/');
     }
 
     /** تبدیل یک مسیر نسبی به آدرس مطلق */
@@ -326,7 +337,7 @@ class Seo
             . ($oem !== '' ? ' با کد فنی ' . $oem : '')
             . ($brand !== '' ? ' برند ' . $brand : '')
             . ($stock ? '؛ موجود در انبار' : '؛ استعلام موجودی')
-            . ' با ضمانت ۱۰۰٪ اصالت، فاکتور رسمی و ارسال سریع به سراسر کشور از ' . $siteName . '.';
+            . ' با ضمانت بازگشت وجه در صورت اثبات عدم اصالت، فاکتور رسمی و ارسال سریع به سراسر کشور از ' . $siteName . '.';
 
         if (mb_strlen($desc, 'UTF-8') < self::DESC_MIN) {
             $extra = self::clean((string) ($product['desc'] ?? $product['description'] ?? ''));

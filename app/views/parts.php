@@ -527,7 +527,7 @@
     <script type="application/json" id="ssr-parts-data">
     <?= json_encode($products ?? [], JSON_UNESCAPED_UNICODE) ?>
     </script>
-    <script src="/assets/js/main.js"></script>
+    <script src="/assets/js/main.min.js" defer></script>
 
 
 </body>

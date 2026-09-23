@@ -83,7 +83,11 @@ if (!in_array($current_page, $hide_floating_buttons_on)):
 
         <!-- در assets/php/header.php بخش لوگو: -->
         <a href="/" class="flex items-center gap-2.5 sm:gap-3 order-2 md:order-1">
-            <img src="/assets/logo/logo.webp" alt="<?= e($settings['site_title'] ?? 'پرادو یدک') ?>" loading="lazy"
+            <!-- لوگو همیشه بالای تاشدگی (above the fold) است؛ lazy-load آن سرعت
+                 LCP را کند می‌کرد. width/height صریح هم از Layout Shift (CLS)
+                 جلوگیری می‌کند. -->
+            <img src="/assets/logo/logo.webp" alt="<?= e($settings['site_title'] ?? 'پرادو یدک') ?>"
+                width="700" height="700" fetchpriority="high"
                 class="h-10 sm:h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-105">
             <div class="text-center md:text-right">
                 <span class="block text-base sm:text-lg font-extrabold leading-tight text-white">

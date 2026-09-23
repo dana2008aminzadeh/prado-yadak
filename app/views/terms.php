@@ -38,8 +38,8 @@
             </h1>
             <div class="w-20 h-1 bg-[#8b533a] mx-auto rounded-full"></div>
             <p class="text-gray-300 text-xs sm:text-sm max-w-2xl mx-auto leading-relaxed">
-                در مجموعه <?= e($siteTitle) ?>، حفظ اعتماد شما و ارائه‌ی لوازم یدکی ۱۰۰٪ اصلی (Genuine Parts) اولویت اول
-                ماست. کلیه
+                در مجموعه <?= e($siteTitle) ?>، حفظ اعتماد شما و ارائه‌ی لوازم یدکی اصلی (Genuine Parts) با ضمانت بازگشت
+                وجه در صورت اثبات عدم اصالت اولویت اول ماست. کلیه
                 شرایط تعویض، مرجوعی، تطابق شاسی و استرداد وجه با شفافیت کامل در این صفحه تنظیم شده است.
             </p>
         </div>
@@ -52,9 +52,9 @@
                     class="w-14 h-14 bg-[#8b533a]/10 border border-[#8b533a]/20 rounded-2xl flex items-center justify-center mx-auto group-hover:scale-110 transition-transform">
                     <i data-lucide="shield-check" class="w-7 h-7"></i>
                 </div>
-                <h2 class="font-bold text-sm text-white">ضمانت ۱۰۰٪ اصالت</h2>
-                <p class="text-xs text-gray-400 leading-relaxed">تضمین کتبی اصلی بودن کلیه قطعات جنیون پارتس و برندهای
-                    OEM ژاپنی</p>
+                <h2 class="font-bold text-sm text-white">ضمانت اصالت با بازگشت وجه</h2>
+                <p class="text-xs text-gray-400 leading-relaxed">در صورت اثبات غیر اصل بودن هر قطعه، بازگشت کامل وجه و
+                    هزینه ارسال طبق شرایط این صفحه</p>
             </div>
 
             <div
@@ -112,7 +112,8 @@
                     تامین لوازم
                     یدکی خودروهای تویوتا (شامل لندکروزر، پرادو، کمری، هایلوکس، کرولا و یاریس)، اصالت تمامی قطعات
                     عرضه‌شده تحت عنوان <strong class="text-brand-red">Toyota Genuine Parts</strong> و همچنین قطعات تجاری
-                    OEM معتبر (مانند Genuine Parts, Aisin, KYB, Advics, RBI, TYG, FPI) را به صورت ۱۰۰٪ تضمین می‌نماید.
+                    OEM معتبر (مانند Genuine Parts, Aisin, KYB, Advics, RBI, TYG, FPI) را با ضمانت بازگشت کامل وجه در
+                    صورت اثبات عدم اصالت، طبق شرایط این صفحه، تضمین می‌نماید.
                 </p>
 
                 <!-- باکس تعهد خسارت -->
@@ -415,8 +416,9 @@
                             <div
                                 class="p-4 text-xs sm:text-sm text-black font-medium leading-loose border-t border-gray-200 bg-gray-50">
                                 کافیست شماره ۱۷ رقمی شاسی خودرو (کد VIN درج شده روی کارت ماشین) را از طریق واتساپ یا
-                                تماس تلفنی به کارشناسان پرادو یدک اعلام کنید. ما قطعه را به وسیله نرم‌افزار رسمی تویوتا
-                                (Toyota EPC) تطبیق می‌دهیم و اصالت انتخاب را ۱۰۰٪ ضمانت می‌کنیم.
+                                تماس تلفنی به کارشناسان پرادو یدک اعلام کنید. کارشناسان ما شماره فنی (OEM) قطعه را با
+                                این کد تطبیق می‌دهند تا احتمال خطای خرید به حداقل برسد؛ در صورت اثبات عدم اصالت نیز
+                                وجه پرداختی طبق ضوابط بازگشت کالا عودت داده می‌شود.
                             </div>
                         </div>
                     </div>
@@ -493,7 +495,7 @@
 
     <?php include 'assets/php/footer.php'; ?>
 
-    <script src="/assets/js/main.js"></script>
+    <script src="/assets/js/main.min.js" defer></script>
 </body>
 
 </html>

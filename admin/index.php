@@ -27,7 +27,9 @@ if (!defined('BASE_PATH')) define('BASE_PATH', SITE_ROOT);
 if (!defined('APP_PATH'))   define('APP_PATH', SITE_ROOT . '/app');
 if (!defined('CORE_PATH'))  define('CORE_PATH', SITE_ROOT . '/core');
 if (!defined('VIEWS_PATH')) define('VIEWS_PATH', APP_PATH . '/views');
-if (!defined('SITE_URL'))   define('SITE_URL', $_SERVER['HTTP_HOST'] ?? 'localhost');
+// آدرس سایت هرگز از HTTP_HOST (قابل جعل توسط کاربر) گرفته نمی‌شود؛ دامنه‌ی
+// واقعی و ثابت پروژه همان مقداری است که در index.php اصلی نیز تعریف شده.
+if (!defined('SITE_URL'))   define('SITE_URL', 'https://pradoyadak.com');
 
 spl_autoload_register(function ($class) {
     $map = [

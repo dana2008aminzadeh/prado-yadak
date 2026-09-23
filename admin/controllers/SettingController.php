@@ -56,6 +56,12 @@ class SettingController extends BaseController
             'admin_notify_sound'   => ['پخش صدا هنگام رویداد جدید', 'bool'],
             'admin_poll_interval'  => ['فاصله بررسی اعلان‌ها (ثانیه)', 'text'],
         ],
+        'Search Console و مانیتورینگ' => [
+            'gsc_verification_content' => ['کد تایید Google Search Console (فقط محتوای content=)', 'text'],
+            'bing_verification_content' => ['کد تایید Bing Webmaster Tools (فقط محتوای content=)', 'text'],
+            'ga4_measurement_id'        => ['شناسه Google Analytics 4 (مثل G-XXXXXXX)', 'text'],
+            'gtm_container_id'          => ['شناسه Google Tag Manager (مثل GTM-XXXXXXX)', 'text'],
+        ],
     ];
 
     public function index($id = 0): void

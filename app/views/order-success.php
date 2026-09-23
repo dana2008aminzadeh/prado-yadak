@@ -102,14 +102,17 @@
 
     <?php include 'assets/php/footer.php'; ?>
 
-    <script src="/assets/js/main.js"></script>
+    <script src="/assets/js/main.min.js" defer></script>
     <script>
-        // تخلیه سبد خرید پس از ثبت موفق فاکتور
-        localStorage.removeItem('toyota_cart');
-        if (typeof cart !== 'undefined') {
-            cart = [];
-            updateCartUI();
-        }
+        // main.min.js با defer اجرا می‌شود؛ این بلوک هم به DOMContentLoaded
+        // موکول شده تا cart/updateCartUI پیش از اجرا حتماً تعریف شده باشند.
+        document.addEventListener('DOMContentLoaded', function () {
+            localStorage.removeItem('toyota_cart');
+            if (typeof cart !== 'undefined') {
+                cart = [];
+                updateCartUI();
+            }
+        });
     </script>
 </body>
 
