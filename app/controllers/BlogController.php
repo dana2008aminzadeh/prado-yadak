@@ -161,7 +161,7 @@ class BlogController extends Controller
             'mainEntityOfPage' => ['@id' => $articleUrl . '#webpage'],
             'headline' => Seo::truncate($article['title'], 110),
             'description' => $metaDescription,
-            'image' => [Seo::absolute($coverUrl)],
+            'image' => [$coverUrl],
             'datePublished' => date('Y-m-d\TH:i:sP', strtotime($article['created_at'])),
             'dateModified' => date('Y-m-d\TH:i:sP', strtotime($article['updated_at'] ?? $article['created_at'])),
             'wordCount' => $wordCount,
