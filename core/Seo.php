@@ -48,12 +48,21 @@ class Seo
     /** تبدیل یک مسیر نسبی به آدرس مطلق */
     public static function absolute(string $path): string
     {
+        $path = trim($path);
         if ($path === '') {
             return self::base() . '/';
         }
         if (preg_match('#^https?://#i', $path)) {
             return $path;
         }
+
+        // URLهای پروتکل‌نسبی (//cdn.example.com/...) نباید با دامنه‌ی سایت
+        // ترکیب شوند؛ آن‌ها را با پروتکل درخواست/سایت کامل می‌کنیم.
+        if (str_starts_with($path, '//')) {
+            $scheme = parse_url(self::base(), PHP_URL_SCHEME) ?: 'https';
+            return $scheme . ':' . $path;
+        }
+
         return self::base() . '/' . ltrim($path, '/');
     }
 
@@ -386,9 +395,16 @@ class Seo
             return '/assets/logo/logo.webp';
         }
 
-        // فایل‌های ذخیره‌شده روی دیسک مستقیم سرو می‌شوند
-        if (str_starts_with($identifier, 'uploads/') || str_starts_with($identifier, '/') || preg_match('#^https?://#i', $identifier)) {
-            return str_starts_with($identifier, 'uploads/') ? '/' . $identifier : $identifier;
+        // فایل‌های ذخیره‌شده روی دیسک مستقیم سرو می‌شوند. این فهرست
+        // مسیرهای نسبی قدیمی مقاله و محصولات را هم پوشش می‌دهد.
+        if (preg_match('#^(?:uploads|assets|media|images|storage)/#i', $identifier)) {
+            return '/' . ltrim($identifier, '/');
+        }
+        if (str_starts_with($identifier, '/') || preg_match('#^https?://#i', $identifier)) {
+            return $identifier;
+        }
+        if (preg_match('#^[^?]+\.(?:jpe?g|png|webp|gif)(?:\?.*)?$#i', $identifier)) {
+            return '/' . ltrim($identifier, '/');
         }
 
         $seoName = $seoName !== '' ? self::imageSlug($seoName) : 'toyota-part';
@@ -403,7 +419,26 @@ class Seo
      */
     public static function graph(array $nodes): string
     {
-        $nodes = array_values(array_filter($nodes));
+        // هر صفحه فقط یک نمونه از هر گره‌ی دارای @id داشته باشد. این نگهبان
+        // دفاعی است تا حتی اگر یک کنترلر به‌اشتباه گره‌ای را دوبار اضافه کرد،
+        // Organization، WebSite یا BreadcrumbList موازی وارد HTML نشود.
+        $seenIds = [];
+        $nodes = array_values(array_filter($nodes, static function ($node) use (&$seenIds): bool {
+            if (!is_array($node) || !$node) {
+                return false;
+            }
+
+            $id = trim((string) ($node['@id'] ?? ''));
+            if ($id === '') {
+                return true;
+            }
+            if (isset($seenIds[$id])) {
+                return false;
+            }
+
+            $seenIds[$id] = true;
+            return true;
+        }));
         if (!$nodes) {
             return '';
         }
@@ -483,6 +518,7 @@ class Seo
     public static function webPageNode(string $url, string $title, string $description, ?string $image = null): array
     {
         $base = self::base();
+        $url = self::absolute($url);
         $node = [
             '@type'      => 'WebPage',
             '@id'        => $url . '#webpage',
@@ -494,7 +530,10 @@ class Seo
             'about'      => ['@id' => $base . '/#organization'],
         ];
         if ($image) {
-            $node['primaryImageOfPage'] = ['@type' => 'ImageObject', 'url' => $image];
+            $node['primaryImageOfPage'] = [
+                '@type' => 'ImageObject',
+                'url'   => self::absolute($image),
+            ];
         }
         return $node;
     }
@@ -534,10 +573,16 @@ class Seo
         if ($cover === '') {
             return self::base() . '/assets/logo/logo.webp';
         }
-        if (preg_match('#^https?://#i', $cover)) {
-            return $cover;
-        }
-        return self::base() . self::imageUrl($cover, self::imageSlug((string) ($article['title'] ?? '')));
+
+        // cover_image در داده‌های قدیمی ممکن است URL کامل، مسیر نسبی فایل
+        // یا شناسه‌ی خام تلگرام باشد. imageUrl همه‌ی این حالت‌ها را به یک
+        // مسیر وب تبدیل می‌کند و absolute تضمین می‌کند خروجی Schema همیشه
+        // URL مطلق باشد.
+        $imagePath = self::imageUrl(
+            $cover,
+            self::imageSlug((string) ($article['title'] ?? ''))
+        );
+        return self::absolute($imagePath);
     }
 
     /**
@@ -619,17 +664,21 @@ class Seo
         $list = [];
         $pos = 1;
         foreach ($items as $item) {
+            if (!isset($item['name'], $item['url'])) {
+                continue;
+            }
             $list[] = [
                 '@type'    => 'ListItem',
                 'position' => $pos++,
                 'name'     => $item['name'],
-                'item'     => self::absolute($item['url']),
+                'item'     => self::absolute((string) $item['url']),
             ];
         }
 
+        $pageUrl = $pageUrl !== '' ? self::absolute($pageUrl) : self::base() . '/';
         return [
             '@type' => 'BreadcrumbList',
-            '@id'   => ($pageUrl !== '' ? $pageUrl : self::base() . '/') . '#breadcrumb',
+            '@id'   => $pageUrl . '#breadcrumb',
             'itemListElement' => $list,
         ];
     }
