@@ -292,7 +292,11 @@ global $settings;
                                     $modelName = is_array($modelData) ? ($modelData['name'] ?? $part['model']) : $modelData;
                                     $productUrl = "/product/" . $safeSlug;
                                 ?>
-                                <article itemscope itemtype="https://schema.org/Product"
+                                <!-- داده‌ساختاریافته این کارت‌ها فقط از طریق بلوک واحد
+                                     JSON-LD (@graph → ItemList) در HomeController ارسال می‌شود.
+                                     microdata روی کارت‌ها عمداً حذف شده تا گوگل دو نسخه‌ی
+                                     متناقض از Product/Offer دریافت نکند. -->
+                                <article
                                         class="slider-card shrink-0 w-[44%] sm:w-[240px] snap-start bg-white border border-[#a88d7c]/25 rounded-2xl p-2.5 sm:p-4 flex flex-col justify-between shadow-sm hover:shadow-md transition-all duration-300 relative group">
                                     
                                     <div>
@@ -325,7 +329,6 @@ global $settings;
                                                 <img src="<?= e($imgSrc) ?>"
                                                     alt="<?= e($imgAlt) ?>"
                                                     loading="lazy" decoding="async"
-                                                    itemprop="image"
                                                     class="max-w-full max-h-full object-contain transition-transform duration-500 group-hover:scale-105">
                                             <?php else: ?>
                                                 <span class="text-[#8b533a]/50 flex flex-col items-center gap-1" role="img" aria-label="تصویر محصول ثبت نشده است">
@@ -343,7 +346,7 @@ global $settings;
 
                                         <!-- عنوان قطعه -->
                                         <a href="<?= $productUrl ?>" class="block">
-                                            <h3 itemprop="name" 
+                                            <h3
                                                 class="font-bold text-[10px] sm:text-xs text-[#2b170c] leading-snug line-clamp-2 hover:text-brand-red transition-colors min-h-[28px] sm:min-h-[34px]">
                                                 <?= e($part['name']) ?>
                                             </h3>
@@ -353,19 +356,11 @@ global $settings;
                                             <i data-lucide="car" class="w-3 h-3 text-[#8b533a] shrink-0"></i>
                                             <span class="truncate"><?= e($modelName) ?></span>
                                         </p>
-
-                                        <meta itemprop="mpn" content="<?= e($part['oem'] ?? 'PRD-' . $part['id']) ?>">
-                                        <meta itemprop="sku" content="<?= e($part['oem'] ?? 'PRD-' . $part['id']) ?>">
                                     </div>
 
                                     <!-- بخش قیمت و دکمه خرید -->
-                                    <div itemprop="offers" itemscope itemtype="https://schema.org/Offer" 
+                                    <div
                                         class="mt-2.5 pt-2 sm:pt-3 border-t border-[#a88d7c]/15 flex items-center justify-between gap-1">
-                                        <meta itemprop="priceCurrency" content="IRR">
-                                        <meta itemprop="price" content="<?= ((float)$part['price']) * 10 ?>">
-                                        <link itemprop="availability" href="<?= $part['inStock'] ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock' ?>">
-                                        <link itemprop="url" href="<?= $productUrl ?>">
-
                                         <div class="min-w-0">
                                             <span class="text-[8px] text-[#5c473b] block leading-none mb-0.5">قیمت:</span>
                                             <span class="font-black text-[10px] sm:text-xs text-brand-red truncate block">
