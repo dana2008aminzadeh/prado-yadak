@@ -512,7 +512,12 @@ class Seo
         ];
     }
 
-    /** گره صفحه جاری */
+    /**
+     * گره صفحه جاری.
+     * تصویر ورودی همیشه مطلق‌سازی می‌شود تا هیچ‌گاه مقدار نسبی یا خام
+     * دیتابیس وارد اسکیمای صفحه نشود (قاعده‌ی ثابت: URL تصویر در Schema
+     * باید مطلق باشد).
+     */
     public static function webPageNode(string $url, string $title, string $description, ?string $image = null): array
     {
         $base = self::base();
@@ -526,8 +531,9 @@ class Seo
             'isPartOf'   => ['@id' => $base . '/#website'],
             'about'      => ['@id' => $base . '/#organization'],
         ];
-        if ($image) {
-            $node['primaryImageOfPage'] = ['@type' => 'ImageObject', 'url' => $image];
+        $image = trim((string) $image);
+        if ($image !== '') {
+            $node['primaryImageOfPage'] = ['@type' => 'ImageObject', 'url' => self::absolute($image)];
         }
         return $node;
     }
