@@ -14,6 +14,10 @@ class PartController extends Controller
         global $settings;
         $siteName = $settings['site_title'] ?? 'پرادو یدک';
 
+        // درخواست‌های قدیمیِ تک‌فیلتره را به لندینگ تجاری با URL تمیز منتقل کن.
+        // جستجو، مرتب‌سازی و ترکیب چند فیلتر همچنان روی /parts باقی می‌مانند.
+        $this->redirectSingleTaxonomyFilter();
+
         $toArray = function ($input) {
             if (empty($input))
                 return [];
@@ -68,13 +72,137 @@ class PartController extends Controller
             $catInfo = $GLOBALS['part_categories'][$selectedCat] ?? null;
             $crumbs[] = [
                 'name' => is_array($catInfo) ? ($catInfo['name'] ?? $selectedCat) : ($catInfo ?: $selectedCat),
-                'url'  => '/parts?category=' . rawurlencode((string) $selectedCat),
+                'url'  => Seo::categoryUrl((string) $selectedCat),
             ];
         }
 
         $schemaMarkup = $this->catalogSchema($products, $canonicalUrl, $metaDescription, $crumbs);
 
         require_once VIEWS_PATH . '/parts.php';
+    }
+
+    /** لندینگ تمیز یک دسته‌بندی: /parts/category/{slug} */
+    public function categoryLanding(): void
+    {
+        $this->taxonomyLanding('category');
+    }
+
+    /** لندینگ تمیز یک مدل خودرو: /parts/model/{slug} */
+    public function modelLanding(): void
+    {
+        $this->taxonomyLanding('model');
+    }
+
+    /**
+     * صفحات دسته/مدل باید حتی بدون رکورد دستی در seo_landing_pages یک URL تجاری
+     * پایدار، H1 و متای اختصاصی داشته باشند. لندینگ‌های ترکیبی همچنان از پنل سئو
+     * و متد landing() تامین می‌شوند.
+     */
+    private function taxonomyLanding(string $type): void
+    {
+        global $settings;
+        $siteName = $settings['site_title'] ?? 'پرادو یدک';
+        $isCategory = $type === 'category';
+        $param = $isCategory ? 'category' : 'model';
+        $slug = trim((string) ($_GET[$param] ?? ''));
+        $source = $isCategory ? ($GLOBALS['part_categories'] ?? []) : ($GLOBALS['car_models'] ?? []);
+
+        if ($slug === '' || !isset($source[$slug])) {
+            \App\models\Redirect::handle('/parts/' . $param . '/' . $slug, (string) ($_SERVER['QUERY_STRING'] ?? ''));
+            \App\models\Redirect::log404('/parts/' . $param . '/' . $slug);
+            http_response_code(404);
+            require_once VIEWS_PATH . '/404.php';
+            exit;
+        }
+
+        $entity = $source[$slug];
+        $name = is_array($entity) ? (string) ($entity['name'] ?? $slug) : (string) $entity;
+        $catalogBasePath = $isCategory ? Seo::categoryUrl($slug) : Seo::modelUrl($slug);
+
+        // در لندینگ تمیز فقط page معنادار است؛ page=1 و هر فیلتر زائدی به
+        // نسخه یکتای صفحه برگردانده می‌شود تا URL موازی ایندکس نشود.
+        $requestQuery = UrlCanonicalizer::parseQuery((string) ($_SERVER['QUERY_STRING'] ?? ''));
+        $rawPage = $requestQuery['page'] ?? null;
+        $page = is_scalar($rawPage) ? max(1, (int) $rawPage) : 1;
+        $expectedQuery = $page > 1 ? 'page=' . $page : '';
+        if (UrlCanonicalizer::buildQuery($requestQuery) !== $expectedQuery) {
+            UrlCanonicalizer::redirect($catalogBasePath . ($expectedQuery !== '' ? '?' . $expectedQuery : ''), 301, 'clean-taxonomy-query');
+        }
+
+        $perPage = 20;
+        $filters = [
+            'q' => '',
+            'categories' => $isCategory ? [$slug] : [],
+            'models' => $isCategory ? [] : [$slug],
+            'brands' => [],
+            'maxPrice' => null,
+            'inStock' => '',
+            'sort' => 'newest',
+        ];
+
+        $data = Product::search($filters, $page, $perPage);
+        $products = $data['items'];
+        $totalCount = (int) $data['total'];
+        $totalPages = (int) ceil($totalCount / $perPage);
+        $brands = Product::getDistinctBrands();
+        $selectedCat = $isCategory ? $slug : null;
+        $selectedModel = $isCategory ? null : $slug;
+
+        $canonicalUrl = Seo::absolute($catalogBasePath) . ($page > 1 ? '?page=' . $page : '');
+        if ($isCategory) {
+            $pageTitle = "خرید قطعات {$name} تویوتا | {$siteName}";
+            $metaDescription = "خرید انواع قطعات و لوازم یدکی {$name} تویوتا اصل جنیون پارت و OEM با ضمانت اصالت، تطابق شماره شاسی و ارسال سریع از {$siteName}.";
+            $h1_title = "خرید لوازم {$name} تویوتا";
+        } else {
+            $pageTitle = "قطعات یدکی تویوتا {$name} | {$siteName}";
+            $metaDescription = "کاتالوگ و قیمت قطعات یدکی تویوتا {$name}؛ خرید قطعه اصلی با تطابق شماره شاسی (VIN)، ضمانت اصالت و ارسال سریع از {$siteName}.";
+            $h1_title = "قطعات یدکی تویوتا {$name}";
+        }
+        $robotsMeta = 'index, follow';
+        $crumbs = [
+            ['name' => 'صفحه اصلی', 'url' => '/'],
+            ['name' => 'کاتالوگ قطعات', 'url' => '/parts'],
+            ['name' => $h1_title, 'url' => $catalogBasePath],
+        ];
+        $schemaMarkup = $this->catalogSchema($products, $canonicalUrl, $metaDescription, $crumbs);
+
+        require_once VIEWS_PATH . '/parts.php';
+    }
+
+    /**
+     * ریدایرکت دائمی URLهای قدیمی تک‌فیلتره به لندینگ‌های تمیز. */
+    private function redirectSingleTaxonomyFilter(): void
+    {
+        $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+        if (!in_array($method, ['GET', 'HEAD'], true)) {
+            return;
+        }
+
+        $meaningful = array_filter($_GET, static function ($value, $key): bool {
+            if ($key === 'page') {
+                return false;
+            }
+            $value = is_array($value) ? array_filter($value, 'strlen') : trim((string) $value);
+            return $value !== '' && $value !== [];
+        }, ARRAY_FILTER_USE_BOTH);
+
+        if (count($meaningful) !== 1) {
+            return;
+        }
+
+        $page = max(1, (int) ($_GET['page'] ?? 1));
+        if (isset($meaningful['category']) && !is_array($meaningful['category'])) {
+            $slug = trim((string) $meaningful['category']);
+            if (isset(($GLOBALS['part_categories'] ?? [])[$slug])) {
+                UrlCanonicalizer::redirect(Seo::categoryUrl($slug) . ($page > 1 ? '?page=' . $page : ''), 301, 'clean-category-landing');
+            }
+        }
+        if (isset($meaningful['model']) && !is_array($meaningful['model'])) {
+            $slug = trim((string) $meaningful['model']);
+            if (isset(($GLOBALS['car_models'] ?? [])[$slug])) {
+                UrlCanonicalizer::redirect(Seo::modelUrl($slug) . ($page > 1 ? '?page=' . $page : ''), 301, 'clean-model-landing');
+            }
+        }
     }
 
     /**

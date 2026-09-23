@@ -135,8 +135,14 @@ if (!isset($schemaMarkup)) {
 
 <?php
 // صفحه‌بندی: prev/next روی آدرس نرمال‌شده ساخته می‌شود
-if ($uri === '/parts' && isset($page, $totalPages) && $totalPages > 1):
-    $buildPageUrl = function ($pageNum) {
+$catalogBasePath = $catalogBasePath ?? null;
+if (($uri === '/parts' || $catalogBasePath !== null) && isset($page, $totalPages) && $totalPages > 1):
+    $buildPageUrl = function ($pageNum) use ($catalogBasePath) {
+        // لندینگ دسته/مدل فقط پارامتر page می‌گیرد؛ کاتالوگ عمومی پارامترهای
+        // مجاز خود را با ترتیب ثابت نگه می‌دارد.
+        if (!empty($catalogBasePath)) {
+            return Seo::absolute($catalogBasePath) . ($pageNum > 1 ? '?page=' . $pageNum : '');
+        }
         $params = $_GET;
         if ($pageNum > 1) {
             $params['page'] = $pageNum;

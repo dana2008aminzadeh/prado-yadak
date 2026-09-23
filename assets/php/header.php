@@ -18,7 +18,7 @@ function getDesktopClass($pageName, $currentPage)
 
     if ($pageName == '/blog' && (str_starts_with($currentPage, '/blog') || $currentPage == '/blog-detail'))
         return $activeClass;
-    if ($pageName == '/parts' && in_array($currentPage, ['/parts', '/product']))
+    if ($pageName == '/parts' && (str_starts_with($currentPage, '/parts') || str_starts_with($currentPage, '/product')))
         return $activeClass;
 
     return ($pageName == $currentPage) ? $activeClass : $inactiveClass;
@@ -31,7 +31,7 @@ function getMobileClass($pageName, $currentPage)
 
     if ($pageName == '/blog' && (str_starts_with($currentPage, '/blog') || $currentPage == '/blog-detail'))
         return $activeClass;
-    if ($pageName == '/parts' && in_array($currentPage, ['/parts', '/product']))
+    if ($pageName == '/parts' && (str_starts_with($currentPage, '/parts') || str_starts_with($currentPage, '/product')))
         return $activeClass;
 
     return ($pageName == $currentPage) ? $activeClass : $inactiveClass;
@@ -52,14 +52,15 @@ if (!in_array($current_page, $hide_floating_buttons_on)):
     ?>
     <!-- دکمه‌های شناور مشاوره -->
     <div class="fixed bottom-6 left-6 z-50 flex flex-col gap-3 anim-fade-up">
-        <a href="<?= e($settings['whatsapp_link'] ?? 'https://wa.me/989189998852') ?>" target="_blank"
+        <a href="<?= e($settings['whatsapp_link'] ?? 'https://wa.me/989189998852') ?>" target="_blank" rel="noopener"
+            aria-label="مشاوره در واتساپ"
             class="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-[0_4px_20px_rgba(16,185,129,0.4)] hover:bg-emerald-600 transition-transform hover:scale-110 group relative">
             <i data-lucide="message-circle" style="width:24px;height:24px;"></i>
             <span
                 class="absolute left-14 bg-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-md hidden sm:block">مشاوره
                 در واتساپ</span>
         </a>
-        <a href="tel:<?= e($settings['phone_number'] ?? '09189998852') ?>"
+        <a href="tel:<?= e($settings['phone_number'] ?? '09189998852') ?>" aria-label="تماس تلفنی با فروشگاه"
             class="w-12 h-12 bg-brand-red rounded-full flex items-center justify-center text-white shadow-[0_4px_20px_rgba(225,6,0,0.4)] hover:bg-red-700 transition-transform hover:scale-110 group relative">
             <i data-lucide="phone" style="width:24px;height:24px;"></i>
             <span
@@ -70,11 +71,12 @@ if (!in_array($current_page, $hide_floating_buttons_on)):
 <?php endif; ?>
 
 <!-- نوار ناوبری اصلی (Navbar) -->
-<nav class="sticky top-0 z-40 bg-brand-dark/95 backdrop-blur-md border-b border-white/10">
+<nav aria-label="ناوبری اصلی" class="sticky top-0 z-40 bg-brand-dark/95 backdrop-blur-md border-b border-white/10">
     <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
 
         <!-- دکمه منو همبرگری -->
-        <button class="md:hidden text-brand-accent p-2 hover:bg-white/5 rounded-lg transition order-1"
+        <button type="button" class="md:hidden text-brand-accent p-2 hover:bg-white/5 rounded-lg transition order-1"
+            aria-label="باز کردن منوی اصلی" aria-controls="mobile-menu" aria-expanded="false"
             onclick="toggleMobileMenu(true)">
             <i data-lucide="menu" style="width:24px;height:24px;"></i>
         </button>
@@ -115,7 +117,7 @@ if (!in_array($current_page, $hide_floating_buttons_on)):
                     class="flex items-center gap-2 border border-white/20 text-white text-sm font-bold px-4 py-2 rounded-lg transition hover:border-brand-accent">
                     <i data-lucide="user-check" style="width:16px;height:16px;"></i> پروفایل
                 </a>
-                <button onclick="toggleCart(true)"
+                <button type="button" onclick="toggleCart(true)" aria-controls="cart-drawer" aria-expanded="false"
                     class="flex items-center gap-2 bg-brand-red hover:bg-red-700 text-white text-sm font-bold px-4 py-2 rounded-lg transition relative">
                     <i data-lucide="shopping-cart" style="width:16px;height:16px;"></i> سبد خرید
                     <span id="header-cart-badge"
@@ -133,7 +135,7 @@ if (!in_array($current_page, $hide_floating_buttons_on)):
         <!-- آیکون موبایل (سمت چپ هدر) -->
         <?php if ($is_logged_in): ?>
             <!-- در صورت لاگین: آیکون پروفایل -->
-            <a href="/profile"
+            <a href="/profile" aria-label="پنل کاربری"
                 class="md:hidden order-3 flex items-center justify-center w-10 h-10 rounded-full bg-brand-grey border border-brand-accent text-brand-accent hover:bg-brand-accent hover:text-white transition shrink-0 overflow-hidden">
                 <i data-lucide="user-check" style="width:20px;height:20px;"></i>
             </a>
@@ -154,14 +156,14 @@ if (!in_array($current_page, $hide_floating_buttons_on)):
     onclick="toggleMobileMenu(false)"></div>
 
 <!-- منوی کشویی موبایل -->
-<div id="mobile-menu"
+<div id="mobile-menu" role="dialog" aria-modal="true" aria-label="منوی اصلی موبایل"
     class="fixed top-0 right-0 bottom-0 w-72 z-50 p-6 flex flex-col justify-between border-l border-white/10 translate-x-full transition-transform duration-300 ease-in-out hidden shadow-[0_0_50px_rgba(0,0,0,0.8)] bg-brand-grey">
     <div>
         <div class="flex items-center justify-between pb-4 border-b border-white/10 mb-6">
             <span class="font-extrabold text-sm text-gray-400">منوی دسترسی</span>
-            <button class="text-brand-accent p-1 hover:bg-white/10 rounded-lg transition"
-                onclick="toggleMobileMenu(false)">
-                <i data-lucide="x" style="width:24px;height:24px;"></i>
+            <button type="button" class="text-brand-accent p-1 hover:bg-white/10 rounded-lg transition"
+                aria-label="بستن منوی اصلی" onclick="toggleMobileMenu(false)">
+                <i data-lucide="x" style="width:24px;height:24px;" aria-hidden="true"></i>
             </button>
         </div>
 
@@ -188,7 +190,7 @@ if (!in_array($current_page, $hide_floating_buttons_on)):
                 class="flex items-center justify-center gap-2 border border-white/20 text-white py-2.5 rounded-lg text-center font-bold hover:border-brand-accent transition">
                 <i data-lucide="user-check" style="width:16px;height:16px;"></i> پنل کاربری من
             </a>
-            <button
+            <button type="button" aria-controls="cart-drawer" aria-expanded="false"
                 class="flex items-center justify-center gap-2 text-white py-2.5 rounded-lg font-bold transition hover:bg-red-700 md:hidden shadow-[0_4px_15px_rgba(225,6,0,0.2)] bg-brand-red"
                 onclick="toggleMobileMenu(false); toggleCart(true);">
                 <i data-lucide="shopping-cart" style="width:16px;height:16px;"></i> سبد خرید

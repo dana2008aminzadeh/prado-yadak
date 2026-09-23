@@ -22,7 +22,7 @@ $current_page = '/login';
             </div>
 
             <div class="text-center mb-8">
-                <h2 class="text-2xl font-black text-white mb-2">ورود / ثبت‌نام</h2>
+                <h1 class="text-2xl font-black text-white mb-2">ورود / ثبت‌نام</h1>
                 <p class="text-xs text-gray-400">برای ادامه، شماره موبایل خود را وارد کنید.</p>
             </div>
 
@@ -31,7 +31,7 @@ $current_page = '/login';
             <!-- ============================================== -->
             <form id="step-phone" class="block space-y-4" onsubmit="handleCheckPhone(event)">
                 <div>
-                    <label class="block text-xs font-bold text-gray-400 mb-2">شماره موبایل</label>
+                    <label for="auth-phone" class="block text-xs font-bold text-gray-400 mb-2">شماره موبایل</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
                             <i data-lucide="phone" class="text-gray-500" style="width:18px;height:18px;"></i>
@@ -60,7 +60,7 @@ $current_page = '/login';
                         class="text-xs text-gray-400 hover:text-white transition">تغییر شماره</button>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-400 mb-2">رمز عبور</label>
+                    <label for="auth-password" class="block text-xs font-bold text-gray-400 mb-2">رمز عبور</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
                             <i data-lucide="lock" class="text-gray-500" style="width:18px;height:18px;"></i>
@@ -71,7 +71,7 @@ $current_page = '/login';
                             placeholder="رمز عبور خود را وارد کنید" dir="ltr">
 
                         <button type="button" onclick="togglePasswordVisibility('auth-password', this)"
-                            class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-500 hover:text-white transition">
+                            aria-label="نمایش رمز عبور" aria-pressed="false" class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-500 hover:text-white transition">
                             <i data-lucide="eye" style="width:18px;height:18px;"></i>
                         </button>
                     </div>
@@ -101,7 +101,7 @@ $current_page = '/login';
                 <!-- این بخش فقط برای کاربران جدید (ثبت‌نام) نمایش داده می‌شود -->
                 <div id="new-user-fields" class="hidden space-y-4 mb-4">
                     <div>
-                        <label class="block text-xs font-bold text-gray-400 mb-2">نام و نام خانوادگی</label>
+                        <label for="auth-fullname" class="block text-xs font-bold text-gray-400 mb-2">نام و نام خانوادگی</label>
                         <div class="relative">
                             <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
                                 <i data-lucide="user" class="text-gray-500" style="width:18px;height:18px;"></i>
@@ -112,7 +112,7 @@ $current_page = '/login';
                         </div>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-gray-400 mb-2">تعیین رمز عبور</label>
+                        <label for="auth-new-password" class="block text-xs font-bold text-gray-400 mb-2">تعیین رمز عبور</label>
                         <div class="relative">
                             <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
                                 <i data-lucide="key" class="text-gray-500" style="width:18px;height:18px;"></i>
@@ -122,7 +122,7 @@ $current_page = '/login';
                                 class="w-full h-12 bg-black/20 border border-white/10 rounded-xl pr-12 pl-12 text-white text-sm focus:border-brand-red outline-none transition text-left"
                                 dir="ltr" placeholder="یک رمز عبور برای خریدهای بعدی وارد کنید">
                             <button type="button" onclick="togglePasswordVisibility('auth-new-password', this)"
-                                class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-500 hover:text-white transition">
+                                aria-label="نمایش رمز عبور جدید" aria-pressed="false" class="absolute inset-y-0 left-0 flex items-center pl-4 text-gray-500 hover:text-white transition">
                                 <i data-lucide="eye" style="width:18px;height:18px;"></i>
                             </button>
                         </div>
@@ -131,7 +131,7 @@ $current_page = '/login';
 
                 <!-- فیلد مشترک کد تایید -->
                 <div>
-                    <label class="block text-xs font-bold text-gray-400 mb-2">کد ۵ رقمی پیامک شده</label>
+                    <label for="auth-otp-code" class="block text-xs font-bold text-gray-400 mb-2">کد ۵ رقمی پیامک شده</label>
                     <!-- جایگزین خط مربوط به فیلد auth-otp-code در login.php -->
                     <input type="text" id="auth-otp-code" name="one-time-code" autocomplete="one-time-code"
                         inputmode="numeric"

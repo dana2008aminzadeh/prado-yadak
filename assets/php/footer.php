@@ -20,16 +20,16 @@ if (!isset($current_page)) {
                     <img src="/assets/logo/logo.webp" alt="پرادو یدک" loading="lazy"
                         class="h-10 sm:h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-105">
                     <div>
-                        <h4 class="font-bold text-white" id="footer-title">
+                        <h2 class="font-bold text-white" id="footer-title">
                             <?= e($settings['site_title'] ?? 'پرادو یدک') ?>
-                        </h4>
+                        </h2>
                         <p class="text-xs text-gray-500"><?= e($settings['site_subtitle'] ?? 'PRADO YADAK') ?></p>
                     </div>
                 </a>
                 <?php if (str_starts_with($current_page, '/blog') || $current_page === '/blog-detail'): ?>
                     <p class="text-gray-400 text-sm leading-relaxed mb-3">مرجع تخصصی مقالات آموزشی، عیب‌یابی خودروهای
                         تویوتا، راهنمای نگهداری و شیوه‌های تشخیص قطعات اصلی از تقلبی.</p>
-                <?php elseif (in_array($current_page, ['/parts', '/parts'])): ?>
+                <?php elseif (str_starts_with($current_page, '/parts') || str_starts_with($current_page, '/product')): ?>
                     <p class="text-gray-400 text-sm leading-relaxed mb-3">تأمین‌کننده تخصصی قطعات اصلی تویوتا و لکسوس با
                         ضمانت ۱۰۰٪ اصالت کالا و تطابق با شماره شاسی (VIN).</p>
                 <?php else: ?>
@@ -44,7 +44,7 @@ if (!isset($current_page)) {
 
             <div>
                 <?php if (str_starts_with($current_page, '/blog') || $current_page === '/blog-detail'): ?>
-                    <h4 class="font-bold mb-4 text-brand-accent text-sm">دسته‌بندی موضوعی</h4>
+                    <h2 class="font-bold mb-4 text-brand-accent text-sm">دسته‌بندی موضوعی</h2>
                     <ul class="space-y-2 text-gray-400 text-sm">
                         <li><a href="/blog" onclick="filterBlog('genuine')" class="hover:text-white transition">تشخیص اصالت
                                 قطعه</a></li>
@@ -55,7 +55,7 @@ if (!isset($current_page)) {
                         <li><a href="/blog" class="hover:text-white transition">معرفی روغن‌ها و روانکارها</a></li>
                     </ul>
                 <?php else: ?>
-                    <h4 class="font-bold mb-4 text-brand-accent text-sm">بخش‌های اصلی</h4>
+                    <h2 class="font-bold mb-4 text-brand-accent text-sm">بخش‌های اصلی</h2>
                     <ul class="space-y-2 text-gray-400 text-sm">
                         <li><a href="/" class="hover:text-white transition">صفحه اصلی</a></li>
                         <li><a href="/parts" class="hover:text-white transition">کاتالوگ قطعات</a></li>
@@ -74,7 +74,7 @@ if (!isset($current_page)) {
 
             <div>
                 <?php if (str_starts_with($current_page, '/blog') || $current_page === '/blog-detail'): ?>
-                    <h4 class="font-bold mb-4 text-brand-accent text-sm">مقالات پربازدید</h4>
+                    <h2 class="font-bold mb-4 text-brand-accent text-sm">مقالات پربازدید</h2>
                     <ul class="space-y-2 text-gray-400 text-sm">
                         <?php
                         $popularArticles = \App\models\Article::getPopular(3);
@@ -93,18 +93,18 @@ if (!isset($current_page)) {
                         ?>
                     </ul>
                 <?php else: ?>
-                    <h4 class="font-bold mb-4 text-brand-accent text-sm">مدل‌های خودرو</h4>
+                    <h2 class="font-bold mb-4 text-brand-accent text-sm">مدل‌های خودرو</h2>
                     <ul class="space-y-2 text-gray-400 text-sm">
-                        <li><a href="/parts?model=camry" class="hover:text-white transition">تویوتا کمری</a></li>
-                        <li><a href="/parts?model=landcruiser" class="hover:text-white transition">تویوتا لندکروزر</a></li>
-                        <li><a href="/parts?model=prado" class="hover:text-white transition">تویوتا پرادو</a></li>
-                        <li><a href="/parts?model=hilux" class="hover:text-white transition">تویوتا هایلوکس</a></li>
+                        <li><a href="<?= e(\Core\Seo::modelUrl('camry')) ?>" class="hover:text-white transition">تویوتا کمری</a></li>
+                        <li><a href="<?= e(\Core\Seo::modelUrl('landcruiser')) ?>" class="hover:text-white transition">تویوتا لندکروزر</a></li>
+                        <li><a href="<?= e(\Core\Seo::modelUrl('prado')) ?>" class="hover:text-white transition">تویوتا پرادو</a></li>
+                        <li><a href="<?= e(\Core\Seo::modelUrl('hilux')) ?>" class="hover:text-white transition">تویوتا هایلوکس</a></li>
                     </ul>
                 <?php endif; ?>
             </div>
 
             <div>
-                <h4 class="font-bold mb-4 text-brand-accent text-sm">مشاوره و راه‌های ارتباطی</h4>
+                <h2 class="font-bold mb-4 text-brand-accent text-sm">مشاوره و راه‌های ارتباطی</h2>
                 <div class="space-y-2 text-xs text-gray-400 mb-4">
                     <p class="flex items-center gap-2">
                         <i data-lucide="phone" style="width:14px;height:14px;" class="text-brand-red"></i>
@@ -124,25 +124,25 @@ if (!isset($current_page)) {
                 </div>
 
                 <div class="flex gap-2">
-                    <a href="<?= e($settings['whatsapp_link'] ?? 'https://wa.me/989189998852') ?>" target="_blank"
-                        class="w-8 h-8 bg-brand-grey rounded-lg flex items-center justify-center border border-white/10 hover:border-[#25D366] text-gray-400 hover:text-[#25D366] transition">
+                    <a href="<?= e($settings['whatsapp_link'] ?? 'https://wa.me/989189998852') ?>" target="_blank" rel="noopener"
+                        aria-label="واتساپ پرادو یدک" class="w-8 h-8 bg-brand-grey rounded-lg flex items-center justify-center border border-white/10 hover:border-[#25D366] text-gray-400 hover:text-[#25D366] transition">
                         <i data-lucide="message-circle" style="width:16px;height:16px;"></i>
                     </a>
-                    <a href="tel:<?= e($settings['phone_number'] ?? '09189998852') ?>"
+                    <a href="tel:<?= e($settings['phone_number'] ?? '09189998852') ?>" aria-label="تماس تلفنی با پرادو یدک"
                         class="w-8 h-8 bg-brand-grey rounded-lg flex items-center justify-center border border-white/10 hover:border-brand-red text-gray-400 hover:text-brand-red transition">
                         <i data-lucide="phone" style="width:16px;height:16px;"></i>
                     </a>
                     <a href="<?= e($settings['instagram_link'] ?? 'https://www.instagram.com/toyota_yadak_hilux/') ?>"
-                        class="w-8 h-8 bg-brand-grey rounded-lg flex items-center justify-center border border-white/10 hover:border-[#E1306C] text-gray-400 hover:text-[#E1306C] transition">
+                        target="_blank" rel="noopener" aria-label="اینستاگرام پرادو یدک" class="w-8 h-8 bg-brand-grey rounded-lg flex items-center justify-center border border-white/10 hover:border-[#E1306C] text-gray-400 hover:text-[#E1306C] transition">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            aria-hidden="true" focusable="false" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <rect width="20" height="20" x="2" y="2" rx="5" ry="5"></rect>
                             <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
                             <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"></line>
                         </svg>
                     </a>
                     <a href="<?= e($settings['telegram_link'] ?? 'https://t.me/toyota_yadak_hilux') ?>"
-                        class="w-8 h-8 bg-brand-grey rounded-lg flex items-center justify-center border border-white/10 hover:border-[#229ED9] text-gray-400 hover:text-[#229ED9] transition">
+                        target="_blank" rel="noopener" aria-label="تلگرام پرادو یدک" class="w-8 h-8 bg-brand-grey rounded-lg flex items-center justify-center border border-white/10 hover:border-[#229ED9] text-gray-400 hover:text-[#229ED9] transition">
                         <i data-lucide="send" style="width:16px;height:16px;"></i>
                     </a>
                 </div>
@@ -151,8 +151,8 @@ if (!isset($current_page)) {
                 <div class="flex gap-3 mt-4">
                     <div
                         class="bg-white p-2.5 rounded-2xl shadow-sm hover:shadow-md hover:scale-105 transition-all duration-300 flex items-center justify-center border border-[#a88d7c]/40">
-                        <a target='_blank'
-                            href='https://trustseal.enamad.ir/?id=7637197&Code=Z0gnlYX2EU7bKlNDMfUC288y4RGBGgHR'>
+                        <a target="_blank" rel="noopener" aria-label="اعتبارسنجی نماد اعتماد الکترونیکی پرادو یدک"
+                            href="https://trustseal.enamad.ir/?id=7637197&amp;Code=Z0gnlYX2EU7bKlNDMfUC288y4RGBGgHR">
                             <!-- آدرس عکس را به پوشه سایت خودتان تغییر دادیم -->
                             <img src='/assets/logo/enamad.webp' alt='نماد اعتماد الکترونیکی'
                                 class='h-16 sm:h-20 w-auto cursor-pointer object-contain'>
@@ -181,17 +181,17 @@ if (!isset($current_page)) {
     class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity duration-300"
     onclick="toggleCart(false)"></div>
 
-<div id="cart-drawer"
+<div id="cart-drawer" role="dialog" aria-modal="true" aria-labelledby="cart-drawer-title"
     class="fixed top-0 left-0 bottom-0 w-full sm:w-96 z-50 p-6 flex flex-col justify-between border-r border-[#a88d7c]/30 -translate-x-full transition-transform duration-300 ease-in-out hidden shadow-[0_0_50px_rgba(43,23,12,0.3)] bg-[#f5efe9]/95 backdrop-blur-xl">
 
     <div>
         <div class="flex items-center justify-between pb-4 border-b border-[#a88d7c]/30 mb-6">
             <div class="flex items-center gap-2">
                 <i data-lucide="shopping-cart" class="text-brand-red" style="width:20px;height:20px;"></i>
-                <span class="font-extrabold text-base text-[#2b170c]">سبد خرید شما</span>
+                <h2 id="cart-drawer-title" class="font-extrabold text-base text-[#2b170c]">سبد خرید شما</h2>
             </div>
-            <button class="p-1 rounded-lg transition text-[#5c473b] hover:bg-[#a88d7c]/20" onclick="toggleCart(false)">
-                <i data-lucide="x" style="width:24px;height:24px;"></i>
+            <button type="button" aria-label="بستن سبد خرید" class="p-1 rounded-lg transition text-[#5c473b] hover:bg-[#a88d7c]/20" onclick="toggleCart(false)">
+                <i data-lucide="x" style="width:24px;height:24px;" aria-hidden="true"></i>
             </button>
         </div>
 
@@ -203,14 +203,13 @@ if (!isset($current_page)) {
                 class="relative flex gap-3 p-3 rounded-xl border border-[#a88d7c]/30 bg-white/60 items-center transition shadow-sm group hover:-translate-y-0.5 hover:border-brand-red/50">
 
                 <!-- دکمه ضربدر (حذف قطعه) -->
-                <button
-                    class="absolute top-2 left-2 transition-colors z-10 p-1 rounded-md text-[#a88d7c] hover:text-brand-red hover:bg-brand-red/10"
-                    title="حذف از سبد">
+                <button type="button" aria-label="حذف رادیاتور آب کامل تویوتا کرولا از سبد خرید"
+                    class="absolute top-2 left-2 transition-colors z-10 p-1 rounded-md text-[#a88d7c] hover:text-brand-red hover:bg-brand-red/10">
                     <i data-lucide="x" style="width:16px;height:16px;"></i>
                 </button>
 
                 <!-- آیکون قطعه (لینک‌دار) -->
-                <a href="/parts?id=1"
+                <a href="/parts" aria-label="مشاهده رادیاتور آب کامل تویوتا کرولا"
                     class="w-16 h-16 rounded-lg flex items-center justify-center border border-[#a88d7c]/40 bg-[#eae0d6] flex-shrink-0 hover:scale-105 transition-transform text-brand-red">
                     <i data-lucide="wind" style="width:28px;height:28px;"></i>
                 </a>
@@ -219,7 +218,7 @@ if (!isset($current_page)) {
                 <div class="flex-1 min-w-0 pl-6">
                     <!-- عنوان قطعه (لینک‌دار) -->
                     <a href="/parts" class="block transition-colors hover:opacity-80">
-                        <h5 class="text-xs font-bold truncate text-[#2b170c]">رادیاتور آب کامل تویوتا کرولا</h5>
+                        <h3 class="text-xs font-bold truncate text-[#2b170c]">رادیاتور آب کامل تویوتا کرولا</h3>
                     </a>
                     <p class="text-[10px] mt-0.5 text-[#5c473b]">OEM: 16400-0T040</p>
 
@@ -227,9 +226,9 @@ if (!isset($current_page)) {
                         <!-- دکمه های تعداد -->
                         <div
                             class="flex items-center gap-3 rounded-md px-2 py-1 text-xs shadow-sm border border-[#a88d7c]/30 bg-white">
-                            <button class="font-bold transition-colors text-[#2b170c] hover:text-brand-red">+</button>
+                            <button type="button" aria-label="افزایش تعداد رادیاتور" class="font-bold transition-colors text-[#2b170c] hover:text-brand-red">+</button>
                             <span class="font-bold text-[#2b170c]">۱</span>
-                            <button class="font-bold transition-colors text-[#2b170c] hover:text-brand-red">-</button>
+                            <button type="button" aria-label="کاهش تعداد رادیاتور" class="font-bold transition-colors text-[#2b170c] hover:text-brand-red">-</button>
                         </div>
                         <span class="text-xs font-black text-brand-red">۶,۳۰۰,۰۰۰ تومان</span>
                     </div>

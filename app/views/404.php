@@ -55,10 +55,12 @@ $whatsappLink = $settings['whatsapp_link'] ?? ('https://wa.me/98' . ltrim($phone
         </div>
 
         <!-- باکس جستجوی سریع قطعات در صفحه 404 -->
-        <form action="/parts" method="GET" class="w-full max-w-lg mb-10 relative">
+        <form action="/parts" method="GET" role="search" aria-label="جستجوی قطعات"
+            class="w-full max-w-lg mb-10 relative">
             <div class="relative flex items-center">
-                <i data-lucide="search" class="absolute right-4 text-gray-400" style="width:20px;height:20px;"></i>
-                <input type="text" name="q" placeholder="جستجوی مستقیم نام قطعه یا شماره فنی (مثلا: لنت کمری)..."
+                <i data-lucide="search" class="absolute right-4 text-gray-400" style="width:20px;height:20px;" aria-hidden="true"></i>
+                <label for="not-found-search" class="sr-only">نام قطعه یا شماره فنی</label>
+                <input type="search" id="not-found-search" name="q" placeholder="جستجوی مستقیم نام قطعه یا شماره فنی (مثلا: لنت کمری)..."
                     class="w-full bg-brand-grey border border-white/10 rounded-2xl pr-12 pl-28 py-4 text-xs sm:text-sm text-white focus:outline-none focus:border-brand-red shadow-[0_10px_30px_rgba(0,0,0,0.5)] transition">
                 <button type="submit"
                     class="absolute left-2 bg-brand-red hover:bg-red-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-1.5">
@@ -88,7 +90,7 @@ $whatsappLink = $settings['whatsapp_link'] ?? ('https://wa.me/98' . ltrim($phone
             <h2 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">میان‌برهای پیشنهادی دسته‌بندی
                 قطعات تویوتا</h2>
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <a href="/parts?category=engine"
+                <a href="<?= e(\Core\Seo::categoryUrl('engine')) ?>"
                     class="bg-brand-grey/60 border border-white/5 hover:border-brand-red/30 p-4 rounded-xl text-center space-y-2 group transition">
                     <div
                         class="w-10 h-10 bg-brand-dark rounded-lg flex items-center justify-center mx-auto text-brand-red group-hover:scale-110 transition-transform">
@@ -97,7 +99,7 @@ $whatsappLink = $settings['whatsapp_link'] ?? ('https://wa.me/98' . ltrim($phone
                     <span class="block text-xs font-bold text-gray-300 group-hover:text-white transition">قطعات
                         موتور</span>
                 </a>
-                <a href="/parts?category=brakes"
+                <a href="<?= e(\Core\Seo::categoryUrl('brakes')) ?>"
                     class="bg-brand-grey/60 border border-white/5 hover:border-brand-red/30 p-4 rounded-xl text-center space-y-2 group transition">
                     <div
                         class="w-10 h-10 bg-brand-dark rounded-lg flex items-center justify-center mx-auto text-brand-red group-hover:scale-110 transition-transform">
@@ -106,7 +108,7 @@ $whatsappLink = $settings['whatsapp_link'] ?? ('https://wa.me/98' . ltrim($phone
                     <span class="block text-xs font-bold text-gray-300 group-hover:text-white transition">سیستم
                         ترمز</span>
                 </a>
-                <a href="/parts?category=suspension"
+                <a href="<?= e(\Core\Seo::categoryUrl('suspension')) ?>"
                     class="bg-brand-grey/60 border border-white/5 hover:border-brand-red/30 p-4 rounded-xl text-center space-y-2 group transition">
                     <div
                         class="w-10 h-10 bg-brand-dark rounded-lg flex items-center justify-center mx-auto text-brand-red group-hover:scale-110 transition-transform">
@@ -115,7 +117,7 @@ $whatsappLink = $settings['whatsapp_link'] ?? ('https://wa.me/98' . ltrim($phone
                     <span class="block text-xs font-bold text-gray-300 group-hover:text-white transition">زیربندی و
                         جلوبندی</span>
                 </a>
-                <a href="/parts?category=consumables"
+                <a href="<?= e(\Core\Seo::categoryUrl('consumables')) ?>"
                     class="bg-brand-grey/60 border border-white/5 hover:border-brand-red/30 p-4 rounded-xl text-center space-y-2 group transition">
                     <div
                         class="w-10 h-10 bg-brand-dark rounded-lg flex items-center justify-center mx-auto text-brand-red group-hover:scale-110 transition-transform">

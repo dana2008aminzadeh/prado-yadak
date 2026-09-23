@@ -158,16 +158,19 @@ function profilePageClass(string $tab, string $active): string
     <main class="flex-1 max-w-[1400px] w-full mx-auto px-4 py-8 sm:py-12 relative z-10">
 
         <!-- Breadcrumb -->
-        <div class="flex items-center gap-2 text-xs text-gray-400 whitespace-nowrap mb-6">
-            <a href="/" class="hover:text-white transition">صفحه اصلی</a>
-            <i data-lucide="chevron-left" style="width:12px;height:12px;"></i>
-            <span class="text-brand-red font-bold">پنل مدیریت حساب کاربری</span>
-        </div>
+        <nav aria-label="Breadcrumb" class="mb-6">
+            <ol class="flex items-center gap-2 text-xs text-gray-400 whitespace-nowrap">
+                <li><a href="/" class="hover:text-white transition">صفحه اصلی</a></li>
+                <li aria-hidden="true"><i data-lucide="chevron-left" style="width:12px;height:12px;"></i></li>
+                <li aria-current="page" class="text-brand-red font-bold">پنل مدیریت حساب کاربری</li>
+            </ol>
+        </nav>
+        <h1 class="sr-only">پنل مدیریت حساب کاربری</h1>
 
         <!-- ناوبری موبایل تب‌ها -->
         <div class="lg:hidden mb-4">
-            <button type="button" onclick="document.getElementById('profile-mobile-nav').classList.toggle('hidden')"
-                class="w-full flex items-center justify-between bg-brand-grey border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold">
+            <button type="button" onclick="const nav=document.getElementById('profile-mobile-nav'); nav.classList.toggle('hidden'); this.setAttribute('aria-expanded', nav.classList.contains('hidden') ? 'false' : 'true')"
+                aria-controls="profile-mobile-nav" aria-expanded="false" class="w-full flex items-center justify-between bg-brand-grey border border-white/10 rounded-2xl px-4 py-3 text-sm font-bold">
                 <span class="flex items-center gap-2"><i data-lucide="menu" class="w-4 h-4 text-brand-red"></i> منوی پنل
                     کاربری</span>
                 <i data-lucide="chevron-down" class="w-4 h-4 text-gray-400"></i>
@@ -354,7 +357,7 @@ function profilePageClass(string $tab, string $active): string
                             </div>
                             <button onclick="switchProfileTab('wallet')"
                                 class="relative z-10 bg-brand-dark border border-emerald-500/30 text-emerald-400 p-3 rounded-2xl hover:border-emerald-500 transition shadow-sm"
-                                title="شارژ کیف پول">
+                                aria-label="شارژ کیف پول">
                                 <i data-lucide="plus" style="width:24px;height:24px;"></i>
                             </button>
                         </div>
@@ -634,6 +637,17 @@ function profilePageClass(string $tab, string $active): string
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 <?php foreach ($vehicles as $v):
                                     $isPrimary = (int) ($v['is_primary'] ?? 0) === 1;
+                                    $vehicleModelSlug = null;
+                                    foreach (($GLOBALS['car_models'] ?? []) as $candidateSlug => $candidateModel) {
+                                        $candidateName = is_array($candidateModel) ? ($candidateModel['name'] ?? '') : $candidateModel;
+                                        if (trim((string) $candidateName) === trim((string) ($v['model_name'] ?? ''))) {
+                                            $vehicleModelSlug = (string) $candidateSlug;
+                                            break;
+                                        }
+                                    }
+                                    $vehiclePartsUrl = $vehicleModelSlug
+                                        ? \Core\Seo::modelUrl($vehicleModelSlug)
+                                        : '/parts';
                                     $vJson = e(json_encode([
                                         'id' => (int) $v['id'],
                                         'model_name' => $v['model_name'] ?? '',
@@ -689,25 +703,25 @@ function profilePageClass(string $tab, string $active): string
                                         </div>
 
                                         <div class="flex flex-wrap gap-2">
-                                            <a href="/parts<?= !empty($v['model_name']) ? '?q=' . rawurlencode($v['model_name']) : '' ?>"
+                                            <a href="<?= e($vehiclePartsUrl) ?>"
                                                 class="flex-1 text-center bg-brand-grey hover:border-brand-red text-white text-xs py-2.5 rounded-xl transition font-bold border border-white/10 min-w-[120px]">
                                                 قطعات این خودرو
                                             </a>
                                             <?php if (!$isPrimary): ?>
                                                 <button onclick="setPrimaryVehicle(<?= (int) $v['id'] ?>)"
                                                     class="px-3 py-2.5 rounded-xl border border-white/10 text-xs text-gray-400 hover:text-amber-400 hover:border-amber-500/40 transition"
-                                                    title="اصلی کردن">
+                                                    aria-label="تنظیم به‌عنوان خودروی اصلی">
                                                     <i data-lucide="star" class="w-4 h-4"></i>
                                                 </button>
                                             <?php endif; ?>
                                             <button data-vehicle='<?= $vJson ?>' onclick="editVehicle(this)"
                                                 class="px-3 py-2.5 rounded-xl border border-white/10 text-xs text-gray-400 hover:text-white transition"
-                                                title="ویرایش">
+                                                aria-label="ویرایش خودرو">
                                                 <i data-lucide="pencil" class="w-4 h-4"></i>
                                             </button>
                                             <button onclick="deleteVehicle(<?= (int) $v['id'] ?>)"
                                                 class="px-3 py-2.5 rounded-xl border border-white/10 text-xs text-gray-400 hover:text-rose-400 hover:border-rose-500/40 transition"
-                                                title="حذف">
+                                                aria-label="حذف خودرو">
                                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                                             </button>
                                         </div>
@@ -782,11 +796,11 @@ function profilePageClass(string $tab, string $active): string
                                                     پیش‌فرض
                                                 </button>
                                             <?php endif; ?>
-                                            <button data-address='<?= $aJson ?>' onclick="editAddress(this)"
+                                            <button type="button" data-address='<?= $aJson ?>' onclick="editAddress(this)" aria-label="ویرایش آدرس"
                                                 class="px-4 py-2.5 rounded-xl border border-white/10 text-xs text-gray-400 hover:text-white transition">
                                                 <i data-lucide="pencil" class="w-4 h-4"></i>
                                             </button>
-                                            <button onclick="deleteAddress(<?= (int) $addr['id'] ?>)"
+                                            <button type="button" onclick="deleteAddress(<?= (int) $addr['id'] ?>)" aria-label="حذف آدرس"
                                                 class="px-4 py-2.5 rounded-xl border border-white/10 text-xs text-gray-400 hover:text-rose-400 transition">
                                                 <i data-lucide="trash-2" class="w-4 h-4"></i>
                                             </button>
@@ -824,7 +838,7 @@ function profilePageClass(string $tab, string $active): string
                                         class="bg-brand-dark border border-white/10 p-5 rounded-3xl space-y-4 hover:border-brand-red transition relative group">
                                         <button onclick="removeFromWishlist(<?= (int) $item['id'] ?>, this)"
                                             class="absolute top-4 left-4 z-10 p-2 rounded-lg text-gray-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
-                                            title="حذف از نشان‌شده‌ها">
+                                            aria-label="حذف از نشان‌شده‌ها">
                                             <i data-lucide="heart-off" class="w-4 h-4"></i>
                                         </button>
 
@@ -856,7 +870,7 @@ function profilePageClass(string $tab, string $active): string
                                             <?php if (!empty($item['inStock'])): ?>
                                                 <button onclick="addWishlistToCart(<?= (int) $item['id'] ?>)"
                                                     class="bg-brand-grey hover:border-brand-red border border-white/10 text-white p-3 rounded-xl transition"
-                                                    title="افزودن به سبد">
+                                                    aria-label="افزودن به سبد خرید">
                                                     <i data-lucide="shopping-cart" style="width:18px;height:18px;"></i>
                                                 </button>
                                             <?php else: ?>
@@ -1098,7 +1112,7 @@ function profilePageClass(string $tab, string $active): string
         class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-3 sm:p-4 no-print"
         onclick="closeOrderDetailModal()">
         <div class="w-full max-w-3xl max-h-[92vh] overflow-y-auto bg-[#F8F6F0] border border-[#E8E2D9] rounded-3xl p-4 sm:p-6 relative scale-95 opacity-0 transition-all duration-300 shadow-2xl"
-            onclick="event.stopPropagation()" id="order-detail-modal-content"></div>
+            onclick="event.stopPropagation()" id="order-detail-modal-content" role="dialog" aria-modal="true" aria-label="جزئیات سفارش"></div>
     </div>
 
     <!-- خودرو -->
@@ -1106,8 +1120,8 @@ function profilePageClass(string $tab, string $active): string
         class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4"
         onclick="closeAddVehicleModal()">
         <div class="w-full max-w-md bg-brand-grey border border-white/10 rounded-3xl p-6 sm:p-8 relative scale-95 opacity-0 transition-all duration-300 shadow-2xl max-h-[90vh] overflow-y-auto"
-            onclick="event.stopPropagation()">
-            <button class="absolute top-5 left-5 text-gray-500 hover:text-white p-1" onclick="closeAddVehicleModal()"
+            onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="vehicle-modal-title">
+            <button class="absolute top-5 left-5 text-gray-500 hover:text-white p-1" aria-label="بستن فرم خودرو" onclick="closeAddVehicleModal()"
                 type="button">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
@@ -1180,8 +1194,8 @@ function profilePageClass(string $tab, string $active): string
         class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4"
         onclick="closeAddAddressModal()">
         <div class="w-full max-w-md bg-brand-grey border border-white/10 rounded-3xl p-6 sm:p-8 relative scale-95 opacity-0 transition-all duration-300 shadow-2xl max-h-[90vh] overflow-y-auto"
-            onclick="event.stopPropagation()">
-            <button class="absolute top-5 left-5 text-gray-500 hover:text-white p-1" onclick="closeAddAddressModal()"
+            onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="address-modal-title">
+            <button class="absolute top-5 left-5 text-gray-500 hover:text-white p-1" aria-label="بستن فرم آدرس" onclick="closeAddAddressModal()"
                 type="button">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
@@ -1233,12 +1247,12 @@ function profilePageClass(string $tab, string $active): string
         class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4"
         onclick="closeNewTicketModal()">
         <div class="w-full max-w-md bg-brand-grey border border-white/10 rounded-3xl p-6 sm:p-8 relative scale-95 opacity-0 transition-all duration-300 shadow-2xl"
-            onclick="event.stopPropagation()">
-            <button class="absolute top-5 left-5 text-gray-500 hover:text-white p-1" onclick="closeNewTicketModal()"
+            onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="new-ticket-modal-title">
+            <button class="absolute top-5 left-5 text-gray-500 hover:text-white p-1" aria-label="بستن فرم تیکت" onclick="closeNewTicketModal()"
                 type="button">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
-            <h3 class="font-black text-xl text-white mb-6">تیکت پشتیبانی جدید</h3>
+            <h3 id="new-ticket-modal-title" class="font-black text-xl text-white mb-6">تیکت پشتیبانی جدید</h3>
             <form id="ticket-form" onsubmit="handleCreateTicket(event)" class="space-y-4">
                 <div>
                     <label class="text-xs text-gray-400 mb-1.5 block">موضوع *</label>
@@ -1274,7 +1288,7 @@ function profilePageClass(string $tab, string $active): string
         class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4"
         onclick="closeTicketDetailModal()">
         <div class="w-full max-w-lg bg-brand-grey border border-white/10 rounded-3xl p-6 sm:p-8 relative scale-95 opacity-0 transition-all duration-300 shadow-2xl max-h-[90vh] overflow-y-auto"
-            onclick="event.stopPropagation()" id="ticket-detail-content"></div>
+            onclick="event.stopPropagation()" id="ticket-detail-content" role="dialog" aria-modal="true" aria-label="جزئیات تیکت"></div>
     </div>
 
     <!-- خروج -->
@@ -1282,12 +1296,12 @@ function profilePageClass(string $tab, string $active): string
         class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4"
         onclick="closeLogoutModal()">
         <div class="w-full max-w-sm bg-brand-grey border border-white/10 rounded-3xl p-8 text-center space-y-6 relative scale-95 opacity-0 transition-all duration-300 shadow-2xl"
-            onclick="event.stopPropagation()">
+            onclick="event.stopPropagation()" role="dialog" aria-modal="true" aria-labelledby="logout-modal-title">
             <div
                 class="w-20 h-20 bg-brand-dark border border-rose-500/20 rounded-full flex items-center justify-center mx-auto text-rose-500">
                 <i data-lucide="log-out" style="width:36px;height:36px;"></i>
             </div>
-            <h3 class="font-black text-xl text-white">خروج از حساب</h3>
+            <h3 id="logout-modal-title" class="font-black text-xl text-white">خروج از حساب</h3>
             <p class="text-sm text-gray-400">آیا مطمئن هستید که می‌خواهید خارج شوید؟</p>
             <div class="flex gap-4">
                 <button type="button" onclick="closeLogoutModal()"

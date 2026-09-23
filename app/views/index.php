@@ -12,6 +12,7 @@ global $settings;
 
     <?php include 'assets/php/header.php'; ?>
 
+    <main id="main-content">
     <section id="hero" class="relative overflow-hidden text-[#2b170c]"
         style="background: linear-gradient(135deg, #f5efe9 0%, #eae0d6 50%, #f5efe9 100%);">
 
@@ -51,12 +52,13 @@ global $settings;
                     <!-- باکس فرم جستجوی پیشرفته -->
                     <div
                         class="bg-white/70 backdrop-blur-xl p-4 sm:p-6 rounded-3xl shadow-[0_15px_40px_rgba(43,23,12,0.08)] border border-[#a88d7c]/30">
-                        <form action="/parts" method="GET" class="space-y-4">
+                        <form action="/parts" method="GET" class="space-y-4" role="search" aria-label="جستجوی قطعات تویوتا">
 
                             <!-- ردیف انتخاب مدل و دسته‌بندی -->
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div class="relative">
-                                    <select name="model"
+                                    <label for="home-search-model" class="sr-only">مدل خودرو</label>
+                                    <select id="home-search-model" name="model"
                                         class="w-full bg-[#f8f6f0] border border-[#a88d7c]/40 text-[#2b170c] text-sm rounded-2xl px-4 py-3.5 appearance-none focus:outline-none focus:border-[#8b533a] transition cursor-pointer font-bold">
                                         <option value="">انتخاب مدل (همه)</option>
                                         <?php
@@ -74,7 +76,8 @@ global $settings;
                                         style="width:18px;height:18px;pointer-events:none;"></i>
                                 </div>
                                 <div class="relative">
-                                    <select name="category"
+                                    <label for="home-search-category" class="sr-only">دسته‌بندی قطعه</label>
+                                    <select id="home-search-category" name="category"
                                         class="w-full bg-[#f8f6f0] border border-[#a88d7c]/40 text-[#2b170c] text-sm rounded-2xl px-4 py-3.5 appearance-none focus:outline-none focus:border-[#8b533a] transition cursor-pointer font-bold">
                                         <option value="">همه دسته‌بندی‌ها (All)</option>
                                         <?php
@@ -96,9 +99,10 @@ global $settings;
 
                             <!-- ردیف فیلد جستجو و دکمه -->
                             <div class="relative flex items-center">
-                                <i data-lucide="search" class="absolute right-4 text-[#8b533a]"
+                                <i data-lucide="search" class="absolute right-4 text-[#8b533a]" aria-hidden="true"
                                     style="width:20px;height:20px;pointer-events:none;"></i>
-                                <input type="text" name="q" placeholder="شماره فنی (VIN) یا نام قطعه..."
+                                <label for="home-search-query" class="sr-only">نام قطعه، شماره فنی یا شماره شاسی</label>
+                                <input id="home-search-query" type="search" name="q" placeholder="شماره فنی (VIN) یا نام قطعه..."
                                     class="w-full bg-[#f8f6f0] border border-[#a88d7c]/40 text-[#2b170c] text-sm rounded-2xl pr-12 pl-[110px] py-4 focus:outline-none focus:border-[#8b533a] transition placeholder:text-[#815c4d]">
                                 <button type="submit"
                                     class="absolute left-1.5 top-1.5 bottom-1.5 bg-brand-red hover:bg-red-700 text-white font-bold px-6 rounded-xl text-sm transition shadow-md flex items-center gap-2">
@@ -112,14 +116,14 @@ global $settings;
                     <div class="flex flex-wrap items-center gap-2 mt-5 text-xs text-[#5c473b]">
                         <i data-lucide="trending-up" style="width:16px;height:16px;" class="text-[#8b533a]"></i>
                         <span class="font-bold ml-1">پرجستجوها:</span>
-                        <a href="/parts?q=لنت+کمری"
-                            class="bg-white/60 border border-[#a88d7c]/30 px-3 py-1.5 rounded-full hover:bg-[#8b533a] hover:text-white hover:border-[#8b533a] transition">لنت
-                            ترمز کمری</a>
-                        <a href="/parts?category=consumables"
+                        <a href="<?= e(\Core\Seo::modelUrl('camry')) ?>"
+                            class="bg-white/60 border border-[#a88d7c]/30 px-3 py-1.5 rounded-full hover:bg-[#8b533a] hover:text-white hover:border-[#8b533a] transition">قطعات
+                            تویوتا کمری</a>
+                        <a href="<?= e(\Core\Seo::categoryUrl('consumables')) ?>"
                             class="bg-white/60 border border-[#a88d7c]/30 px-3 py-1.5 rounded-full hover:bg-[#8b533a] hover:text-white hover:border-[#8b533a] transition">فیلتر
                             روغن اصلی</a>
-                        <a href="/parts?q=شمع+لندکروزر"
-                            class="bg-white/60 border border-[#a88d7c]/30 px-3 py-1.5 rounded-full hover:bg-[#8b533a] hover:text-white hover:border-[#8b533a] transition">شمع
+                        <a href="<?= e(\Core\Seo::modelUrl('landcruiser')) ?>"
+                            class="bg-white/60 border border-[#a88d7c]/30 px-3 py-1.5 rounded-full hover:bg-[#8b533a] hover:text-white hover:border-[#8b533a] transition">قطعات
                             لندکروزر</a>
                     </div>
 
@@ -136,7 +140,7 @@ global $settings;
                                 <!-- دایره مرکزی و لوگو -->
                                 <div
                                     class="w-40 h-40 lg:w-48 lg:h-48 bg-gradient-to-br from-[#eae0d6] via-[#d6c3b3] to-[#a88d7c]/40 rounded-full flex items-center justify-center shadow-inner relative z-10">
-                                    <svg viewBox="0 0 200 200" class="w-24 h-24 lg:w-32 lg:h-32">
+                                    <svg viewBox="0 0 200 200" class="w-24 h-24 lg:w-32 lg:h-32" aria-hidden="true" focusable="false">
                                         <ellipse cx="100" cy="100" rx="90" ry="50" fill="none" stroke="#8b533a"
                                             stroke-width="4" />
                                         <ellipse cx="100" cy="100" rx="55" ry="30" fill="none" stroke="#8b533a"
@@ -213,13 +217,13 @@ global $settings;
                         $catTags = explode(',', $cat['tags']);
                     }
                 ?>
-                <a href="/parts?category=<?= e(rawurlencode((string) $slug)) ?>"
+                <a href="<?= e(\Core\Seo::categoryUrl((string) $slug)) ?>"
                 class="cat-card bg-brand-grey rounded-2xl p-8 border border-white/5 block scroll-reveal group">
                     <div class="relative z-10 flex flex-col h-full">
-                        <div class="cat-icon w-16 h-16 bg-brand-accent/10 rounded-xl flex items-center justify-center mb-5 text-brand-accent">
+                        <div class="cat-icon w-16 h-16 bg-brand-accent/10 rounded-xl flex items-center justify-center mb-5 text-brand-accent" aria-hidden="true">
                             <?= $catIcon ?>
                         </div>
-                        <h4 class="text-xl font-bold mb-2 text-white"><?= e($catName) ?></h4>
+                        <h3 class="text-xl font-bold mb-2 text-white"><?= e($catName) ?></h3>
 
                         <?php if (!empty($catDesc)): ?>
                             <p class="text-gray-400 text-sm leading-relaxed mb-4 flex-grow"><?= e($catDesc) ?></p>
@@ -270,7 +274,7 @@ global $settings;
                             </p>
                         </div>
 
-                        <a href="/parts?sort=newest" 
+                        <a href="/parts"
                         class="bg-brand-red hover:bg-red-700 text-white font-bold py-2 px-3.5 sm:py-2.5 sm:px-4 rounded-xl text-[11px] sm:text-xs transition flex items-center gap-1 shadow-sm shrink-0 lg:w-full lg:mt-4 justify-center">
                             <span>مشاهده همه</span>
                             <i data-lucide="chevron-left" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
@@ -390,7 +394,7 @@ global $settings;
 
                             <!-- کارت انتها: مشاهده کل کاتالوگ -->
                             <div class="slider-card shrink-0 w-28 sm:w-40 snap-start bg-white/70 border border-dashed border-[#a88d7c]/40 rounded-2xl p-2.5 flex flex-col items-center justify-center text-center group hover:border-brand-red transition">
-                                <a href="/parts?sort=newest" class="flex flex-col items-center gap-1.5">
+                                <a href="/parts" class="flex flex-col items-center gap-1.5">
                                     <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-[#eae0d6] border border-[#a88d7c]/40 text-[#8b533a] flex items-center justify-center group-hover:scale-110 group-hover:bg-brand-red group-hover:text-white transition-all duration-300">
                                         <i data-lucide="arrow-left" class="w-4 h-4 sm:w-5 sm:h-5"></i>
                                     </div>
@@ -418,7 +422,7 @@ global $settings;
                     <div class="w-14 h-14 bg-brand-accent/10 rounded-xl flex items-center justify-center mx-auto mb-5">
                         <i data-lucide="shield-check" style="width:28px;height:28px;color:#8b533a;"></i>
                     </div>
-                    <h4 class="font-bold text-lg mb-2">ضمانت اصالت</h4>
+                    <h3 class="font-bold text-lg mb-2">ضمانت اصالت</h3>
                     <p class="text-gray-400 text-sm">تمامی قطعات دارای ضمانت اصالت و گارانتی معتبر</p>
                 </div>
                 <div
@@ -426,7 +430,7 @@ global $settings;
                     <div class="w-14 h-14 bg-brand-accent/10 rounded-xl flex items-center justify-center mx-auto mb-5">
                         <i data-lucide="truck" style="width:28px;height:28px;color:#8b533a;"></i>
                     </div>
-                    <h4 class="font-bold text-lg mb-2">ارسال سریع</h4>
+                    <h3 class="font-bold text-lg mb-2">ارسال سریع</h3>
                     <p class="text-gray-400 text-sm">ارسال به سراسر کشور با بسته‌بندی ایمن و مطمئن</p>
                 </div>
                 <div
@@ -434,7 +438,7 @@ global $settings;
                     <div class="w-14 h-14 bg-brand-accent/10 rounded-xl flex items-center justify-center mx-auto mb-5">
                         <i data-lucide="tag" style="width:28px;height:28px;color:#8b533a;"></i>
                     </div>
-                    <h4 class="font-bold text-lg mb-2">قیمت مناسب</h4>
+                    <h3 class="font-bold text-lg mb-2">قیمت مناسب</h3>
                     <p class="text-gray-400 text-sm">بهترین قیمت بازار با تخفیف‌های ویژه عمده‌فروشی</p>
                 </div>
                 <div
@@ -442,7 +446,7 @@ global $settings;
                     <div class="w-14 h-14 bg-brand-accent/10 rounded-xl flex items-center justify-center mx-auto mb-5">
                         <i data-lucide="headphones" style="width:28px;height:28px;color:#8b533a;"></i>
                     </div>
-                    <h4 class="font-bold text-lg mb-2">مشاوره تخصصی</h4>
+                    <h3 class="font-bold text-lg mb-2">مشاوره تخصصی</h3>
                     <p class="text-gray-400 text-sm">مشاوره رایگان توسط کارشناسان مجرب قطعات تویوتا</p>
                 </div>
             </div>
@@ -489,7 +493,7 @@ global $settings;
                         $modelName = is_array($model) ? $model['name'] : $model;
                         $modelLogo = is_array($model) && !empty($model['logo_svg']) ? $model['logo_svg'] : '<i data-lucide="car" style="width:24px;height:24px;"></i>';
                         ?>
-                        <a href="/parts?model=<?= e(rawurlencode((string) $slug)) ?>"
+                        <a href="<?= e(\Core\Seo::modelUrl((string) $slug)) ?>"
                             class="group flex items-center justify-between p-4 md:p-5 bg-brand-grey rounded-2xl border border-white/5 transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-brand-accent/30 active:border-brand-accent/30 hover:shadow-[0_15px_40px_-10px_rgba(139,83,58,0.15)] active:bg-white/5 relative overflow-hidden">
                             <div
                                 class="absolute inset-0 bg-gradient-to-r from-brand-accent/0 via-transparent to-brand-accent/10 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-300 ease-out pointer-events-none">
@@ -500,14 +504,14 @@ global $settings;
 
                             <div class="flex items-center gap-3 md:gap-4 pr-1 md:pr-2 relative z-10">
                                 <div
-                                    class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-brand-dark border border-white/10 flex items-center justify-center text-gray-500 group-hover:text-brand-accent group-active:text-brand-accent group-hover:bg-brand-dark transition-all duration-300 ease-out shrink-0">
+                                    class="w-12 h-12 md:w-14 md:h-14 rounded-full bg-brand-dark border border-white/10 flex items-center justify-center text-gray-500 group-hover:text-brand-accent group-active:text-brand-accent group-hover:bg-brand-dark transition-all duration-300 ease-out shrink-0" aria-hidden="true">
                                     <?= $modelLogo ?>
                                 </div>
                                 <div class="text-right">
-                                    <h4
+                                    <h3
                                         class="text-sm md:text-base font-bold text-gray-200 group-hover:text-white group-active:text-white transition-colors duration-300">
                                         <?= e($modelName) ?>
-                                    </h4>
+                                    </h3>
                                     <span
                                         class="text-[9px] md:text-[10px] text-gray-500 uppercase tracking-widest mt-0.5 block font-mono group-hover:text-brand-accent/80 transition-colors duration-300">Toyota
                                         <?= e(ucwords(str_replace('-', ' ', $slug))) ?></span>
@@ -546,7 +550,7 @@ global $settings;
                     <div class="space-y-4">
                         <div class="flex justify-between items-center">
                             <div>
-                                <h4 class="font-bold text-sm text-white">محمدرضا سلیمی</h4>
+                                <h3 class="font-bold text-sm text-white">محمدرضا سلیمی</h3>
                                 <span class="text-[10px] text-gray-500 block mt-0.5">خریدار لنت ترمز کمری</span>
                             </div>
                             <div
@@ -576,7 +580,7 @@ global $settings;
                     <div class="space-y-4">
                         <div class="flex justify-between items-center">
                             <div>
-                                <h4 class="font-bold text-sm text-white">کیوان احمدی</h4>
+                                <h3 class="font-bold text-sm text-white">کیوان احمدی</h3>
                                 <span class="text-[10px] text-gray-500 block mt-0.5">خریدار شمع ایریدیوم لندکروزر</span>
                             </div>
                             <div
@@ -606,7 +610,7 @@ global $settings;
                     <div class="space-y-4">
                         <div class="flex justify-between items-center">
                             <div>
-                                <h4 class="font-bold text-sm text-white">مهدی ذوالفقاری</h4>
+                                <h3 class="font-bold text-sm text-white">مهدی ذوالفقاری</h3>
                                 <span class="text-[10px] text-gray-500 block mt-0.5">خریدار کمک‌فنر جلو کرولا</span>
                             </div>
                             <div
@@ -636,7 +640,7 @@ global $settings;
     <section class="py-12 border-t border-white/5 bg-brand-dark/50">
         <div class="max-w-7xl mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-6">
             <div class="text-center md:text-right">
-                <h3 class="text-xl font-bold text-white mb-1">نیاز به راهنمایی در خرید قطعه دارید؟</h3>
+                <h2 class="text-xl font-bold text-white mb-1">نیاز به راهنمایی در خرید قطعه دارید؟</h2>
                 <p class="text-sm text-gray-400">کارشناسان ما آماده پاسخگویی و بررسی خودرو شما هستند.</p>
             </div>
             <div class="flex flex-wrap justify-center gap-4">
@@ -644,7 +648,7 @@ global $settings;
                     class="bg-brand-grey border border-white/10 hover:border-white/30 text-white px-6 py-3 rounded-xl text-sm font-bold transition flex items-center gap-2 shadow-sm">
                     <i data-lucide="phone-call" class="w-4 h-4 text-brand-accent"></i> 09189998852
                 </a>
-                <a href="https://wa.me/989189998852" target="_blank"
+                <a href="https://wa.me/989189998852" target="_blank" rel="noopener"
                     class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl text-sm font-bold transition flex items-center gap-2 shadow-sm">
                     <i data-lucide="message-circle" class="w-4 h-4"></i> پشتیبانی واتساپ
                 </a>
@@ -674,9 +678,9 @@ global $settings;
                             ? \Core\Seo::imageUrl((string) $art['cover_image'], \Core\Seo::imageSlug((string) $art['title']))
                             : null;
                         ?>
-                        <div
+                        <article
                             class="bg-brand-grey border border-white/5 rounded-2xl overflow-hidden group hover:border-brand-accent/30 transition duration-300 flex flex-col justify-between">
-                            <a href="<?= e($artUrl) ?>"
+                            <a href="<?= e($artUrl) ?>" aria-label="مشاهده مقاله <?= e($art['title']) ?>"
                                 class="h-40 bg-brand-dark flex items-center justify-center p-6 text-brand-accent border-b border-white/5 relative block overflow-hidden">
                                 <?php if ($artCover): ?>
                                     <img src="<?= e($artCover) ?>" alt="<?= e($art['title']) ?>" width="640" height="360"
@@ -707,7 +711,7 @@ global $settings;
                                     </a>
                                 </div>
                             </div>
-                        </div>
+                        </article>
                     <?php endforeach; ?>
                 <?php endif; ?>
             </div>
@@ -719,7 +723,7 @@ global $settings;
         <div class="max-w-7xl mx-auto px-4">
             <div class="text-center mb-14 scroll-reveal">
                 <span class="text-brand-accent text-sm font-bold tracking-widest">ارتباط با ما</span>
-                <h3 class="text-3xl md:text-5xl font-black mt-3">راه‌های تماس</h3>
+                <h2 class="text-3xl md:text-5xl font-black mt-3">راه‌های تماس</h2>
                 <div class="w-20 h-1 bg-brand-accent mx-auto mt-4 rounded-full"></div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -728,7 +732,7 @@ global $settings;
                     <div class="w-14 h-14 bg-brand-accent/10 rounded-xl flex items-center justify-center mx-auto mb-4">
                         <i data-lucide="phone" style="width:28px;height:28px;color:#8b533a;"></i>
                     </div>
-                    <h4 class="font-bold text-lg mb-2">تلفن</h4>
+                    <h3 class="font-bold text-lg mb-2">تلفن</h3>
                     <p class="text-gray-400" id="contact-phone"><?= e($settings['phone_number'] ?? '09189998852') ?></p>
                 </div>
                 <div
@@ -736,7 +740,7 @@ global $settings;
                     <div class="w-14 h-14 bg-brand-accent/10 rounded-xl flex items-center justify-center mx-auto mb-4">
                         <i data-lucide="map-pin" style="width:28px;height:28px;color:#8b533a;"></i>
                     </div>
-                    <h4 class="font-bold text-lg mb-2">آدرس</h4>
+                    <h3 class="font-bold text-lg mb-2">آدرس</h3>
                     <p class="text-gray-400" id="contact-address">
                         <?= e($settings['address'] ?? 'استان کردستان سقز جاده کانی جژنی صنوف آلاینده-2 پلاک 350 فروشگاه پرادو یدک<br>کد پستی: 6681898204') ?>
                     </p>
@@ -746,7 +750,7 @@ global $settings;
                     <div class="w-14 h-14 bg-brand-accent/10 rounded-xl flex items-center justify-center mx-auto mb-4">
                         <i data-lucide="clock" style="width:28px;height:28px;color:#8b533a;"></i>
                     </div>
-                    <h4 class="font-bold text-lg mb-2">ساعات کاری</h4>
+                    <h3 class="font-bold text-lg mb-2">ساعات کاری</h3>
                     <p class="text-gray-400">
                         <?= e($settings['work_hours'] ?? 'شنبه تا پنجشنبه ۹ صبح تا ۶ عصر') ?>
                     </p>
@@ -780,6 +784,8 @@ global $settings;
             </div>
         </div>
     </section>
+
+    </main>
 
     <?php include 'assets/php/footer.php'; ?>
 

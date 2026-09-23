@@ -21,13 +21,20 @@
                 سرویس‌های دوره‌ای و عیب‌یابی خودرو توسط کارشناسان پرادو یدک</p>
         </header>
 
-        <!-- باکس جستجو -->
-        <section aria-label="جستجوی مقالات" class="max-w-xl mx-auto mb-8 relative">
+        <!-- فرم استاندارد GET جستجوی مقالات -->
+        <form action="/blog" method="GET" role="search" aria-label="جستجوی مقالات"
+            class="max-w-xl mx-auto mb-8 relative">
             <i data-lucide="search" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400"
-                style="width:20px;height:20px;"></i>
-            <input type="text" id="blog-search" oninput="searchBlog()" placeholder="جستجو در عنوان یا متن مقالات..."
-                class="w-full bg-brand-dark border border-white/10 rounded-xl pr-12 pl-4 py-3 text-sm text-white focus:outline-none focus:border-brand-red transition">
-        </section>
+                style="width:20px;height:20px;" aria-hidden="true"></i>
+            <label for="blog-search" class="sr-only">عبارت جستجو در مقالات</label>
+            <input type="search" id="blog-search" name="q" value="<?= e($searchQuery ?? '') ?>"
+                oninput="searchBlog()" placeholder="جستجو در عنوان یا متن مقالات..."
+                class="w-full bg-brand-dark border border-white/10 rounded-xl pr-12 pl-12 py-3 text-sm text-white focus:outline-none focus:border-brand-red transition">
+            <button type="submit" aria-label="جستجوی مقالات"
+                class="absolute left-1.5 top-1.5 bottom-1.5 w-9 flex items-center justify-center text-gray-400 hover:text-white hover:bg-brand-red rounded-lg transition">
+                <i data-lucide="arrow-left" class="w-4 h-4" aria-hidden="true"></i>
+            </button>
+        </form>
 
         <!-- فیلتر دسته‌بندی‌ها -->
         <nav aria-label="دسته‌بندی موضوعی" class="flex flex-wrap justify-center gap-2 border-b border-white/10 pb-6">
@@ -45,7 +52,8 @@
         </nav>
 
         <!-- گرید مقالات وبلاگ -->
-        <section aria-label="لیست مقالات" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="blog-grid">
+        <section aria-labelledby="blog-list-title" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="blog-grid">
+            <h2 id="blog-list-title" class="sr-only">لیست مقالات</h2>
             <?php if (!empty($articles)): ?>
                 <?php foreach ($articles as $index => $art):
                     // مسیر URL همیشه با rawurlencode ساخته می‌شود (نه urlencode)
@@ -58,9 +66,9 @@
                         : null;
                     $cardAlt = trim((string) ($art['focus_keyword'] ?? '')) ?: (string) $art['title'];
                     ?>
-                    <div class="bg-brand-grey border border-white/5 rounded-2xl overflow-hidden group hover:border-brand-red/30 transition duration-300 flex flex-col justify-between"
+                    <article class="bg-brand-grey border border-white/5 rounded-2xl overflow-hidden group hover:border-brand-red/30 transition duration-300 flex flex-col justify-between"
                         data-category="<?= e($art['category']) ?>">
-                        <a href="<?= e($articleUrl) ?>"
+                        <a href="<?= e($articleUrl) ?>" aria-label="مشاهده مقاله <?= e($art['title']) ?>"
                             class="h-44 bg-brand-dark flex items-center justify-center text-brand-red border-b border-white/5 relative block overflow-hidden">
                             <?php if ($hasCover): ?>
                                 <img src="<?= e($cardCover) ?>" alt="<?= e($cardAlt) ?>" width="640" height="360"
@@ -97,7 +105,7 @@
                                         data-lucide="arrow-left" style="width:12px;height:12px;"></i></a>
                             </div>
                         </div>
-                    </div>
+                    </article>
                 <?php endforeach; ?>
             <?php else: ?>
                 <div class="col-span-full py-16 text-center text-gray-500 text-sm">

@@ -352,7 +352,7 @@ function renderCheckoutItems(cart) {
             <div class="flex items-center gap-3 bg-[#F8F6F0] border border-[#E8E2D9] p-3 rounded-2xl">
                 ${imageHtml}
                 <div class="flex-1 min-w-0">
-                    <h4 class="font-bold text-xs text-[#251E1B] truncate mb-0.5">${escapeHtml(prod.name)}</h4>
+                    <h3 class="font-bold text-xs text-[#251E1B] truncate mb-0.5">${escapeHtml(prod.name)}</h3>
                     <div class="flex items-center justify-between text-[11px] text-[#5F605C]">
                         <span>کد فنی: <span class="font-mono text-[#251E1B]" dir="ltr">${escapeHtml(prod.oem || '---')}</span></span>
                         <span class="bg-white px-2 py-0.5 rounded text-[#251E1B] font-bold border border-[#E8E2D9]">${qty} عدد</span>

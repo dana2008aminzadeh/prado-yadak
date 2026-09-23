@@ -71,13 +71,11 @@ class HomeController extends Controller
             $organization,
             Seo::websiteNode($settings ?? []),
             Seo::webPageNode($canonicalUrl, $pageTitle, $metaDescription, $hostUrl . '/assets/logo/logo.webp'),
-            [
-                '@type'           => 'ItemList',
-                '@id'             => $canonicalUrl . '#latest-products',
-                'name'            => 'جدیدترین قطعات یدکی تویوتا در ' . $siteName,
-                'numberOfItems'   => count($itemListElements),
-                'itemListElement' => $itemListElements,
-            ],
+            Seo::itemListNode(
+                $canonicalUrl . '#latest-products',
+                'جدیدترین قطعات یدکی تویوتا در ' . $siteName,
+                $itemListElements
+            ),
         ]);
 
         $latestArticles = \App\models\Article::getAll('published', null, 3);
