@@ -227,13 +227,13 @@ class PartController extends Controller
         // تصویر محصول برای اشتراک‌گذاری (og:image) با آدرس سئوشده
         $gallery = $product['gallery'] ?? [];
         if (!empty($gallery)) {
-            $pageImage = Seo::base() . $gallery[0]['url'];
+            $pageImage = Seo::absolute((string) ($gallery[0]['url'] ?? ''));
             $pageImageAlt = $gallery[0]['alt'];
         } elseif (!empty($product['images'][0])) {
-            $pageImage = Seo::base() . Seo::imageUrl(
+            $pageImage = Seo::absolute(Seo::imageUrl(
                 (string) $product['images'][0],
                 Seo::imageSlug((string) $product['name'], $product['oem'] ?? null, $product['model'] ?? null)
-            );
+            ));
             $pageImageAlt = Seo::suggestAlt((string) $product['name'], null, $product['oem'] ?? null);
         }
 

@@ -274,24 +274,39 @@ class Product
         $images = [];
         if (!empty($product['gallery']) && is_array($product['gallery'])) {
             foreach ($product['gallery'] as $g) {
-                $images[] = $base . $g['url'];
+                $images[] = \Core\Seo::absolute((string) ($g['url'] ?? ''));
             }
         } elseif (!empty($product['images']) && is_array($product['images'])) {
             foreach ($product['images'] as $i => $img) {
                 $seoName = \Core\Seo::imageSlug((string) $product['name'], $product['oem'] ?? null, $product['model'] ?? null, (int) $i);
-                $images[] = $base . \Core\Seo::imageUrl((string) $img, $seoName);
+                $images[] = \Core\Seo::absolute(
+                    \Core\Seo::imageUrl((string) $img, $seoName)
+                );
             }
         }
         if (!$images) {
-            $images[] = $base . '/assets/logo/logo.webp';
+            $images[] = \Core\Seo::absolute('/assets/logo/logo.webp');
         }
 
-        // ---------- دیدگاه‌ها ----------
-        $commentCount = count($comments ?? []);
+        // ---------- دیدگاه‌های تأییدشده ----------
+        // امتیاز پیش‌فرض برای Schema وجود ندارد؛ فقط امتیاز واقعاً ثبت‌شده
+        // در Review و AggregateRating وارد می‌شود.
         $reviews = [];
-        $sum = 0;
+        $sum = 0.0;
         foreach ($comments ?? [] as $c) {
-            $rating = (float) ($c['rating'] ?? 5);
+            // معمولاً getComments فقط approvedها را برمی‌گرداند؛ این شرط
+            // جلوی ورود نظر pending/rejected را در فراخوانی‌های مستقیم هم می‌گیرد.
+            if (isset($c['status']) && (string) $c['status'] !== 'approved') {
+                continue;
+            }
+            if (!isset($c['rating']) || !is_numeric($c['rating'])) {
+                continue;
+            }
+
+            $rating = (float) $c['rating'];
+            if ($rating < 1.0 || $rating > 5.0) {
+                continue;
+            }
             $sum += $rating;
             $reviews[] = [
                 '@type' => 'Review',
@@ -419,6 +434,7 @@ class Product
             ],
         ];
 
+        $commentCount = count($reviews);
         if ($commentCount > 0) {
             $productNode['aggregateRating'] = [
                 '@type' => 'AggregateRating',
