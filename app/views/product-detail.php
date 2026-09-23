@@ -231,25 +231,14 @@
                 </div>
 
                 <?php
+                $avgRating = 5.0;
                 $commentCount = count($comments ?? []);
-                $avgRating = null;
                 if ($commentCount > 0) {
-                    $sum = 0.0;
-                    $ratedComments = 0;
+                    $sum = 0;
                     foreach ($comments as $c) {
-                        if (!isset($c['rating']) || !is_numeric($c['rating'])) {
-                            continue;
-                        }
-                        $rating = (float) $c['rating'];
-                        if ($rating < 1.0 || $rating > 5.0) {
-                            continue;
-                        }
-                        $sum += $rating;
-                        $ratedComments++;
+                        $sum += $c['rating'];
                     }
-                    if ($ratedComments > 0) {
-                        $avgRating = round($sum / $ratedComments, 1);
-                    }
+                    $avgRating = round($sum / $commentCount, 1);
                 }
                 ?>
                 <div
@@ -257,15 +246,11 @@
                     <div class="flex text-amber-400">
                         <?php for ($i = 1; $i <= 5; $i++): ?>
                             <i data-lucide="star"
-                                style="width:16px;height:16px; <?= $avgRating !== null && $i <= $avgRating ? 'fill:currentColor;' : '' ?>"></i>
+                                style="width:16px;height:16px; <?= $i <= $avgRating ? 'fill:currentColor;' : '' ?>"></i>
                         <?php endfor; ?>
                     </div>
                     <div class="flex items-center gap-1.5">
-                        <?php if ($avgRating !== null): ?>
-                            <span class="font-black text-sm text-white"><?= $avgRating ?></span>
-                        <?php else: ?>
-                            <span class="text-xs text-gray-500">بدون امتیاز</span>
-                        <?php endif; ?>
+                        <span class="font-black text-sm text-white"><?= $avgRating ?></span>
                         <span class="text-xs text-gray-500">(<?= $commentCount ?> نظر)</span>
                     </div>
                 </div>
