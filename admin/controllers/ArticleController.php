@@ -65,9 +65,18 @@ class ArticleController extends BaseController
                           WHERE ap.article_id = ? ORDER BY ap.sort_order, ap.id', [$aid])
             : [];
 
+        $siteName = $GLOBALS['settings']['site_title'] ?? 'پرادو یدک';
+        $linkAudit = \Core\SeoAnalyzer::internalLinkAuditFromDatabase((string) ($article['content'] ?? ''), [
+            'pdo' => Model::db(),
+        ]);
         $seo = \Core\SeoAnalyzer::analyzeArticle($article, [
-            'site_name' => $GLOBALS['settings']['site_title'] ?? 'پرادو یدک',
-            'related_products' => count($linkedProducts),
+            'site_name'         => $siteName,
+            'related_products'  => count($linkedProducts),
+            'broken_links'      => $linkAudit['broken_links'] ?? [],
+            'duplicate_content' => \Core\SeoAnalyzer::duplicateContextFromDatabase('article', $article, [
+                'site_name' => $siteName,
+                'pdo'       => Model::db(),
+            ]),
         ]);
 
         // وضعیت دروازه اجباری انتشار (کلمات، H2 و alt تصاویر)
@@ -223,10 +232,19 @@ class ArticleController extends BaseController
         // ---- امتیاز سئو ----
         try {
             $fresh = Model::find('articles', $aid) ?? [];
+            $siteName = $GLOBALS['settings']['site_title'] ?? 'پرادو یدک';
+            $linkAudit = \Core\SeoAnalyzer::internalLinkAuditFromDatabase((string) ($fresh['content'] ?? ''), [
+                'pdo' => Model::db(),
+            ]);
             $res = \Core\SeoAnalyzer::analyzeArticle($fresh, [
-                'site_name' => $GLOBALS['settings']['site_title'] ?? 'پرادو یدک',
-                'related_products' => Model::hasTable('article_products')
+                'site_name'         => $siteName,
+                'related_products'  => Model::hasTable('article_products')
                     ? Model::count('article_products', 'article_id = ?', [$aid]) : 0,
+                'broken_links'      => $linkAudit['broken_links'] ?? [],
+                'duplicate_content' => \Core\SeoAnalyzer::duplicateContextFromDatabase('article', $fresh, [
+                    'site_name' => $siteName,
+                    'pdo'       => Model::db(),
+                ]),
             ]);
             if (Model::hasColumn('articles', 'seo_score')) {
                 Model::exec('UPDATE articles SET seo_score = ? WHERE id = ?', [(int) $res['score'], $aid]);

@@ -139,6 +139,12 @@ $scoreColor = $score >= 80 ? 'var(--green)' : ($score >= 50 ? 'var(--amber)' : '
     .seo-bad { color: var(--red); font-weight: 800; }
 </style>
 
+<?php
+$serverOnlyChecks = array_values(array_filter(
+    $analysis['checks'] ?? [],
+    static fn($c) => in_array($c['key'] ?? '', ['duplicate_content'], true)
+));
+?>
 <script>
 window.SEO_CONF = {
     type: <?= json_encode($type) ?>,
@@ -146,6 +152,7 @@ window.SEO_CONF = {
     urlBase: <?= json_encode($urlBase, JSON_UNESCAPED_UNICODE) ?>,
     fallbackTitle: <?= json_encode($analysis['preview']['title'] ?? '', JSON_UNESCAPED_UNICODE) ?>,
     fallbackDesc: <?= json_encode($analysis['preview']['description'] ?? '', JSON_UNESCAPED_UNICODE) ?>,
+    serverOnlyChecks: <?= json_encode($serverOnlyChecks, JSON_UNESCAPED_UNICODE) ?>,
     csrf: <?= json_encode(Auth::csrf()) ?>,
     suggestUrl: <?= json_encode(admin_url('products/suggestSeo')) ?>
 };
