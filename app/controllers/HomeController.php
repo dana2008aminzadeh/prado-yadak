@@ -1,10 +1,18 @@
 <?php
 namespace App\controllers;
 
+use Core\Seo;
+
+/**
+ * کنترلر صفحات عمومی (خانه و قوانین)
+ * ---------------------------------------------------------------------------
+ * تمام آدرس‌های مطلق از Core\Seo::base() گرفته می‌شوند. الگوی قدیمی
+ * «$protocol . '://' . SITE_URL» حذف شد، چون SITE_URL خودش شامل پروتکل است و
+ * آن الگو آدرس‌های خرابی مثل https://https://pradoyadak.com تولید می‌کرد.
+ * همچنین چند بلوک JSON-LD مجزا با یک گراف واحد (@graph) جایگزین شده‌اند.
+ */
 class HomeController extends Controller
 {
-    // app/controllers/HomeController.php
-
     public function index()
     {
         global $settings;
@@ -12,75 +20,65 @@ class HomeController extends Controller
         $phone = $settings['phone_number'] ?? '09189998852';
         $address = $settings['address'] ?? 'استان کردستان سقز جاده کانی جژنی صنوف آلاینده-2 پلاک 350 فروشگاه پرادو یدک';
 
-        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
-        $host = SITE_URL;
-        $hostUrl = $protocol . "://" . $host;
+        $hostUrl = Seo::base();
+
+        $pageTitle = $siteName . ' | مرجع تخصصی قطعات اصلی تویوتا و لکسوس';
+        $metaDescription = $settings['site_description']
+            ?? 'فروشگاه تخصصی ' . $siteName . '؛ تامین قطعات اصلی جنیون پارت تویوتا و لکسوس با ضمانت ۱۰۰٪ اصالت، تطابق با شماره شاسی (VIN) و ارسال سریع به سراسر کشور.';
 
         // دریافت ۶ محصول جدیدتر از دیتابیس
         $latestProductsData = \App\models\Product::search([], 1, 6);
         $latestProducts = $latestProductsData['items'] ?? [];
 
-        $schemaWebSite = [
-            '@context' => 'https://schema.org',
-            '@type' => 'WebSite',
-            'name' => $siteName,
-            'url' => $hostUrl . '/',
-            'potentialAction' => [
-                '@type' => 'SearchAction',
-                'target' => [
-                    '@type' => 'EntryPoint',
-                    'urlTemplate' => $hostUrl . '/parts?q={search_term_string}'
-                ],
-                'query-input' => 'required name=search_term_string'
-            ]
-        ];
+        // ------------------------------------------------------------------
+        // یک بلوک JSON-LD یکپارچه (@graph) — بدون گره تکراری
+        // گره سازمان از Seo::organizationNode می‌آید و اینجا فقط اطلاعات
+        // فیزیکی فروشگاه (آدرس و ساعات کاری) به آن افزوده می‌شود.
+        // ------------------------------------------------------------------
+        $canonicalUrl = $hostUrl . '/';
 
-        $schemaAutoPartsStore = [
-            '@context' => 'https://schema.org',
-            '@type' => 'AutoPartsStore',
-            'name' => $siteName,
-            'image' => $hostUrl . '/assets/logo/logo.webp',
-            'url' => $hostUrl . '/',
-            'telephone' => $phone,
-            'priceRange' => 'IRR',
-            'address' => [
-                '@type' => 'PostalAddress',
-                'streetAddress' => $address,
-                'addressLocality' => 'سقز',
-                'addressRegion' => 'کردستان',
-                'postalCode' => '6681898204',
-                'addressCountry' => 'IR'
+        $organization = Seo::organizationNode($settings ?? []);
+        $organization['telephone'] = $phone;
+        $organization['address'] = [
+            '@type'           => 'PostalAddress',
+            'streetAddress'   => $address,
+            'addressLocality' => 'سقز',
+            'addressRegion'   => 'کردستان',
+            'postalCode'      => '6681898204',
+            'addressCountry'  => 'IR',
+        ];
+        $organization['openingHoursSpecification'] = [
+            [
+                '@type'     => 'OpeningHoursSpecification',
+                'dayOfWeek' => ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'],
+                'opens'     => '09:00',
+                'closes'    => '18:00',
             ],
-            'openingHoursSpecification' => [
-                [
-                    '@type' => 'OpeningHoursSpecification',
-                    'dayOfWeek' => ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'],
-                    'opens' => '09:00',
-                    'closes' => '18:00'
-                ]
-            ]
         ];
 
         // اسکیمای اختصاصی گوگل برای لیست جدیدترین محصولات (Rich Results)
         $itemListElements = [];
         foreach ($latestProducts as $idx => $prod) {
             $itemListElements[] = [
-                '@type' => 'ListItem',
+                '@type'    => 'ListItem',
                 'position' => $idx + 1,
-                'url' => $hostUrl . '/product/' . urlencode($prod['slug']),
-                'name' => $prod['name']
+                'url'      => Seo::productUrl($prod['slug'] ?? '', true),
+                'name'     => $prod['name'] ?? '',
             ];
         }
-        $schemaLatestProducts = [
-            '@context' => 'https://schema.org',
-            '@type' => 'ItemList',
-            'name' => 'جدیدترین قطعات یدکی تویوتا در پرادو یدک',
-            'itemListElement' => $itemListElements
-        ];
 
-        $schemaMarkup = "<script type=\"application/ld+json\">\n" . json_encode($schemaWebSite, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n</script>\n";
-        $schemaMarkup .= "<script type=\"application/ld+json\">\n" . json_encode($schemaAutoPartsStore, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n</script>\n";
-        $schemaMarkup .= "<script type=\"application/ld+json\">\n" . json_encode($schemaLatestProducts, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n</script>";
+        $schemaMarkup = Seo::graph([
+            $organization,
+            Seo::websiteNode($settings ?? []),
+            Seo::webPageNode($canonicalUrl, $pageTitle, $metaDescription, $hostUrl . '/assets/logo/logo.webp'),
+            [
+                '@type'           => 'ItemList',
+                '@id'             => $canonicalUrl . '#latest-products',
+                'name'            => 'جدیدترین قطعات یدکی تویوتا در ' . $siteName,
+                'numberOfItems'   => count($itemListElements),
+                'itemListElement' => $itemListElements,
+            ],
+        ]);
 
         $latestArticles = \App\models\Article::getAll('published', null, 3);
         require_once VIEWS_PATH . '/index.php';
@@ -113,46 +111,32 @@ class HomeController extends Controller
             ]
         ];
 
-        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "http";
-        $host = SITE_URL;
-        $hostUrl = $protocol . "://" . $host;
+        $canonicalUrl = Seo::absolute('/terms');
 
-        $faqSchema = [
-            '@context' => 'https://schema.org',
-            '@type' => 'FAQPage',
-            'mainEntity' => array_map(function ($item) {
-                return [
-                    '@type' => 'Question',
-                    'name' => $item['q'],
-                    'acceptedAnswer' => [
-                        '@type' => 'Answer',
-                        'text' => $item['a']
-                    ]
-                ];
-            }, $faqs)
-        ];
-
-        $breadcrumbSchema = [
-            '@context' => 'https://schema.org',
-            '@type' => 'BreadcrumbList',
-            'itemListElement' => [
-                [
-                    '@type' => 'ListItem',
-                    'position' => 1,
-                    'name' => 'صفحه اصلی',
-                    'item' => $hostUrl . '/'
-                ],
-                [
-                    '@type' => 'ListItem',
-                    'position' => 2,
-                    'name' => 'قوانین، مقررات و ضمانت اصالت کالا',
-                    'item' => $hostUrl . '/terms'
-                ]
-            ]
-        ];
-
-        $schemaMarkup = "<script type=\"application/ld+json\">\n" . json_encode($faqSchema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n</script>\n";
-        $schemaMarkup .= "<script type=\"application/ld+json\">\n" . json_encode($breadcrumbSchema, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) . "\n</script>";
+        // یک بلوک JSON-LD یکپارچه (@graph) — بدون گره تکراری
+        $schemaMarkup = Seo::graph([
+            Seo::organizationNode($settings ?? []),
+            Seo::websiteNode($settings ?? []),
+            Seo::webPageNode($canonicalUrl, $pageTitle, $metaDescription),
+            Seo::breadcrumbNode([
+                ['name' => 'صفحه اصلی', 'url' => '/'],
+                ['name' => 'قوانین، مقررات و ضمانت اصالت کالا', 'url' => '/terms'],
+            ], $canonicalUrl),
+            [
+                '@type'      => 'FAQPage',
+                '@id'        => $canonicalUrl . '#faq',
+                'mainEntity' => array_map(static function ($item) {
+                    return [
+                        '@type'          => 'Question',
+                        'name'           => $item['q'],
+                        'acceptedAnswer' => [
+                            '@type' => 'Answer',
+                            'text'  => $item['a'],
+                        ],
+                    ];
+                }, $faqs),
+            ],
+        ]);
 
         require_once VIEWS_PATH . '/terms.php';
     }

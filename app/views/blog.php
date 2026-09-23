@@ -47,23 +47,39 @@
         <!-- گرید مقالات وبلاگ -->
         <section aria-label="لیست مقالات" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="blog-grid">
             <?php if (!empty($articles)): ?>
-                <?php foreach ($articles as $art):
-                    $articleUrl = '/blog/' . urlencode($art['slug']);
+                <?php foreach ($articles as $index => $art):
+                    // مسیر URL همیشه با rawurlencode ساخته می‌شود (نه urlencode)
+                    $articleUrl = \Core\Seo::articleUrl($art['slug'] ?? '');
+
+                    // تصویر کاور واقعی؛ در نبود آن، آیکون به‌عنوان جایگزین نمایش داده می‌شود
+                    $hasCover = !empty($art['cover_image']);
+                    $cardCover = $hasCover
+                        ? \Core\Seo::imageUrl((string) $art['cover_image'], \Core\Seo::imageSlug((string) $art['title']))
+                        : null;
+                    $cardAlt = trim((string) ($art['focus_keyword'] ?? '')) ?: (string) $art['title'];
                     ?>
                     <div class="bg-brand-grey border border-white/5 rounded-2xl overflow-hidden group hover:border-brand-red/30 transition duration-300 flex flex-col justify-between"
                         data-category="<?= e($art['category']) ?>">
-                        <a href="<?= $articleUrl ?>"
-                            class="h-44 bg-brand-dark flex items-center justify-center text-brand-red border-b border-white/5 relative block">
-                            <i data-lucide="<?= e($art['icon'] ?: 'wrench') ?>" style="width:48px;height:48px;"
-                                class="group-hover:scale-110 transition-transform"></i>
+                        <a href="<?= e($articleUrl) ?>"
+                            class="h-44 bg-brand-dark flex items-center justify-center text-brand-red border-b border-white/5 relative block overflow-hidden">
+                            <?php if ($hasCover): ?>
+                                <img src="<?= e($cardCover) ?>" alt="<?= e($cardAlt) ?>" width="640" height="360"
+                                    loading="<?= $index < 3 ? 'eager' : 'lazy' ?>" decoding="async"
+                                    <?= $index === 0 ? 'fetchpriority="high"' : '' ?>
+                                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                <span class="absolute inset-0 bg-gradient-to-t from-brand-dark/70 via-transparent to-transparent pointer-events-none"></span>
+                            <?php else: ?>
+                                <i data-lucide="<?= e($art['icon'] ?: 'wrench') ?>" style="width:48px;height:48px;"
+                                    class="group-hover:scale-110 transition-transform"></i>
+                            <?php endif; ?>
                             <span
-                                class="absolute top-3 right-3 bg-brand-red/20 text-brand-red text-[10px] font-bold px-2 py-1 rounded">
+                                class="absolute top-3 right-3 bg-brand-red/90 text-white text-[10px] font-bold px-2 py-1 rounded z-10">
                                 <?= e($art['category_label']) ?>
                             </span>
                         </a>
                         <div class="p-5 flex-1 flex flex-col justify-between space-y-4">
                             <div class="space-y-2">
-                                <a href="<?= $articleUrl ?>" class="block">
+                                <a href="<?= e($articleUrl) ?>" class="block">
                                     <h3
                                         class="font-bold text-sm text-white group-hover:text-brand-red transition-colors line-clamp-1">
                                         <?= e($art['title']) ?>
@@ -76,7 +92,7 @@
                             <div
                                 class="flex justify-between items-center pt-3 border-t border-white/5 text-[10px] text-gray-500">
                                 <span><?= e(toShamsi($art['created_at'])) ?></span>
-                                <a href="<?= $articleUrl ?>"
+                                <a href="<?= e($articleUrl) ?>"
                                     class="text-brand-red font-bold flex items-center gap-1 hover:underline">ادامه مطلب <i
                                         data-lucide="arrow-left" style="width:12px;height:12px;"></i></a>
                             </div>

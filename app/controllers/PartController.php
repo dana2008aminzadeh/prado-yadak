@@ -175,8 +175,10 @@ class PartController extends Controller
         if ($id && !$slug) {
             $product = \App\models\Product::findById($id);
             if ($product) {
-                header("HTTP/1.1 301 Moved Permanently");
-                header("Location: /product/" . urlencode($product['slug']));
+                // مسیر URL همیشه با rawurlencode ساخته می‌شود (نه urlencode)
+                if (!headers_sent()) {
+                    header('Location: ' . Seo::productUrl($product['slug']), true, 301);
+                }
                 exit;
             }
             http_response_code(404);

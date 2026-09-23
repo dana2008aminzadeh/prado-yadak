@@ -191,6 +191,107 @@ class SeoAnalyzer
         return self::wrap($checks, ['title' => $title, 'description' => $desc]);
     }
 
+    // ------------------------------------------------- دروازه اجباری انتشار
+
+    /**
+     * حداقل‌های اجباری برای «انتشار» یک مقاله.
+     * ---------------------------------------------------------------------
+     * این مقادیر صرفاً نمایشی نیستند؛ اگر رعایت نشوند مقاله منتشر نمی‌شود و
+     * به‌صورت پیش‌نویس ذخیره می‌ماند.
+     */
+    public const PUBLISH_MIN_WORDS = 300;   // حداقل حجم محتوا
+    public const PUBLISH_MIN_H2    = 2;     // حداقل تعداد تیتر H2
+    public const PUBLISH_MIN_DESC  = 80;    // حداقل طول توضیحات متا
+
+    /**
+     * بررسی اجباری پیش از انتشار مقاله.
+     * ---------------------------------------------------------------------
+     * برخلاف analyzeArticle که فقط «امتیاز» می‌دهد، این متد قانون است:
+     * تعداد کلمات، ساختار تیترها (H2/H3) و alt تصاویر باید در حد قابل قبول
+     * باشند، وگرنه اجازه انتشار صادر نمی‌شود.
+     *
+     * @return array{passed:bool, errors:array<int,string>, stats:array}
+     */
+    public static function publishGate(array $article): array
+    {
+        $html = (string) ($article['content'] ?? '');
+        $body = Seo::clean($html);
+        $title = trim((string) ($article['title'] ?? ''));
+        $desc = trim((string) ($article['meta_description'] ?? ''));
+        if ($desc === '') {
+            $desc = Seo::clean((string) ($article['summary'] ?? ''));
+        }
+
+        $words = $body === '' ? 0 : count(preg_split('/\s+/u', $body) ?: []);
+        $h2 = (int) preg_match_all('/<h2\b/i', $html);
+        $h3 = (int) preg_match_all('/<h3\b/i', $html);
+
+        // تصاویر بدون alt معنادار (alt="" یا نبود کامل صفت)
+        $imgTotal = (int) preg_match_all('/<img\b[^>]*>/i', $html, $imgMatches);
+        $imgMissingAlt = 0;
+        foreach (($imgMatches[0] ?? []) as $tag) {
+            if (!preg_match('/\balt\s*=\s*("([^"]*)"|\'([^\']*)\'|([^\s>]+))/i', $tag, $m)) {
+                $imgMissingAlt++;
+                continue;
+            }
+            $alt = trim((string) ($m[2] ?? '') . ($m[3] ?? '') . ($m[4] ?? ''));
+            if ($alt === '') {
+                $imgMissingAlt++;
+            }
+        }
+
+        $errors = [];
+
+        if ($title === '') {
+            $errors[] = 'عنوان مقاله الزامی است.';
+        }
+
+        if ($words < self::PUBLISH_MIN_WORDS) {
+            $errors[] = sprintf(
+                'حجم محتوا کافی نیست: %d کلمه ثبت شده و حداقل %d کلمه برای انتشار لازم است.',
+                $words,
+                self::PUBLISH_MIN_WORDS
+            );
+        }
+
+        if ($h2 < self::PUBLISH_MIN_H2) {
+            $errors[] = sprintf(
+                'ساختار تیترها ناقص است: %d تیتر H2 پیدا شد و حداقل %d تیتر H2 برای انتشار لازم است.',
+                $h2,
+                self::PUBLISH_MIN_H2
+            );
+        }
+
+        if ($imgMissingAlt > 0) {
+            $errors[] = sprintf(
+                '%d تصویر از %d تصویر مقاله متن جایگزین (alt) ندارد؛ برای انتشار همه تصاویر باید alt داشته باشند.',
+                $imgMissingAlt,
+                $imgTotal
+            );
+        }
+
+        if (mb_strlen($desc, 'UTF-8') < self::PUBLISH_MIN_DESC) {
+            $errors[] = sprintf(
+                'توضیحات متا یا خلاصه مقاله کوتاه است (%d کاراکتر)؛ حداقل %d کاراکتر لازم است.',
+                mb_strlen($desc, 'UTF-8'),
+                self::PUBLISH_MIN_DESC
+            );
+        }
+
+        return [
+            'passed' => $errors === [],
+            'errors' => $errors,
+            'stats'  => [
+                'words'           => $words,
+                'h2'              => $h2,
+                'h3'              => $h3,
+                'images'          => $imgTotal,
+                'images_missing_alt' => $imgMissingAlt,
+                'description_len' => mb_strlen($desc, 'UTF-8'),
+            ],
+        ];
+    }
+
     // ----------------------------------------------------------- بررسی‌های پایه
 
     private static function checkTitleLength(string $title): array

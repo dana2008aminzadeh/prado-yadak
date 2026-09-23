@@ -58,6 +58,85 @@ class Seo
     }
 
     /**
+     * آدرس یک مقاله — تنها نقطه‌ی ساخت لینک وبلاگ در کل پروژه.
+     * برای بخش مسیر (path) همیشه rawurlencode استفاده می‌شود، نه urlencode؛
+     * چون urlencode فاصله را به «+» تبدیل می‌کند و در مسیر URL نامعتبر است.
+     */
+    public static function articleUrl(?string $slug, bool $absolute = false): string
+    {
+        $path = '/blog/' . rawurlencode(trim((string) $slug));
+        return $absolute ? self::absolute($path) : $path;
+    }
+
+    /** آدرس یک محصول (همان قاعده rawurlencode) */
+    public static function productUrl(?string $slug, bool $absolute = false): string
+    {
+        $path = '/product/' . rawurlencode(trim((string) $slug));
+        return $absolute ? self::absolute($path) : $path;
+    }
+
+    /** مسیر جاری درخواست، نرمال‌شده و بدون اسلش پایانی */
+    public static function currentPath(): string
+    {
+        $uri = (string) (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/');
+        $uri = '/' . ltrim($uri, '/');
+        if ($uri !== '/' && str_ends_with($uri, '/')) {
+            $uri = rtrim($uri, '/');
+        }
+        return $uri === '' ? '/' : $uri;
+    }
+
+    /**
+     * تنها منبع نهایی تولید کانونیکال.
+     * ---------------------------------------------------------------------
+     * هیچ قالب یا کنترلری اجازه ندارد منطق جداگانه‌ای برای کانونیکال داشته باشد؛
+     * اگر کنترلر مقدار مشخصی داده باشد همان مطلق‌سازی و برگردانده می‌شود، در غیر
+     * این صورت از روی مسیر جاری و موجودیت صفحه (محصول/مقاله/لندینگ) ساخته می‌شود.
+     *
+     * @param string|null $explicit مقدار محاسبه‌شده توسط کنترلر (اختیاری)
+     * @param array       $context  ['article' => [...], 'product' => [...], 'landing' => [...]]
+     */
+    public static function canonical(?string $explicit = null, array $context = []): string
+    {
+        $explicit = trim((string) $explicit);
+        if ($explicit !== '') {
+            return self::absolute($explicit);
+        }
+
+        $base = self::base();
+        $uri  = self::currentPath();
+
+        if ($uri === '/' || $uri === '/index' || $uri === '/index.php') {
+            return $base . '/';
+        }
+
+        $article = $context['article'] ?? null;
+        if (is_array($article) && !empty($article['slug'])
+            && (str_starts_with($uri, '/blog/') || $uri === '/blog-detail')) {
+            return self::articleUrl((string) $article['slug'], true);
+        }
+
+        $product = $context['product'] ?? null;
+        if (is_array($product) && !empty($product['slug']) && str_starts_with($uri, '/product')) {
+            return self::productUrl((string) $product['slug'], true);
+        }
+
+        $landing = $context['landing'] ?? null;
+        if (is_array($landing) && !empty($landing['slug']) && str_starts_with($uri, '/parts/')) {
+            $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
+            return self::absolute('/parts/' . rawurlencode((string) $landing['slug']))
+                . ($page > 1 ? '?page=' . $page : '');
+        }
+
+        if ($uri === '/parts') {
+            // ترتیب پارامترها همیشه نرمال می‌شود تا نسخه‌های موازی ساخته نشود
+            return self::catalogCanonical($_GET, '/parts');
+        }
+
+        return $base . $uri;
+    }
+
+    /**
      * نرمال‌سازی رشته‌ی کوئری: ترتیب پارامترها همیشه ثابت است تا
      * /parts?model=x&category=y و /parts?category=y&model=x یک کانونیکال یکسان بدهند.
      */
@@ -418,6 +497,120 @@ class Seo
             $node['primaryImageOfPage'] = ['@type' => 'ImageObject', 'url' => $image];
         }
         return $node;
+    }
+
+    /**
+     * استاندارد واحد نویسنده در کل سایت.
+     * ---------------------------------------------------------------------
+     * تصمیم قطعی پروژه: نویسندهٔ مقاله همیشه از نوع Person است و از طریق
+     * worksFor به گره سازمان گره می‌خورد؛ ناشر (publisher) همیشه Organization
+     * است. دیگر هیچ‌جا نویسنده به‌صورت Organization تعریف نمی‌شود تا گوگل با
+     * دو تعریف متناقض از یک موجودیت روبه‌رو نشود.
+     */
+    public const AUTHOR_TYPE = 'Person';
+
+    /** نام پیش‌فرض نویسنده وقتی مقاله نویسنده‌ای ثبت نکرده است */
+    public const AUTHOR_FALLBACK = 'تیم فنی پرادو یدک';
+
+    /** گره نویسنده — خروجی همیشه Person (استاندارد ثابت پروژه) */
+    public static function authorNode(?string $name = null): array
+    {
+        $base = self::base();
+        $name = self::clean($name) !== '' ? self::clean($name) : self::AUTHOR_FALLBACK;
+
+        return [
+            '@type'   => self::AUTHOR_TYPE,
+            '@id'     => $base . '/#author/' . rawurlencode(self::imageSlug($name)),
+            'name'    => $name,
+            'url'     => $base . '/',
+            'worksFor' => ['@id' => $base . '/#organization'],
+        ];
+    }
+
+    /** آدرس مطلق تصویر کاور مقاله (با آدرس سئوشده) و در نبود آن، لوگوی سایت */
+    public static function articleCover(array $article): string
+    {
+        $cover = trim((string) ($article['cover_image'] ?? ''));
+        if ($cover === '') {
+            return self::base() . '/assets/logo/logo.webp';
+        }
+        if (preg_match('#^https?://#i', $cover)) {
+            return $cover;
+        }
+        return self::base() . self::imageUrl($cover, self::imageSlug((string) ($article['title'] ?? '')));
+    }
+
+    /**
+     * تضمین وجود alt روی تمام تصاویر داخل بدنه مقاله.
+     * ---------------------------------------------------------------------
+     * محتوای مقالات با ویرایشگر دستی وارد می‌شود و ممکن است <img> بدون alt
+     * داشته باشد. این متد روی خروجی نهایی (بعد از clean_html) اجرا می‌شود و:
+     *   - به تصاویر بدون alt (یا با alt خالی) متن جایگزین معنادار می‌دهد،
+     *   - در نبود عنوان تصویر، از عنوان مقاله/کلمه کلیدی استفاده می‌کند،
+     *   - در صورت نبود، loading=lazy و decoding=async اضافه می‌کند.
+     */
+    public static function ensureImageAlt(string $html, string $fallbackAlt): string
+    {
+        if ($html === '' || stripos($html, '<img') === false) {
+            return $html;
+        }
+
+        $fallbackAlt = self::clean($fallbackAlt);
+        if ($fallbackAlt === '') {
+            $fallbackAlt = 'تصویر مقاله';
+        }
+        $index = 0;
+
+        return (string) preg_replace_callback(
+            '/<img\b([^>]*)>/i',
+            static function (array $m) use ($fallbackAlt, &$index): string {
+                $attrs = $m[1];
+                $index++;
+
+                $hasAlt = preg_match('/\balt\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', $attrs, $altMatch) === 1;
+                $altValue = $hasAlt ? trim($altMatch[1], "\"' \t") : '';
+
+                if ($altValue === '') {
+                    // عنوان یا نام فایل تصویر، معنادارترین جایگزین ممکن است
+                    $suggested = '';
+                    if (preg_match('/\btitle\s*=\s*"([^"]*)"/i', $attrs, $t)) {
+                        $suggested = self::clean($t[1]);
+                    }
+                    if ($suggested === '' && preg_match('/\bsrc\s*=\s*"([^"]*)"/i', $attrs, $s)) {
+                        $name = rawurldecode((string) parse_url($s[1], PHP_URL_PATH));
+                        $name = pathinfo($name, PATHINFO_FILENAME);
+                        // آدرس‌های سئوشده شکل «نام-قطعه--شناسه» دارند؛ شناسه فنی حذف می‌شود
+                        if (($sep = strrpos((string) $name, '--')) !== false) {
+                            $name = substr((string) $name, 0, $sep);
+                        }
+                        $name = preg_replace('/[-_]+/u', ' ', (string) $name) ?? '';
+                        $name = trim(preg_replace('/\s+/u', ' ', $name) ?? '');
+                        // نام‌های بی‌معنی مثل هش تلگرام یا IMG_1234 کنار گذاشته می‌شوند
+                        if ($name !== '' && mb_strlen($name, 'UTF-8') <= 60 && preg_match('/\p{L}{3,}/u', $name)
+                            && !preg_match('/^(img|image|photo|dsc|screenshot)[\s\d]*$/iu', $name)) {
+                            $suggested = $name;
+                        }
+                    }
+
+                    $alt = $suggested !== '' ? $suggested : $fallbackAlt . ($index > 1 ? ' — تصویر ' . $index : '');
+                    $alt = htmlspecialchars(mb_substr($alt, 0, 160, 'UTF-8'), ENT_QUOTES, 'UTF-8');
+
+                    $attrs = $hasAlt
+                        ? preg_replace('/\balt\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', 'alt="' . $alt . '"', $attrs, 1)
+                        : $attrs . ' alt="' . $alt . '"';
+                }
+
+                if (!preg_match('/\bloading\s*=/i', (string) $attrs)) {
+                    $attrs .= ' loading="lazy"';
+                }
+                if (!preg_match('/\bdecoding\s*=/i', (string) $attrs)) {
+                    $attrs .= ' decoding="async"';
+                }
+
+                return '<img' . rtrim((string) $attrs) . '>';
+            },
+            $html
+        );
     }
 
     /** گره نان‌ریزه از روی آرایه [ ['name'=>..., 'url'=>...], ... ] */

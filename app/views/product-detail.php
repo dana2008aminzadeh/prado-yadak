@@ -348,7 +348,7 @@
         <?php
         function renderProductCardHTML($p)
         {
-            $safeSlug = urlencode($p['slug']);
+            $safeSlug = rawurlencode((string) $p['slug']);
             $img = !empty($p['images']) ? "/image?id=" . e($p['images'][0]) : "/assets/logo/logo.webp";
             $price = number_format($p['price']);
             $genuineBadge = $p['isGenuine'] ? '<span class="absolute top-3 right-3 bg-emerald-500/10 text-emerald-500 text-[10px] font-bold px-2 py-1 rounded border border-emerald-500/20 shadow-sm backdrop-blur-md">جنیون پارت</span>' : '';

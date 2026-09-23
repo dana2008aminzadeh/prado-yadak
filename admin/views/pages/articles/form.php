@@ -32,8 +32,35 @@ $coverUrl = $article['cover_image']
 
         <div>
             <div class="card mb">
-                <div class="card-head"><h3>انتشار</h3></div>
+                <div class="card-head">
+                    <h3>انتشار</h3>
+                    <?php $gatePassed = (bool) ($publishGate['passed'] ?? false); ?>
+                    <span class="badge" style="background:<?= $gatePassed ? 'var(--green)' : 'var(--red)' ?>1a;
+                          color:<?= $gatePassed ? 'var(--green)' : 'var(--red)' ?>;
+                          border-color:<?= $gatePassed ? 'var(--green)' : 'var(--red)' ?>55">
+                        <?= $gatePassed ? 'آماده انتشار' : 'شرایط انتشار کامل نیست' ?>
+                    </span>
+                </div>
                 <div class="card-body">
+                    <?php if (!empty($publishGate['errors'])): ?>
+                        <div style="border:1px solid var(--red)55;background:var(--red)0d;border-radius:11px;
+                                    padding:10px 12px;margin-bottom:12px;font-size:11.8px;line-height:2">
+                            <b style="color:var(--red)">تا زمانی که موارد زیر اصلاح نشوند، مقاله منتشر نمی‌شود
+                                و به‌صورت پیش‌نویس ذخیره می‌ماند:</b>
+                            <ul style="margin:6px 0 0;padding-right:18px">
+                                <?php foreach ($publishGate['errors'] as $err): ?>
+                                    <li><?= e($err) ?></li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
+                    <?php endif; ?>
+                    <?php $gs = $publishGate['stats'] ?? []; ?>
+                    <div class="hint" style="margin-bottom:10px;line-height:2">
+                        حجم محتوا: <b><?= fa((int) ($gs['words'] ?? 0)) ?></b> کلمه (حداقل <?= fa(\Core\SeoAnalyzer::PUBLISH_MIN_WORDS) ?>)
+                        — تیتر H2: <b><?= fa((int) ($gs['h2'] ?? 0)) ?></b> (حداقل <?= fa(\Core\SeoAnalyzer::PUBLISH_MIN_H2) ?>)
+                        — H3: <b><?= fa((int) ($gs['h3'] ?? 0)) ?></b>
+                        — تصاویر بدون alt: <b><?= fa((int) ($gs['images_missing_alt'] ?? 0)) ?></b> از <?= fa((int) ($gs['images'] ?? 0)) ?>
+                    </div>
                     <div class="field"><label class="fl">وضعیت</label>
                         <select name="status">
                             <option value="published" <?= $article['status'] === 'published' ? 'selected' : '' ?>>منتشرشده</option>
@@ -48,7 +75,7 @@ $coverUrl = $article['cover_image']
                         <i data-lucide="save" style="width:15px"></i> ذخیره مقاله
                     </button>
                     <?php if ($aid): ?>
-                        <a class="btn btn-block mt" target="_blank" rel="noopener" href="/blog/<?= e($article['slug']) ?>">مشاهده در سایت</a>
+                        <a class="btn btn-block mt" target="_blank" rel="noopener" href="<?= e(\Core\Seo::articleUrl($article['slug'] ?? '')) ?>">مشاهده در سایت</a>
                         <div class="hint mt">بازدید: <?= money($article['views']) ?></div>
                     <?php endif; ?>
                 </div>

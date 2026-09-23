@@ -101,8 +101,9 @@ class UserController extends Controller
             'national_id' => $settings['shop_national_id'] ?? ($settings['company_national_id'] ?? ''),
             'registration_number' => $settings['registration_number'] ?? '',
             'postal_code' => $settings['shop_postal_code'] ?? '6681898204',
-            'website' => ($protocol = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http'))
-                . '://' . (SITE_URL),
+            // آدرس سایت فقط از Core\Seo::base() گرفته می‌شود تا با SITE_URL دارای
+            // پروتکل، خروجی خرابی مثل https://https://... ساخته نشود.
+            'website' => \Core\Seo::base(),
         ];
 
         // تب اولیه از query string (اختیاری)

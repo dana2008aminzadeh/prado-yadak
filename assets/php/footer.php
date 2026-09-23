@@ -82,7 +82,7 @@ if (!isset($current_page)) {
                             foreach ($popularArticles as $pArt):
                                 ?>
                                 <li>
-                                    <a href="/blog/<?= urlencode($pArt['slug']) ?>"
+                                    <a href="<?= e(\Core\Seo::articleUrl($pArt['slug'] ?? '')) ?>"
                                         class="hover:text-white transition line-clamp-1">
                                         <?= e($pArt['title']) ?>
                                     </a>
