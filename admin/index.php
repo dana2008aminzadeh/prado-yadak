@@ -61,8 +61,11 @@ header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
 
 $GLOBALS['settings'] = Settings::all();
 
-// ---------- URL canonical مرکزی (GET/HEAD=301، درخواست تغییردهنده=308) ----------
-\Core\UrlCanonicalizer::handleRequest();
+$adminPath = (string) (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/');
+
+if (!preg_match('#^/admin/?#', $adminPath)) {
+    \Core\UrlCanonicalizer::handleRequest();
+}
 
 // ---------- استخراج مسیر ----------
 $uri = (string) (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/');
