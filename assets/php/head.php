@@ -84,8 +84,11 @@ if (!isset($robotsMeta)) {
 }
 
 // ---------------------------------------------------------------- تصویر اشتراک‌گذاری
-$ogImage = $pageImage ?? ($hostUrl . '/assets/logo/logo.webp');
-if (!str_starts_with($ogImage, 'http')) {
+// در صفحه محصول بدون عکس، لوگو نباید به‌عنوان تصویر همان محصول به موتور جستجو
+// معرفی شود. صفحات عمومی سایت همچنان می‌توانند لوگو را fallback داشته باشند.
+$isProductPage = str_starts_with($uri, '/product') && isset($product);
+$ogImage = !empty($pageImage) ? (string) $pageImage : ($isProductPage ? '' : $hostUrl . '/assets/logo/logo.webp');
+if ($ogImage !== '' && !str_starts_with($ogImage, 'http')) {
     $ogImage = $hostUrl . '/' . ltrim($ogImage, '/');
 }
 $ogImageAlt = $pageImageAlt ?? $pageTitle;
@@ -121,12 +124,14 @@ if (!isset($schemaMarkup)) {
 <meta property="og:url" content="<?= e($canonicalUrl); ?>">
 <meta property="og:type" content="<?= $ogType; ?>">
 <meta property="og:locale" content="fa_IR">
+<?php if ($ogImage !== ''): ?>
 <meta property="og:image" content="<?= e($ogImage); ?>">
 <meta property="og:image:alt" content="<?= e($ogImageAlt); ?>">
-<meta name="twitter:card" content="summary_large_image">
+<?php endif; ?>
+<meta name="twitter:card" content="<?= $ogImage !== '' ? 'summary_large_image' : 'summary' ?>">
 <meta name="twitter:title" content="<?= e($pageTitle); ?>">
 <meta name="twitter:description" content="<?= e($finalMetaDesc); ?>">
-<meta name="twitter:image" content="<?= e($ogImage); ?>">
+<?php if ($ogImage !== ''): ?><meta name="twitter:image" content="<?= e($ogImage); ?>"><?php endif; ?>
 
 <?php
 // صفحه‌بندی: prev/next روی آدرس نرمال‌شده ساخته می‌شود

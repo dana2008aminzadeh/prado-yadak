@@ -14,21 +14,10 @@ use Throwable;
  */
 class Redirect
 {
-    /** نرمال‌سازی مسیر: بدون دامنه، بدون اسلش پایانی، با اسلش ابتدایی */
+    /** نرمال‌سازی مسیر با همان قرارداد مرکزی URL (UTF-8 + rawurlencode). */
     public static function normalize(?string $path): string
     {
-        $path = trim((string) $path);
-        if ($path === '') {
-            return '/';
-        }
-        if (preg_match('#^https?://#i', $path)) {
-            $path = (string) parse_url($path, PHP_URL_PATH);
-        }
-        $path = '/' . ltrim($path, '/');
-        if ($path !== '/' && str_ends_with($path, '/')) {
-            $path = rtrim($path, '/');
-        }
-        return mb_substr($path, 0, 255, 'UTF-8');
+        return mb_substr(\Core\UrlCanonicalizer::normalizePath($path), 0, 255, 'UTF-8');
     }
 
     /** یافتن ریدایرکت فعال برای یک مسیر */
@@ -36,8 +25,13 @@ class Redirect
     {
         try {
             $db = Database::getInstance();
-            $st = $db->prepare('SELECT * FROM seo_redirects WHERE from_path = ? AND is_active = 1 LIMIT 1');
-            $st->execute([self::normalize($path)]);
+            $normalized = self::normalize($path);
+            // پارامتر دوم با رکوردهای قدیمیِ قبل از یکپارچه‌سازی encoding سازگار است.
+            $legacy = \Core\UrlCanonicalizer::decodePath($normalized);
+            $st = $db->prepare(
+                'SELECT * FROM seo_redirects WHERE from_path IN (?, ?) AND is_active = 1 ORDER BY (from_path = ?) DESC LIMIT 1'
+            );
+            $st->execute([$normalized, $legacy, $normalized]);
             $row = $st->fetch(PDO::FETCH_ASSOC);
             return $row ?: null;
         } catch (Throwable $e) {
@@ -127,18 +121,22 @@ class Redirect
 
         if ($code === 410) {
             http_response_code(410);
-            return;   // محتوا عمداً حذف شده — ۴۱۰ به گوگل سریع‌تر می‌فهماند
+            header('X-Robots-Tag: noindex, nofollow');
+            header('Cache-Control: public, max-age=300');
+            if (defined('VIEWS_PATH') && is_file(VIEWS_PATH . '/404.php')) {
+                require VIEWS_PATH . '/404.php';
+            } else {
+                echo 'این محتوا برای همیشه حذف شده است.';
+            }
+            exit;
         }
 
-        $target = $row['to_path'];
+        $target = (string) $row['to_path'];
         if ($queryString !== '' && !str_contains($target, '?')) {
             $target .= '?' . $queryString;
         }
 
-        http_response_code($code);
-        header('Location: ' . $target, true, $code);
-        header('X-Redirect-By: PradoYadak-SEO');
-        exit;
+        \Core\UrlCanonicalizer::redirect($target, $code, 'SEO');
     }
 
     /** ثبت/افزایش شمارنده یک خطای ۴۰۴ */

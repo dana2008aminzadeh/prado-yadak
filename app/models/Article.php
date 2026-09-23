@@ -40,7 +40,7 @@ class Article
     {
         $db = Database::getInstance();
         $stmt = $db->prepare("SELECT * FROM articles WHERE slug = ? AND status = 'published' LIMIT 1");
-        $stmt->execute([urldecode($slug)]);
+        $stmt->execute([rawurldecode($slug)]);
         return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
     }
 
@@ -106,8 +106,19 @@ class Article
 
         $out = [];
         foreach ($rows as $r) {
+            // محصول متوقف‌شده نباید در کارت خرید مقاله بازگردد.
+            if (!Product::findById((int) $r['id'])) {
+                continue;
+            }
             $gallery = Product::getGallery((int) $r['id']);
             $primary = $gallery[0] ?? null;
+
+            $legacyPhoto = (string) ($r['telegram_photo_id'] ?? '');
+            $legacyImages = $legacyPhoto !== '' ? json_decode($legacyPhoto, true) : [];
+            $legacyImages = is_array($legacyImages) ? $legacyImages : ($legacyPhoto !== '' ? [$legacyPhoto] : []);
+            $fallbackImage = !empty($legacyImages[0])
+                ? \Core\Seo::imageUrl((string) $legacyImages[0], \Core\Seo::imageSlug((string) $r['name'], $r['oem_code'] ?? null, $r['car_model'] ?? null))
+                : '';
 
             $out[] = [
                 'id' => (int) $r['id'],
@@ -118,7 +129,7 @@ class Article
                 'brand' => $r['brand'],
                 'inStock' => (bool) $r['in_stock'],
                 'isGenuine' => (bool) $r['is_genuine'],
-                'image' => $primary['url'] ?? \Core\Seo::imageUrl($r['telegram_photo_id'] ?? null, (string) $r['name']),
+                'image' => $primary['url'] ?? $fallbackImage,
                 'alt' => $primary['alt'] ?? \Core\Seo::suggestAlt((string) $r['name'], null, $r['oem_code'] ?? null),
             ];
         }

@@ -24,7 +24,13 @@ class Wishlist
 
         $items = [];
         foreach ($rows as $r) {
-            $images = !empty($r['telegram_photo_id']) ? json_decode($r['telegram_photo_id'], true) : [];
+            $rawPhoto = (string) ($r['telegram_photo_id'] ?? '');
+            $images = $rawPhoto !== '' ? json_decode($rawPhoto, true) : [];
+            $images = is_array($images) ? $images : ($rawPhoto !== '' ? [$rawPhoto] : []);
+            $primary = $images[0] ?? '';
+            $imageUrl = $primary !== ''
+                ? \Core\Seo::imageUrl((string) $primary, \Core\Seo::imageSlug((string) $r['name'], $r['oem_code'] ?? null, $r['car_model'] ?? null))
+                : '';
             $items[] = [
                 'wishlist_id' => (int) $r['wishlist_id'],
                 'wishlisted_at' => $r['wishlisted_at'],
@@ -37,7 +43,9 @@ class Wishlist
                 'isGenuine' => (bool) $r['is_genuine'],
                 'inStock' => (bool) $r['in_stock'],
                 'model' => $r['car_model'],
-                'images' => is_array($images) ? $images : [],
+                'images' => $images,
+                'image_url' => $imageUrl,
+                'image_alt' => \Core\Seo::suggestAlt((string) $r['name'], $r['car_model'] ?? null, $r['oem_code'] ?? null),
             ];
         }
 

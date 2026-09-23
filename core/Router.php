@@ -24,21 +24,29 @@ class Router
 
     public function dispatch($uri)
     {
-        $method = $_SERVER['REQUEST_METHOD'];
+        $requestMethod = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+        // HEAD باید همان route مربوط به GET را اجرا کند؛ کنترلر خروجی body را حذف می‌کند.
+        $method = $requestMethod === 'HEAD' ? 'GET' : $requestMethod;
         $this->defineRoutes();
+
+        if (!isset($this->routes[$method])) {
+            $this->abort(405);
+        }
 
         if (array_key_exists($uri, $this->routes[$method])) {
             $this->executeRoute($this->routes[$method][$uri]);
             return;
         }
 
+        $decodedUri = rawurldecode((string) $uri);
         foreach ($this->routes[$method] as $routeUri => $route) {
             if (strpos($routeUri, '{') !== false) {
-                // نقطه و ممیز مجاز شد تا آدرس تصاویر سئوشده (مثلا نام-قطعه--id.jpg) هم بخورد
-                $pattern = preg_replace('/\{([a-zA-Z0-9_]+)\}/', '(?P<\1>[a-zA-Z0-9_\-\.\x{0600}-\x{06FF}\s%]+)', $routeUri);
+                // هر segment یونیکد به‌جز «/» پذیرفته می‌شود؛ rawurldecode برخلاف
+                // urldecode علامت + معتبر داخل slug را به فاصله تبدیل نمی‌کند.
+                $pattern = preg_replace('/\{([a-zA-Z0-9_]+)\}/', '(?P<\1>[^/]+)', $routeUri);
                 $pattern = "@^" . $pattern . "$@u";
 
-                if (preg_match($pattern, urldecode((string) $uri), $matches)) {
+                if (preg_match($pattern, $decodedUri, $matches)) {
                     foreach ($matches as $key => $match) {
                         if (is_string($key)) {
                             $_GET[$key] = trim($match);

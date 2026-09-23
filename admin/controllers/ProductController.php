@@ -109,6 +109,7 @@ class ProductController extends BaseController
             // فیلدهای اختصاصی سئو
             'meta_title' => '', 'meta_description' => '', 'focus_keyword' => '',
             'robots_directive' => 'default', 'canonical_url' => '', 'seo_score' => 0,
+            'lifecycle_status' => 'active', 'replacement_product_id' => null, 'sitemap_policy' => 'auto',
         ];
         $this->renderForm($product, 'افزودن محصول جدید');
     }
@@ -136,6 +137,13 @@ class ProductController extends BaseController
                                          WHERE pv.product_id = ? ORDER BY cm.name', [$pid]) : [];
         $presets    = Model::all('SELECT * FROM attribute_presets ORDER BY sort_order, id');
         $movements  = $pid ? Model::all('SELECT * FROM stock_movements WHERE product_id = ? ORDER BY created_at DESC LIMIT 15', [$pid]) : [];
+        $replacementWhere = Model::hasColumn('products', 'lifecycle_status')
+            ? "id <> ? AND COALESCE(lifecycle_status, 'active') <> 'discontinued'"
+            : 'id <> ?';
+        $replacementProducts = Model::all(
+            "SELECT id, name, oem_code, slug FROM products WHERE {$replacementWhere} ORDER BY name LIMIT 5000",
+            [$pid]
+        );
 
         // تحلیل سئو سمت سرور (چراغ راهنمای اولیه؛ نسخه زنده در مرورگر به‌روز می‌شود)
         $seo = \Core\SeoAnalyzer::analyzeProduct($product, [
@@ -144,7 +152,7 @@ class ProductController extends BaseController
         ]);
 
         $this->view('products/form',
-            compact('product', 'categories', 'carModels', 'images', 'attributes', 'vehicles', 'presets', 'movements', 'seo'),
+            compact('product', 'categories', 'carModels', 'images', 'attributes', 'vehicles', 'presets', 'movements', 'replacementProducts', 'seo'),
             $title);
     }
 
@@ -191,6 +199,23 @@ class ProductController extends BaseController
         if (!in_array($robots, ['default', 'index', 'noindex', 'noindex_nofollow'], true)) {
             $robots = 'default';
         }
+        $lifecycle = (string) post('lifecycle_status', 'active');
+        if (!in_array($lifecycle, ['active', 'out_of_stock', 'discontinued'], true)) {
+            $lifecycle = 'active';
+        }
+        $sitemapPolicy = (string) post('sitemap_policy', 'auto');
+        if (!in_array($sitemapPolicy, ['auto', 'include', 'exclude'], true)) {
+            $sitemapPolicy = 'auto';
+        }
+        $replacementId = (int) post('replacement_product_id', 0);
+        $replacementCandidate = $replacementId > 0 ? Model::find('products', $replacementId) : null;
+        if ($replacementId === $pid || !$replacementCandidate
+            || (($replacementCandidate['lifecycle_status'] ?? 'active') === 'discontinued')) {
+            $replacementId = 0;
+        }
+        if ($lifecycle !== 'active') {
+            $stockQty = 0;
+        }
 
         $data = [
             'name'                => $name,
@@ -209,11 +234,14 @@ class ProductController extends BaseController
             'focus_keyword'       => mb_substr(trim((string) post('focus_keyword')), 0, 120, 'UTF-8') ?: null,
             'robots_directive'    => $robots,
             'canonical_url'       => mb_substr(trim((string) post('canonical_url')), 0, 255, 'UTF-8') ?: null,
+            'lifecycle_status'     => $lifecycle,
+            'replacement_product_id' => $replacementId ?: null,
+            'sitemap_policy'       => $sitemapPolicy,
         ];
 
         // موجودی: اگر ردیابی خاموش است، سوییچ دستی موجود/ناموجود
         if (!$trackStock) {
-            $data['in_stock'] = post('in_stock') ? 1 : 0;
+            $data['in_stock'] = $lifecycle === 'active' && post('in_stock') ? 1 : 0;
         }
 
         $db = Model::db();
@@ -236,6 +264,10 @@ class ProductController extends BaseController
                 } else {
                     Model::exec('UPDATE products SET in_stock = ? WHERE id = ?', [$stockQty > 0 ? 1 : 0, $pid]);
                 }
+            }
+            // سیاست lifecycle بر مقدار ارسالی فرم و مجوز جداگانه انبار اولویت دارد.
+            if ($lifecycle !== 'active') {
+                Model::exec('UPDATE products SET in_stock = 0, stock_qty = 0 WHERE id = ?', [$pid]);
             }
 
             // --- سازگاری با مدل‌های خودرو (چندبه‌چند) ---
@@ -265,6 +297,34 @@ class ProductController extends BaseController
             $this->audit('product.update', 'product', $pid,
                 'ثبت ریدایرکت ۳۰۱ از /product/' . $oldSlug . ' به /product/' . $slug);
             flash('info', 'آدرس قبلی محصول با ریدایرکت دائمی ۳۰۱ به آدرس جدید منتقل شد.');
+        }
+
+        if (($lifecycle !== 'discontinued' || $replacementId <= 0) && Model::hasTable('seo_redirects')) {
+            $currentProductPath = \Core\UrlCanonicalizer::normalizePath('/product/' . $slug);
+            Model::exec(
+                "UPDATE seo_redirects SET is_active = 0 WHERE from_path IN (?, ?) AND source = 'replacement'",
+                ['/product/' . $slug, $currentProductPath]
+            );
+            // اگر محصول دوباره فعال شد/جایگزین حذف شد، aliasهای تغییر اسلاگ به خود محصول برگردند.
+            Model::exec(
+                "UPDATE seo_redirects SET to_path = ?, is_active = 1
+                 WHERE entity_type = 'product' AND entity_id = ? AND source <> 'replacement' AND from_path <> ?",
+                [$currentProductPath, $pid, $currentProductPath]
+            );
+        }
+
+        if ($lifecycle === 'discontinued' && $replacementId > 0) {
+            $replacement = Model::find('products', $replacementId);
+            if ($replacement) {
+                $replacementTarget = \Core\UrlCanonicalizer::normalizePath('/product/' . $replacement['slug']);
+                \App\models\Redirect::add('/product/' . $slug, $replacementTarget, [
+                    'entity_type' => 'product',
+                    'entity_id' => $pid,
+                    'source' => 'replacement',
+                    'note' => 'جایگزین محصول متوقف‌شده: ' . $name,
+                ]);
+                flash('info', 'محصول متوقف شد و ریدایرکت ۳۰۱ به جایگزین ثبت شد.');
+            }
         }
 
         $new = Model::find('products', $pid);
@@ -317,7 +377,7 @@ class ProductController extends BaseController
                 continue;
             }
             Model::update('product_images', $imgId, Model::filterColumns('product_images', [
-                'alt_text'     => mb_substr(trim((string) $alt), 0, 255, 'UTF-8') ?: null,
+                'alt_text'     => \Core\Seo::sanitizeAltText((string) $alt) ?: null,
                 'seo_filename' => mb_substr(trim((string) ($names[$imgId] ?? '')), 0, 160, 'UTF-8') ?: null,
             ]));
             $saved++;
@@ -635,12 +695,25 @@ class ProductController extends BaseController
             back(admin_url('products'));
         }
 
+        if (($p['lifecycle_status'] ?? 'active') === 'discontinued') {
+            flash('error', 'برای فعال‌کردن محصول متوقف‌شده از فرم ویرایش و سیاست چرخه‌عمر استفاده کنید.');
+            back(admin_url('products'));
+        }
+
         if ((int) $p['track_stock'] === 1) {
             // در حالت ردیابی عددی: صفر کردن یا بازگرداندن به ۱
             $target = (int) $p['stock_qty'] > 0 ? 0 : 1;
             Inventory::setQuantity($pid, $target, 'تغییر سریع وضعیت موجودی از لیست محصولات');
+            $nowInStock = $target > 0;
         } else {
-            Model::exec('UPDATE products SET in_stock = 1 - in_stock WHERE id = ?', [$pid]);
+            $nowInStock = !(bool) $p['in_stock'];
+            Model::exec('UPDATE products SET in_stock = ? WHERE id = ?', [$nowInStock ? 1 : 0, $pid]);
+        }
+        if (Model::hasColumn('products', 'lifecycle_status')) {
+            Model::exec(
+                'UPDATE products SET lifecycle_status = ? WHERE id = ?',
+                [$nowInStock ? 'active' : 'out_of_stock', $pid]
+            );
         }
 
         $this->audit('product.stock', 'product', $pid, 'تغییر سریع وضعیت موجودی: ' . $p['name']);
@@ -659,12 +732,59 @@ class ProductController extends BaseController
             redirect(admin_url('products'));
         }
 
+        $replacementId = (int) post('replacement_product_id', (int) ($p['replacement_product_id'] ?? 0));
+        $replacement = $replacementId > 0 && $replacementId !== $pid
+            ? Model::find('products', $replacementId) : null;
+        if (($replacement['lifecycle_status'] ?? 'active') === 'discontinued') {
+            $replacement = null;
+        }
+
+        $registerReplacement = static function () use ($p, $pid, $replacement): void {
+            if (!$replacement) return;
+            $target = \Core\UrlCanonicalizer::normalizePath('/product/' . $replacement['slug']);
+            \App\models\Redirect::add('/product/' . $p['slug'], $target, [
+                'status_code' => 301,
+                'entity_type' => 'product',
+                'entity_id' => $pid,
+                'source' => 'replacement',
+                'note' => 'حذف/توقف «' . $p['name'] . '» و انتقال به «' . $replacement['name'] . '»',
+            ]);
+        };
+
         $used = Model::count('order_items', 'product_id = ?', [$pid]);
         if ($used > 0) {
-            Model::exec('UPDATE products SET in_stock = 0, stock_qty = 0 WHERE id = ?', [$pid]);
-            $this->audit('product.update', 'product', $pid, 'محصول دارای سابقه سفارش ناموجود شد (به‌جای حذف): ' . $p['name']);
-            flash('info', 'این محصول در ' . $used . ' سفارش استفاده شده؛ به‌جای حذف، ناموجود شد.');
+            $policy = ['in_stock' => 0, 'stock_qty' => 0];
+            if (Model::hasColumn('products', 'lifecycle_status')) {
+                $policy['lifecycle_status'] = $replacement ? 'discontinued' : 'out_of_stock';
+            }
+            if (Model::hasColumn('products', 'replacement_product_id')) {
+                $policy['replacement_product_id'] = $replacement ? (int) $replacement['id'] : null;
+            }
+            Model::update('products', $pid, $policy);
+            $registerReplacement();
+            $this->audit('product.update', 'product', $pid, 'محصول دارای سابقه سفارش ناموجود/متوقف شد (به‌جای حذف): ' . $p['name']);
+            flash('info', 'این محصول در ' . $used . ' سفارش استفاده شده؛ حذف نشد و سیاست ناموجودی اعمال شد.'
+                . ($replacement ? ' ریدایرکت ۳۰۱ به جایگزین نیز ثبت شد.' : ''));
             redirect(admin_url('products'));
+        }
+
+        // اگر جایگزین تعیین شده باشد، ریدایرکت پیش از حذف دائمی ثبت می‌شود؛
+        // در غیر این صورت aliasهای قدیمی نیز غیرفعال می‌شوند تا نتیجه واقعاً 404 باشد.
+        $registerReplacement();
+        if (Model::hasTable('seo_redirects')) {
+            if ($replacement) {
+                // حذف قطعی است؛ تمام aliasهای قبلی بدون زنجیره به جایگزین نهایی می‌روند.
+                Model::exec(
+                    'UPDATE seo_redirects SET to_path = ?, status_code = 301, is_active = 1
+                     WHERE entity_type = ? AND entity_id = ?',
+                    [\Core\UrlCanonicalizer::normalizePath('/product/' . $replacement['slug']), 'product', $pid]
+                );
+            } else {
+                Model::exec(
+                    'UPDATE seo_redirects SET is_active = 0 WHERE entity_type = ? AND entity_id = ?',
+                    ['product', $pid]
+                );
+            }
         }
 
         foreach (Model::all('SELECT image_path FROM product_images WHERE product_id = ?', [$pid]) as $img) {
@@ -693,14 +813,30 @@ class ProductController extends BaseController
 
         switch ($act) {
             case 'in_stock':
-                foreach ($ids as $pid) Inventory::setQuantity($pid, max(1, (int) Model::scalar('SELECT stock_qty FROM products WHERE id = ?', [$pid])), 'عملیات گروهی');
-                Model::exec("UPDATE products SET in_stock = 1 WHERE id IN ($in) AND track_stock = 0", $ids);
-                flash('success', count($ids) . ' محصول موجود شد.');
+                $activated = 0;
+                foreach ($ids as $pid) {
+                    $candidate = Model::find('products', $pid);
+                    if (!$candidate || ($candidate['lifecycle_status'] ?? 'active') === 'discontinued') continue;
+                    Inventory::setQuantity($pid, max(1, (int) ($candidate['stock_qty'] ?? 0)), 'عملیات گروهی');
+                    Model::exec('UPDATE products SET in_stock = 1 WHERE id = ? AND track_stock = 0', [$pid]);
+                    if (Model::hasColumn('products', 'lifecycle_status')) {
+                        Model::exec("UPDATE products SET lifecycle_status = 'active' WHERE id = ?", [$pid]);
+                    }
+                    $activated++;
+                }
+                flash('success', $activated . ' محصول موجود شد؛ محصولات متوقف‌شده نیازمند ویرایش دستی هستند.');
                 break;
 
             case 'out_stock':
                 foreach ($ids as $pid) Inventory::setQuantity($pid, 0, 'عملیات گروهی: ناموجود کردن');
-                Model::exec("UPDATE products SET in_stock = 0 WHERE id IN ($in) AND track_stock = 0", $ids);
+                Model::exec("UPDATE products SET in_stock = 0, stock_qty = 0 WHERE id IN ($in)", $ids);
+                if (Model::hasColumn('products', 'lifecycle_status')) {
+                    Model::exec(
+                        "UPDATE products SET lifecycle_status = 'out_of_stock'
+                         WHERE id IN ($in) AND lifecycle_status <> 'discontinued'",
+                        $ids
+                    );
+                }
                 flash('success', count($ids) . ' محصول ناموجود شد.');
                 break;
 
@@ -740,18 +876,69 @@ class ProductController extends BaseController
                     flash('error', 'شما اجازه حذف محصول را ندارید.');
                     back(admin_url('products'));
                 }
-                $deletable = Model::all("SELECT id FROM products WHERE id IN ($in)
-                                         AND id NOT IN (SELECT DISTINCT product_id FROM order_items)", $ids);
-                $delIds = array_column($deletable, 'id');
-                if ($delIds) {
-                    $din = implode(',', array_fill(0, count($delIds), '?'));
-                    foreach (['wishlists', 'cart_items', 'product_comments', 'product_images', 'product_attributes', 'product_vehicles'] as $t) {
-                        Model::exec("DELETE FROM `$t` WHERE product_id IN ($din)", $delIds);
+                $rows = Model::all("SELECT * FROM products WHERE id IN ($in)", $ids);
+                $deleted = 0;
+                $retained = 0;
+                foreach ($rows as $product) {
+                    $productId = (int) $product['id'];
+                    $replacementId = (int) ($product['replacement_product_id'] ?? 0);
+                    $replacement = $replacementId > 0 && $replacementId !== $productId
+                        ? Model::find('products', $replacementId) : null;
+                    if (($replacement['lifecycle_status'] ?? 'active') === 'discontinued') {
+                        $replacement = null;
                     }
-                    Model::exec("DELETE FROM products WHERE id IN ($din)", $delIds);
+
+                    $used = Model::count('order_items', 'product_id = ?', [$productId]);
+                    if ($used > 0) {
+                        $policy = ['in_stock' => 0, 'stock_qty' => 0];
+                        if (Model::hasColumn('products', 'lifecycle_status')) {
+                            $policy['lifecycle_status'] = $replacement ? 'discontinued' : 'out_of_stock';
+                        }
+                        if (Model::hasColumn('products', 'replacement_product_id')) {
+                            $policy['replacement_product_id'] = $replacement ? (int) $replacement['id'] : null;
+                        }
+                        Model::update('products', $productId, $policy);
+                        if ($replacement) {
+                            \App\models\Redirect::add('/product/' . $product['slug'], '/product/' . $replacement['slug'], [
+                                'entity_type' => 'product', 'entity_id' => $productId, 'source' => 'replacement',
+                                'note' => 'عملیات گروهی: توقف محصول و انتقال به جایگزین',
+                            ]);
+                        }
+                        $retained++;
+                        continue;
+                    }
+
+                    if ($replacement) {
+                        $target = \Core\UrlCanonicalizer::normalizePath('/product/' . $replacement['slug']);
+                        \App\models\Redirect::add('/product/' . $product['slug'], $target, [
+                            'entity_type' => 'product', 'entity_id' => $productId, 'source' => 'replacement',
+                            'note' => 'عملیات گروهی: حذف محصول و انتقال به جایگزین',
+                        ]);
+                        if (Model::hasTable('seo_redirects')) {
+                            Model::exec(
+                                'UPDATE seo_redirects SET to_path = ?, status_code = 301, is_active = 1
+                                 WHERE entity_type = ? AND entity_id = ?',
+                                [$target, 'product', $productId]
+                            );
+                        }
+                    } elseif (Model::hasTable('seo_redirects')) {
+                        Model::exec(
+                            'UPDATE seo_redirects SET is_active = 0 WHERE entity_type = ? AND entity_id = ?',
+                            ['product', $productId]
+                        );
+                    }
+
+                    foreach (Model::all('SELECT image_path FROM product_images WHERE product_id = ?', [$productId]) as $img) {
+                        Uploader::deleteFile($img['image_path'] ?? null);
+                    }
+                    foreach (['wishlists', 'cart_items', 'product_comments', 'product_images', 'product_attributes', 'product_vehicles', 'stock_movements'] as $table) {
+                        Model::exec("DELETE FROM `{$table}` WHERE product_id = ?", [$productId]);
+                    }
+                    Model::delete('products', $productId);
+                    $deleted++;
                 }
-                $skipped = count($ids) - count($delIds);
-                flash('success', count($delIds) . ' محصول حذف شد.' . ($skipped ? " {$skipped} محصول به دلیل سابقه سفارش حذف نشد." : ''));
+                flash('success', "{$deleted} محصول حذف شد."
+                    . ($retained ? " {$retained} محصول دارای سفارش حذف نشد و سیاست ناموجودی/جایگزین روی آن اعمال شد." : ''));
                 break;
 
             default:

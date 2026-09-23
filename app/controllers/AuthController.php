@@ -9,7 +9,7 @@ class AuthController extends Controller
     public function loginForm()
     {
         if (isset($_SESSION['user_id'])) {
-            header('Location: /profile');
+            \Core\UrlCanonicalizer::redirect('/profile', 302, 'auth');
             exit;
         }
         require_once VIEWS_PATH . '/login.php';
@@ -204,7 +204,7 @@ class AuthController extends Controller
             exit;
         }
 
-        header('Location: /login');
+        \Core\UrlCanonicalizer::redirect('/login', 302, 'auth');
         exit;
     }
 }

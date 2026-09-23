@@ -689,7 +689,7 @@ function profilePageClass(string $tab, string $active): string
                                         </div>
 
                                         <div class="flex flex-wrap gap-2">
-                                            <a href="/parts<?= !empty($v['model_name']) ? '?q=' . urlencode($v['model_name']) : '' ?>"
+                                            <a href="/parts<?= !empty($v['model_name']) ? '?q=' . rawurlencode($v['model_name']) : '' ?>"
                                                 class="flex-1 text-center bg-brand-grey hover:border-brand-red text-white text-xs py-2.5 rounded-xl transition font-bold border border-white/10 min-w-[120px]">
                                                 قطعات این خودرو
                                             </a>
@@ -817,7 +817,7 @@ function profilePageClass(string $tab, string $active): string
                         <?php else: ?>
                             <div id="wishlist-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                                 <?php foreach ($wishlist as $item):
-                                    $img = !empty($item['images'][0]) ? '/image?id=' . e($item['images'][0]) : '/assets/logo/logo.webp';
+                                    $img = (string) ($item['image_url'] ?? '');
                                     $slug = rawurlencode((string) ($item['slug'] ?? ''));
                                     ?>
                                     <div id="wishlist-item-<?= (int) $item['id'] ?>"
@@ -830,9 +830,14 @@ function profilePageClass(string $tab, string $active): string
 
                                         <a href="/product/<?= $slug ?>"
                                             class="w-full h-40 bg-brand-grey border border-white/10 rounded-2xl flex items-center justify-center p-3 block">
-                                            <img src="<?= $img ?>" alt="<?= e($item['name']) ?>" loading="lazy"
-                                                class="max-w-full max-h-full object-contain"
-                                                onerror="this.src='/assets/logo/logo.webp'">
+                                            <?php if ($img !== ''): ?>
+                                                <img src="<?= e($img) ?>" alt="<?= e($item['image_alt'] ?? $item['name']) ?>" loading="lazy" decoding="async"
+                                                    class="max-w-full max-h-full object-contain">
+                                            <?php else: ?>
+                                                <span class="text-gray-600" role="img" aria-label="تصویر محصول ثبت نشده است">
+                                                    <i data-lucide="image-off" class="w-10 h-10" aria-hidden="true"></i>
+                                                </span>
+                                            <?php endif; ?>
                                         </a>
 
                                         <a href="/product/<?= $slug ?>">

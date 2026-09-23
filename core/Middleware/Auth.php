@@ -9,7 +9,7 @@ class Auth
             
             $_SESSION['redirect_after_login'] = $_SERVER['REQUEST_URI'];
             
-            header('Location: /login');
+            \Core\UrlCanonicalizer::redirect('/login', 302, 'auth');
             exit;
         }
     }

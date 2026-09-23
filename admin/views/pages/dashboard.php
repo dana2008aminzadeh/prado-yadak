@@ -135,7 +135,7 @@ $growth = $stats['revenue_growth'];
                 <?php foreach ($topProducts as $p): ?>
                     <a href="<?= admin_url('products/edit/' . $p['id']) ?>" class="flex items-center gap"
                        style="gap:9px;padding:7px 0;border-bottom:1px solid var(--line)">
-                        <img class="thumb" src="<?= $p['telegram_photo_id'] ? '/image?id=' . urlencode($p['telegram_photo_id']) : '/assets/logo/logo.webp' ?>" alt="" loading="lazy">
+                        <img class="thumb" src="<?= e($p['telegram_photo_id'] ? \Core\Seo::imageUrl((string) $p['telegram_photo_id'], \Core\Seo::imageSlug((string) $p['name'])) : '/assets/logo/logo.webp') ?>" alt="<?= e($p['name']) ?>" loading="lazy">
                         <div style="flex:1;min-width:0">
                             <div style="font-size:11.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?= e($p['name']) ?></div>
                             <div class="hint"><?= (int) $p['qty'] ?> فروش — موجودی: <?= (int) $p['stock_qty'] ?></div>

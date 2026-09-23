@@ -4,3 +4,7 @@ assets/node_modules/
 # پوشه یا فایل‌های خروجی کامپایل‌شده تلویند (با توجه به مسیر پروژه خود تنظیم کنید)
 assets/package.json
 assets/package-lock.json
+
+# کش runtime تصاویر تلگرام و variantهای WebP/AVIF
+core/cache/
+php-error.log

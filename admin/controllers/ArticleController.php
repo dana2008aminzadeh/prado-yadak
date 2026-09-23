@@ -103,6 +103,12 @@ class ArticleController extends BaseController
 
         $old = $aid ? Model::find('articles', $aid) : null;
         $content = (string) post('content');
+
+        // تصاویر پیش از ورود به دیتابیس اعتبارسنجی می‌شوند. URL قدیمی /image
+        // canonical شده و تصویر ناامن/ناموجود از محتوای ذخیره‌شده حذف می‌شود.
+        $imageValidation = \Core\Seo::validateArticleImages($content, $title);
+        $content = $imageValidation['html'];
+
         $plain = trim(strip_tags($content));
         $words = max(1, count(preg_split('/\s+/u', $plain) ?: []));
 
@@ -130,7 +136,13 @@ class ArticleController extends BaseController
         $requestedStatus = post('status') === 'draft' ? 'draft' : 'published';
         $finalStatus = $requestedStatus;
 
-        if ($requestedStatus === 'published') {
+        if (!$imageValidation['valid']) {
+            $finalStatus = 'draft';
+            flash('error', 'اعتبارسنجی تصاویر مقاله: ' . implode(' | ', array_slice($imageValidation['errors'], 0, 5))
+                . ' تصاویر نامعتبر حذف و مقاله به‌صورت پیش‌نویس ذخیره شد.');
+        }
+
+        if ($requestedStatus === 'published' && $imageValidation['valid']) {
             $gate = \Core\SeoAnalyzer::publishGate([
                 'title'            => $title,
                 'content'          => $content,

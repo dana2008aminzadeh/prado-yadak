@@ -151,7 +151,13 @@ class Order
 
         $items = [];
         foreach ($rows as $r) {
-            $images = !empty($r['telegram_photo_id']) ? json_decode($r['telegram_photo_id'], true) : [];
+            $rawPhoto = (string) ($r['telegram_photo_id'] ?? '');
+            $images = $rawPhoto !== '' ? json_decode($rawPhoto, true) : [];
+            $images = is_array($images) ? $images : ($rawPhoto !== '' ? [$rawPhoto] : []);
+            $primary = $images[0] ?? '';
+            $imageUrl = $primary !== ''
+                ? \Core\Seo::imageUrl((string) $primary, \Core\Seo::imageSlug((string) ($r['name'] ?? ''), $r['oem_code'] ?? null))
+                : '';
             $items[] = [
                 'product_id' => (int) ($r['product_id'] ?? 0),
                 'name' => $r['name'] ?? 'قطعه حذف‌شده',
@@ -160,7 +166,9 @@ class Order
                 'quantity' => (int) $r['quantity'],
                 'price' => (float) $r['price'],
                 'line_total' => (float) $r['price'] * (int) $r['quantity'],
-                'images' => is_array($images) ? $images : [],
+                'images' => $images,
+                'image_url' => $imageUrl,
+                'image_alt' => \Core\Seo::suggestAlt((string) ($r['name'] ?? ''), null, $r['oem_code'] ?? null),
             ];
         }
 

@@ -5,6 +5,7 @@ namespace App\controllers;
 use App\models\LandingPage;
 use App\models\Product;
 use Core\Seo;
+use Core\UrlCanonicalizer;
 
 class PartController extends Controller
 {
@@ -173,13 +174,9 @@ class PartController extends Controller
         $id = isset($_GET['id']) ? (int) $_GET['id'] : null;
 
         if ($id && !$slug) {
-            $product = \App\models\Product::findById($id);
+            $product = Product::findByIdIncludingDiscontinued($id);
             if ($product) {
-                // مسیر URL همیشه با rawurlencode ساخته می‌شود (نه urlencode)
-                if (!headers_sent()) {
-                    header('Location: ' . Seo::productUrl($product['slug']), true, 301);
-                }
-                exit;
+                UrlCanonicalizer::redirect(Seo::productUrl($product['slug']), 301, 'legacy-product');
             }
             http_response_code(404);
             require_once VIEWS_PATH . '/404.php';
@@ -203,6 +200,29 @@ class PartController extends Controller
             exit;
         }
 
+        // بزرگی/کوچکی حروف، encoding فارسی و اسلاگ واقعی دیتابیس فقط به یک URL ختم شوند.
+        UrlCanonicalizer::redirectIfDifferent(Seo::productUrl((string) $product['slug']));
+
+        // محصول متوقف‌شده با جایگزین معتبر باید مستقیماً و دائمی منتقل شود.
+        if (($product['lifecycle_status'] ?? 'active') === 'discontinued'
+            && !empty($product['replacement_product_id'])) {
+            $replacement = Product::findById((int) $product['replacement_product_id']);
+            if ($replacement && (int) $replacement['id'] !== (int) $product['id']) {
+                \App\models\Redirect::add(
+                    Seo::productUrl((string) $product['slug']),
+                    Seo::productUrl((string) $replacement['slug']),
+                    [
+                        'status_code' => 301,
+                        'entity_type' => 'product',
+                        'entity_id' => (int) $product['id'],
+                        'source' => 'replacement',
+                        'note' => 'انتقال محصول متوقف‌شده به جایگزین',
+                    ]
+                );
+                UrlCanonicalizer::redirect(Seo::productUrl((string) $replacement['slug']), 301, 'replacement');
+            }
+        }
+
         $id = $product['id'];
         global $settings;
         $site_name = $settings['site_title'] ?? 'پرادو یدک';
@@ -222,26 +242,24 @@ class PartController extends Controller
         $pageTitle = $seo['title'];
         $metaDescription = $seo['description'];
         $canonicalUrl = $seo['canonical'];
-        $robotsMeta = $seo['robots'];
+        $robotsMeta = ($product['lifecycle_status'] ?? 'active') === 'discontinued'
+            ? 'noindex, follow'
+            : $seo['robots'];
 
-        // تصویر محصول برای اشتراک‌گذاری (og:image) با آدرس سئوشده
+        // تصویر محصول برای اشتراک‌گذاری (og:image) با آدرس سئوشده؛ در نبود عکس
+        // متغیر عمداً unset می‌ماند تا لوگو به‌عنوان تصویر محصول اعلام نشود.
         $gallery = $product['gallery'] ?? [];
-        if (!empty($gallery)) {
-            $pageImage = Seo::base() . $gallery[0]['url'];
+        if (!empty($gallery[0]['url'])) {
+            $pageImage = Seo::absolute((string) $gallery[0]['url']);
             $pageImageAlt = $gallery[0]['alt'];
-        } elseif (!empty($product['images'][0])) {
-            $pageImage = Seo::base() . Seo::imageUrl(
-                (string) $product['images'][0],
-                Seo::imageSlug((string) $product['name'], $product['oem'] ?? null, $product['model'] ?? null)
-            );
-            $pageImageAlt = Seo::suggestAlt((string) $product['name'], null, $product['oem'] ?? null);
+        } elseif (!empty($product['image_url'])) {
+            $pageImage = Seo::absolute((string) $product['image_url']);
+            $pageImageAlt = (string) ($product['image_alt'] ?? '');
         }
 
-        $similar_parts_data = \App\models\Product::search(['categories' => [$product['category']]], 1, 4);
-        $similar_parts = $similar_parts_data['items'];
-
-        $newest_parts_data = \App\models\Product::search([], 1, 4);
-        $newest_parts = $newest_parts_data['items'];
+        $similar_parts = Product::getSimilar($product, 4);
+        $excludeIds = [(int) $product['id'], ...array_map(static fn($p): int => (int) $p['id'], $similar_parts)];
+        $newest_parts = Product::getNewestExcluding($excludeIds, 4);
 
         $comments = \App\models\Product::getComments($id);
         $can_comment = false;
@@ -284,7 +302,11 @@ class PartController extends Controller
                 exit;
             }
 
-            \App\models\Product::addComment($product_id, $name, $rating, $text);
+            $saved = \App\models\Product::addComment($product_id, (int) $_SESSION['user_id'], $name, $rating, $text);
+            if (!$saved) {
+                echo json_encode(['status' => 'error', 'message' => 'برای این خرید قبلاً نظر ثبت کرده‌اید یا اطلاعات نظر معتبر نیست.']);
+                exit;
+            }
             echo json_encode(['status' => 'success', 'message' => 'نظر شما با موفقیت ثبت شد و پس از تایید مدیریت نمایش داده می‌شود.']);
 
         } catch (\Exception $e) {

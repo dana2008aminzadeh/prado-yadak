@@ -6,7 +6,7 @@ class Guest
     public function handle()
     {
         if (isset($_SESSION['user_id'])) {
-            header('Location: /profile');
+            \Core\UrlCanonicalizer::redirect('/profile', 302, 'auth');
             exit;
         }
     }
