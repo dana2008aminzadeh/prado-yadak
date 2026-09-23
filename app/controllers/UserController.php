@@ -21,7 +21,7 @@ class UserController extends Controller
 
         $userId = (int) ($_SESSION['user_id'] ?? 0);
         if ($userId <= 0) {
-            header('Location: /login');
+            \Core\UrlCanonicalizer::redirect('/login', 302, 'auth');
             exit;
         }
 
@@ -29,7 +29,7 @@ class UserController extends Controller
         if (!$user) {
             session_unset();
             session_destroy();
-            header('Location: /login');
+            \Core\UrlCanonicalizer::redirect('/login', 302, 'auth');
             exit;
         }
 

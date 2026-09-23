@@ -19,7 +19,7 @@
             <i data-lucide="chevron-left" style="width:12px;height:12px;"></i>
 
             <?php if (!empty($product['category'])): ?>
-                <a href="/parts?category=<?= e($product['category']) ?>" class="hover:text-white transition">
+                <a href="/parts?category=<?= e(rawurlencode((string) $product['category'])) ?>" class="hover:text-white transition">
                     <?= e($GLOBALS['part_categories'][$product['category']]['name'] ?? $product['category']) ?>
                 </a>
                 <i data-lucide="chevron-left" style="width:12px;height:12px;"></i>
@@ -50,12 +50,20 @@
                                 ];
                             }
                         }
-                        $mainImage = $gallery[0]['url'] ?? '/assets/logo/logo.webp';
-                        $mainAlt = $gallery[0]['alt'] ?? $product['name'];
+                        $mainImage = $gallery[0]['url'] ?? ($product['image_url'] ?? '');
+                        $mainAlt = $gallery[0]['alt'] ?? ($product['image_alt'] ?? '');
                         ?>
                         <div id="main-product-inner" class="w-full h-full flex items-center justify-center">
-                            <img src="<?= e($mainImage) ?>" alt="<?= e($mainAlt) ?>" width="600" height="600"
-                                class="max-w-full max-h-full object-contain drop-shadow-2xl transition transform group-hover:scale-110 duration-300">
+                            <?php if ($mainImage !== ''): ?>
+                                <img src="<?= e($mainImage) ?>" alt="<?= e($mainAlt) ?>" width="600" height="600"
+                                    class="max-w-full max-h-full object-contain drop-shadow-2xl transition transform group-hover:scale-110 duration-300">
+                            <?php else: ?>
+                                <div class="text-gray-500 flex flex-col items-center gap-3" role="img"
+                                    aria-label="تصویری برای <?= e($product['name']) ?> ثبت نشده است">
+                                    <i data-lucide="image-off" class="w-16 h-16" aria-hidden="true"></i>
+                                    <span class="text-xs">تصویر محصول ثبت نشده است</span>
+                                </div>
+                            <?php endif; ?>
                         </div>
 
                         <div
@@ -75,7 +83,7 @@
                     <?php if (count($gallery) > 1): ?>
                         <div class="grid grid-cols-5 gap-2 sm:gap-3">
                             <?php foreach ($gallery as $index => $g): ?>
-                                <div onclick="changeMainImage('<?= e($g['url']) ?>', this)"
+                                <div onclick="changeMainImage(<?= e(json_encode($g['url'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>, this, <?= e(json_encode($g['alt'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>)"
                                     class="thumb-btn h-16 sm:h-20 border rounded-xl flex items-center justify-center cursor-pointer transition duration-200 hover:border-brand-red/50 p-2 <?= $index === 0 ? 'border-brand-red bg-brand-dark' : 'border-white/5 bg-brand-dark/40' ?>">
                                     <img src="<?= e($g['url']) ?>" loading="lazy" width="120" height="120"
                                         class="max-w-full max-h-full object-contain anim-float"
@@ -109,42 +117,56 @@
 
                     <div class="w-full h-px bg-gradient-to-l from-brand-red/50 to-transparent my-2"></div>
 
-                    <div class="space-y-3">
-                        <h4 class="text-sm font-bold text-gray-400 flex items-center gap-2">
-                            <i data-lucide="file-text" style="width:18px;height:18px;"></i> بررسی تخصصی قطعه
-                        </h4>
-                        <p class="text-gray-300 text-sm leading-loose text-justify">
+                    <section class="space-y-3" aria-labelledby="expert-review-heading">
+                        <h2 id="expert-review-heading" class="text-base font-bold text-gray-300 flex items-center gap-2">
+                            <i data-lucide="file-text" style="width:18px;height:18px;" aria-hidden="true"></i>
+                            بررسی تخصصی قطعه
+                        </h2>
+                        <div class="text-gray-300 text-sm leading-loose text-justify">
                             <?= clean_html($product['desc']) ?>
-                        </p>
-                    </div>
-
-                    <div class="space-y-3">
-                        <h4 class="text-sm font-bold text-gray-400 flex items-center gap-2">
-                            <i data-lucide="info" style="width:18px;height:18px;"></i> مشخصات فنی
-                        </h4>
-                        <div class="border border-white/10 rounded-xl overflow-hidden text-sm">
-                            <div class="grid grid-cols-2 bg-black/5 p-3.5 border-b border-white/5">
-                                <span class="text-gray-500">خودرو سازگار</span>
-                                <span class="text-white font-bold"><?php
-                                $modelData = $GLOBALS['car_models'][$product['model']] ?? $product['model'];
-                                $modelName = is_array($modelData) ? ($modelData['name'] ?? $product['model']) : $modelData;
-                                echo e($modelName);
-                                ?></span>
-                            </div>
-                            <div class="grid grid-cols-2 p-3.5 border-b border-white/5">
-                                <span class="text-gray-500">دسته‌بندی</span>
-                                <span class="text-white"><?php
-                                $catData = $GLOBALS['part_categories'][$product['category']] ?? $product['category'];
-                                $catName = is_array($catData) ? ($catData['name'] ?? $product['category']) : $catData;
-                                echo e($catName);
-                                ?></span>
-                            </div>
-                            <div class="grid grid-cols-2 bg-black/5 p-3.5">
-                                <span class="text-gray-500">برند قطعه</span>
-                                <span class="text-white uppercase"><?= e($product['brand'] ?? 'تویوتا') ?></span>
-                            </div>
                         </div>
-                    </div>
+                    </section>
+
+                    <section class="space-y-3" aria-labelledby="technical-specifications-heading">
+                        <h2 id="technical-specifications-heading" class="text-base font-bold text-gray-300 flex items-center gap-2">
+                            <i data-lucide="info" style="width:18px;height:18px;" aria-hidden="true"></i>
+                            مشخصات فنی
+                        </h2>
+                        <?php
+                        $modelData = $GLOBALS['car_models'][$product['model']] ?? $product['model'];
+                        $modelName = is_array($modelData) ? ($modelData['name'] ?? $product['model']) : $modelData;
+                        $catData = $GLOBALS['part_categories'][$product['category']] ?? $product['category'];
+                        $catName = is_array($catData) ? ($catData['name'] ?? $product['category']) : $catData;
+                        $specifications = [
+                            ['خودرو سازگار', $modelName ?: 'ثبت نشده'],
+                            ['دسته‌بندی', $catName ?: 'ثبت نشده'],
+                            ['برند قطعه', $product['brand'] ?: 'تویوتا'],
+                        ];
+                        if (!empty($product['oem'])) {
+                            $specifications[] = ['شماره فنی (OEM)', $product['oem']];
+                        }
+                        foreach (($product['technicalSpecifications'] ?? []) as $spec) {
+                            $specifications[] = [$spec['attr_key'], $spec['attr_value']];
+                        }
+                        ?>
+                        <div class="border border-white/10 rounded-xl overflow-hidden text-sm overflow-x-auto">
+                            <table class="w-full border-collapse text-right">
+                                <caption class="sr-only">مشخصات فنی <?= e($product['name']) ?></caption>
+                                <tbody>
+                                    <?php foreach ($specifications as $index => [$label, $value]): ?>
+                                        <tr class="<?= $index % 2 === 0 ? 'bg-black/5' : '' ?> <?= $index < count($specifications) - 1 ? 'border-b border-white/5' : '' ?>">
+                                            <th scope="row" class="p-3.5 text-gray-500 font-medium align-top" style="width:40%">
+                                                <?= e($label) ?>
+                                            </th>
+                                            <td class="p-3.5 text-white <?= $index === 0 ? 'font-bold' : '' ?>">
+                                                <?= e($value) ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
 
                     <div
                         class="bg-brand-dark/50 border border-brand-red/10 p-5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-5 mt-4">
@@ -162,6 +184,17 @@
                             <?= $product['inStock'] ? 'افزودن به سبد خرید' : 'ناموجود در انبار' ?>
                         </button>
                     </div>
+
+                    <?php if (!$product['inStock']): ?>
+                        <aside class="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4 text-xs text-amber-100 leading-relaxed">
+                            <?php if (($product['lifecycle_status'] ?? 'active') === 'discontinued'): ?>
+                                تولید یا عرضه این قطعه متوقف شده است. جایگزین‌های سازگار در بخش «قطعات مشابه» پیشنهاد شده‌اند.
+                            <?php else: ?>
+                                این کالا موقتاً ناموجود است؛ صفحه برای نمایش مشخصات، وضعیت
+                                <span dir="ltr">OutOfStock</span> و معرفی جایگزین‌های سازگار فعال می‌ماند.
+                            <?php endif; ?>
+                        </aside>
+                    <?php endif; ?>
 
                 </div>
             </div>
@@ -182,7 +215,7 @@
                 </p>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <?php foreach ($guideArticles as $ga): ?>
-                        <a href="/blog/<?= e($ga['slug']) ?>"
+                        <a href="<?= e(\Core\Seo::articleUrl((string) $ga['slug'])) ?>"
                             class="bg-brand-dark border border-white/5 rounded-2xl p-4 flex flex-col gap-2 hover:border-brand-red/40 transition group">
                             <i data-lucide="<?= e($ga['icon'] ?: 'wrench') ?>" style="width:22px;height:22px;"
                                 class="text-brand-red"></i>
@@ -200,10 +233,10 @@
         <!-- پیگیری مرسوله -->
         <section class="max-w-2xl mx-auto">
             <div class="bg-brand-grey border border-white/10 rounded-2xl p-5 sm:p-6 space-y-4 shadow-lg">
-                <h3 class="text-base sm:text-lg font-extrabold flex items-center gap-2.5">
-                    <i data-lucide="truck" class="text-brand-red" style="width:22px;height:22px;"></i>
+                <h2 class="text-base sm:text-lg font-extrabold flex items-center gap-2.5">
+                    <i data-lucide="truck" class="text-brand-red" style="width:22px;height:22px;" aria-hidden="true"></i>
                     پیگیری سریع وضعیت سفارش مرسوله
-                </h3>
+                </h2>
                 <p class="text-xs text-gray-400 leading-relaxed">کد سفارش خود را وارد کنید تا از وضعیت فرآیند بسته‌بندی
                     و زمان تحویل مطلع شوید.</p>
                 <div class="flex gap-2">
@@ -223,15 +256,15 @@
             <div
                 class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/5 pb-6">
                 <div>
-                    <h3 class="text-lg sm:text-xl font-extrabold flex items-center gap-2.5">
+                    <h2 class="text-lg sm:text-xl font-extrabold flex items-center gap-2.5">
                         <span class="w-2 h-6 bg-brand-red rounded-full"></span>
                         نظرات و امتیاز کاربران
-                    </h3>
+                    </h2>
                     <p class="text-xs text-gray-400 mt-1">امتیازدهی و ثبت نظر برای این کالا</p>
                 </div>
 
                 <?php
-                $avgRating = 5.0;
+                $avgRating = 0.0;
                 $commentCount = count($comments ?? []);
                 if ($commentCount > 0) {
                     $sum = 0;
@@ -260,7 +293,7 @@
                 <!-- فرم ثبت نظر -->
                 <div
                     class="lg:col-span-5 bg-brand-dark/40 border border-white/5 p-4 sm:p-5 rounded-2xl h-fit space-y-4 order-1 lg:order-2">
-                    <h4 class="font-bold text-sm text-gray-200">ثبت نظر و امتیاز</h4>
+                    <h3 class="font-bold text-sm text-gray-200">ثبت نظر و امتیاز</h3>
                     <?php if ($can_comment): ?>
                         <form id="comment-form" onsubmit="submitProductComment(event)" class="space-y-4">
                             <input type="hidden" id="comment-product-id" value="<?= $product['id'] ?>">
@@ -321,10 +354,15 @@
                                     <div class="space-y-1">
                                         <div class="flex flex-wrap items-center gap-2">
                                             <span class="font-bold text-sm text-white"><?= e($c['name']) ?></span>
-                                            <span
-                                                class="bg-emerald-500/10 text-emerald-500 text-[9px] sm:text-[10px] px-2 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1">
-                                                <i data-lucide="check-circle" style="width:10px;height:10px;"></i> خریدار
-                                            </span>
+                                            <?php if (!empty($c['verified_purchase'])): ?>
+                                                <span
+                                                    class="bg-emerald-500/10 text-emerald-500 text-[9px] sm:text-[10px] px-2 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1">
+                                                    <i data-lucide="check-circle" style="width:10px;height:10px;" aria-hidden="true"></i>
+                                                    خریدار تأییدشده
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="text-[9px] sm:text-[10px] text-gray-500">نظر تأییدشده</span>
+                                            <?php endif; ?>
                                         </div>
                                         <span
                                             class="text-[10px] text-gray-500 block"><?= e(toShamsi($c['created_at'] ?? '')) ?></span>
@@ -348,33 +386,53 @@
         <?php
         function renderProductCardHTML($p)
         {
-            $safeSlug = rawurlencode((string) $p['slug']);
-            $img = !empty($p['images']) ? "/image?id=" . e($p['images'][0]) : "/assets/logo/logo.webp";
-            $price = number_format($p['price']);
-            $genuineBadge = $p['isGenuine'] ? '<span class="absolute top-3 right-3 bg-emerald-500/10 text-emerald-500 text-[10px] font-bold px-2 py-1 rounded border border-emerald-500/20 shadow-sm backdrop-blur-md">جنیون پارت</span>' : '';
-            $stockBtn = $p['inStock']
-                ? "<button onclick=\"addToCart({$p['id']}); event.preventDefault();\" class=\"w-10 h-10 bg-brand-dark border border-white/10 hover:border-brand-red text-gray-400 hover:text-white rounded-xl flex items-center justify-center transition shrink-0\"><i data-lucide=\"shopping-cart\" style=\"width:18px;height:18px;\"></i></button>"
-                : "<span class=\"text-[10px] text-gray-500 font-bold bg-brand-dark px-2 py-2 rounded-lg border border-white/5\">ناموجود</span>";
-            return "
-            <a href=\"/product/{$safeSlug}\" class=\"bg-brand-grey border border-white/5 rounded-2xl overflow-hidden group hover:border-brand-red/30 transition duration-300 flex flex-col justify-between relative shadow-sm\">
-                $genuineBadge
-                <div class=\"h-48 bg-brand-dark flex items-center justify-center p-4 border-b border-white/5 relative overflow-hidden\">
-                    <img src=\"$img\" loading=\"lazy\" alt=\"{$p['name']}\" class=\"max-w-full max-h-full object-contain group-hover:scale-110 transition duration-500 drop-shadow-lg\">
-                </div>
-                <div class=\"p-5 flex-1 flex flex-col justify-between space-y-4\">
-                    <div class=\"space-y-2\">
-                        <h3 class=\"font-bold text-sm text-white group-hover:text-brand-red transition-colors line-clamp-2 leading-relaxed\">{$p['name']}</h3>
-                        <p class=\"text-[11px] text-gray-500 font-mono\">OEM: {$p['oem']}</p>
+            $url = \Core\Seo::productUrl((string) ($p['slug'] ?? ''));
+            $name = e($p['name'] ?? 'قطعه بدون نام');
+            $img = (string) ($p['image_url'] ?? '');
+            if ($img === '' && !empty($p['images'][0])) {
+                $img = \Core\Seo::imageUrl(
+                    (string) $p['images'][0],
+                    \Core\Seo::imageSlug((string) ($p['name'] ?? ''), $p['oem'] ?? null, $p['model'] ?? null)
+                );
+            }
+            $imgHtml = $img !== ''
+                ? '<img src="' . e($img) . '" loading="lazy" decoding="async" alt="' . e($p['image_alt'] ?? $p['name'] ?? '') . '" class="max-w-full max-h-full object-contain group-hover:scale-110 transition duration-500 drop-shadow-lg">'
+                : '<span class="text-gray-600 flex flex-col items-center gap-2" role="img" aria-label="تصویر محصول ثبت نشده است"><i data-lucide="image-off" class="w-10 h-10" aria-hidden="true"></i><small class="text-[10px]">بدون تصویر</small></span>';
+            $price = number_format((float) ($p['price'] ?? 0));
+            $oem = e(($p['oem'] ?? '') ?: 'ثبت نشده');
+            $brand = e(($p['brand'] ?? '') ?: 'تویوتا');
+            $reason = trim((string) ($p['similarity_reason'] ?? ''));
+            $relationHtml = $reason !== ''
+                ? '<p class="text-[10px] text-emerald-400 bg-emerald-500/5 border border-emerald-500/10 rounded-lg px-2 py-1">ارتباط: ' . e($reason) . '</p>'
+                : '<p class="text-[10px] text-gray-500">برند: ' . $brand . '</p>';
+            $genuineBadge = !empty($p['isGenuine'])
+                ? '<span class="absolute z-10 top-3 right-3 bg-emerald-500/10 text-emerald-500 text-[10px] font-bold px-2 py-1 rounded border border-emerald-500/20 shadow-sm backdrop-blur-md">جنیون پارت</span>'
+                : '';
+            $stockControl = !empty($p['inStock'])
+                ? '<button type="button" onclick="addToCart(' . (int) $p['id'] . ')" aria-label="افزودن ' . $name . ' به سبد خرید" class="w-10 h-10 bg-brand-dark border border-white/10 hover:border-brand-red text-gray-400 hover:text-white rounded-xl flex items-center justify-center transition shrink-0"><i data-lucide="shopping-cart" style="width:18px;height:18px;" aria-hidden="true"></i></button>'
+                : '<span class="text-[10px] text-gray-500 font-bold bg-brand-dark px-2 py-2 rounded-lg border border-white/5">ناموجود</span>';
+
+            return '
+            <article class="bg-brand-grey border border-white/5 rounded-2xl overflow-hidden group hover:border-brand-red/30 transition duration-300 flex flex-col justify-between relative shadow-sm">
+                ' . $genuineBadge . '
+                <a href="' . e($url) . '" class="h-48 bg-brand-dark flex items-center justify-center p-4 border-b border-white/5 relative overflow-hidden">
+                    ' . $imgHtml . '
+                </a>
+                <div class="p-5 flex-1 flex flex-col justify-between space-y-4">
+                    <div class="space-y-2">
+                        <h3 class="font-bold text-sm text-white group-hover:text-brand-red transition-colors line-clamp-2 leading-relaxed"><a href="' . e($url) . '">' . $name . '</a></h3>
+                        <p class="text-[11px] text-gray-500 font-mono">OEM: ' . $oem . '</p>
+                        ' . $relationHtml . '
                     </div>
-                    <div class=\"flex justify-between items-center pt-4 border-t border-white/5\">
-                        <div class=\"space-y-0.5\">
-                            <span class=\"block text-[10px] text-gray-500\">قیمت</span>
-                            <span class=\"font-black text-sm text-white tracking-wide\">$price <span class=\"text-[10px] text-gray-500 font-normal\">تومان</span></span>
+                    <div class="flex justify-between items-center pt-4 border-t border-white/5">
+                        <div class="space-y-0.5">
+                            <span class="block text-[10px] text-gray-500">قیمت</span>
+                            <span class="font-black text-sm text-white tracking-wide">' . $price . ' <span class="text-[10px] text-gray-500 font-normal">تومان</span></span>
                         </div>
-                        $stockBtn
+                        ' . $stockControl . '
                     </div>
                 </div>
-            </a>";
+            </article>';
         }
         ?>
 
@@ -382,10 +440,10 @@
         <?php if (!empty($similar_parts)): ?>
             <section class="space-y-6">
                 <div class="flex items-center justify-between border-b border-white/10 pb-4">
-                    <h3 class="text-lg sm:text-xl font-extrabold flex items-center gap-2.5">
+                    <h2 class="text-lg sm:text-xl font-extrabold flex items-center gap-2.5">
                         <span class="w-2 h-6 bg-brand-red rounded-full"></span>
                         قطعات مشابه و پیشنهادی
-                    </h3>
+                    </h2>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
                     <?php foreach ($similar_parts as $sp)
@@ -398,10 +456,10 @@
         <?php if (!empty($newest_parts)): ?>
             <section class="space-y-6">
                 <div class="flex items-center justify-between border-b border-white/10 pb-4">
-                    <h3 class="text-lg sm:text-xl font-extrabold flex items-center gap-2.5">
+                    <h2 class="text-lg sm:text-xl font-extrabold flex items-center gap-2.5">
                         <span class="w-2 h-6 bg-brand-red rounded-full"></span>
                         جدیدترین قطعات تویوتا
-                    </h3>
+                    </h2>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
                     <?php foreach ($newest_parts as $np)

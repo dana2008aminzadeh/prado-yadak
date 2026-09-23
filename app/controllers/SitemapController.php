@@ -26,6 +26,7 @@ use Throwable;
 class SitemapController
 {
     private const CHUNK = 5000;
+    private const IMAGE_CHUNK = 20000;
 
     /** فهرست شاخه‌ای نقشه سایت */
     public function index(): void
@@ -35,7 +36,7 @@ class SitemapController
 
         $maps[] = ['loc' => $base . '/sitemap-static.xml', 'lastmod' => date('c')];
 
-        $productCount = $this->count('products', "COALESCE(robots_directive,'default') <> 'noindex'");
+        $productCount = $this->count('products', $this->productEligibility());
         $chunks = max(1, (int) ceil($productCount / self::CHUNK));
         for ($i = 1; $i <= $chunks; $i++) {
             $maps[] = [
@@ -53,7 +54,18 @@ class SitemapController
             $maps[] = ['loc' => $base . '/sitemap-landing.xml', 'lastmod' => $this->latest('seo_landing_pages')];
         }
 
-        $maps[] = ['loc' => $base . '/sitemap-images.xml', 'lastmod' => $this->latest('products')];
+        $imageCount = (int) ($this->query(
+            'SELECT COUNT(*) AS total FROM product_images pi JOIN products p ON p.id = pi.product_id'
+            . ' WHERE ' . $this->productEligibility('p')
+            . " AND (NULLIF(pi.telegram_file_id, '') IS NOT NULL OR NULLIF(pi.image_path, '') IS NOT NULL)"
+        )[0]['total'] ?? 0);
+        $imageChunks = max(1, (int) ceil($imageCount / self::IMAGE_CHUNK));
+        for ($i = 1; $i <= $imageChunks; $i++) {
+            $maps[] = [
+                'loc' => $base . '/sitemap-images.xml' . ($i > 1 ? '?p=' . $i : ''),
+                'lastmod' => $this->latest('products'),
+            ];
+        }
 
         $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
         $xml .= '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
@@ -98,7 +110,7 @@ class SitemapController
                     ) AS lastmod
              FROM products p
              WHERE p.slug IS NOT NULL AND p.slug <> ''
-               AND COALESCE(p.robots_directive, 'default') <> 'noindex'
+               AND " . $this->productEligibility('p') . "
              ORDER BY p.id
              LIMIT {$limit} OFFSET {$offset}"
         );
@@ -238,6 +250,9 @@ class SitemapController
     public function images(): void
     {
         $base = Seo::base();
+        $page = max(1, (int) ($_GET['p'] ?? 1));
+        $offset = ($page - 1) * self::IMAGE_CHUNK;
+        $limit = self::IMAGE_CHUNK;
 
         $rows = $this->query(
             "SELECT p.slug, p.name, p.oem_code, p.car_model,
@@ -245,8 +260,10 @@ class SitemapController
              FROM products p
              JOIN product_images pi ON pi.product_id = p.id
              WHERE p.slug IS NOT NULL AND p.slug <> ''
-             ORDER BY p.id, pi.is_primary DESC, pi.sort_order
-             LIMIT 40000"
+               AND " . $this->productEligibility('p') . "
+               AND (NULLIF(pi.telegram_file_id, '') IS NOT NULL OR NULLIF(pi.image_path, '') IS NOT NULL)
+             ORDER BY p.id, pi.is_primary DESC, pi.sort_order, pi.id
+             LIMIT {$limit} OFFSET {$offset}"
         );
 
         $grouped = [];
@@ -267,8 +284,12 @@ class SitemapController
                     continue;
                 }
                 $seoName = Seo::imageSlug((string) $img['name'], $img['oem_code'] ?? null, $img['car_model'] ?? null, (int) $i);
-                $url = $base . Seo::imageUrl((string) $identifier, $seoName);
-                $alt = trim((string) ($img['alt_text'] ?? ''))
+                $imagePath = Seo::imageUrl((string) $identifier, $seoName);
+                if ($imagePath === '') {
+                    continue;
+                }
+                $url = Seo::absolute($imagePath);
+                $alt = Seo::sanitizeAltText((string) ($img['alt_text'] ?? ''))
                     ?: Seo::suggestAlt((string) $img['name'], $img['car_model'] ?? null, $img['oem_code'] ?? null, (int) $i);
 
                 $xml .= "    <image:image>\n";
@@ -284,6 +305,47 @@ class SitemapController
     }
 
     // ---------------------------------------------------------------- داخلی
+
+    /**
+     * سیاست Sitemap محصول:
+     * - ناموجودی موقت همچنان در Sitemap می‌ماند و Schema آن OutOfStock است؛
+     * - discontinued و sitemap_policy=exclude حذف می‌شوند؛
+     * - robots=noindex همیشه حذف می‌شود.
+     */
+    private function productEligibility(string $alias = ''): string
+    {
+        $prefix = $alias !== '' ? $alias . '.' : '';
+        $conditions = ['1=1'];
+        if ($this->columnExists('products', 'robots_directive')) {
+            $conditions[] = "COALESCE({$prefix}robots_directive, 'default') NOT IN ('noindex', 'noindex_nofollow')";
+        }
+        if ($this->columnExists('products', 'lifecycle_status')) {
+            $conditions[] = "COALESCE({$prefix}lifecycle_status, 'active') <> 'discontinued'";
+        }
+        if ($this->columnExists('products', 'sitemap_policy')) {
+            $conditions[] = "COALESCE({$prefix}sitemap_policy, 'auto') <> 'exclude'";
+        }
+        return implode(' AND ', $conditions);
+    }
+
+    private function columnExists(string $table, string $column): bool
+    {
+        static $cache = [];
+        $key = $table . '.' . $column;
+        if (array_key_exists($key, $cache)) {
+            return $cache[$key];
+        }
+        try {
+            $st = Database::getInstance()->prepare(
+                'SELECT COUNT(*) FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?'
+            );
+            $st->execute([$table, $column]);
+            return $cache[$key] = (bool) $st->fetchColumn();
+        } catch (Throwable $e) {
+            return $cache[$key] = false;
+        }
+    }
 
     private function sendUrlSet(array $urls): void
     {

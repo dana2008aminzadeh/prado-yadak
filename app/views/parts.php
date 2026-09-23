@@ -211,10 +211,9 @@
                             <?php
                             $carModelName = $GLOBALS['car_models'][$part['model']]['name'] ?? $part['model'];
                             // آدرس تصویر سئوشده + متن جایگزین معنادار (نام قطعه + خودرو + کد فنی)
-                            $imgSrc = !empty($part['images'][0])
-                                ? \Core\Seo::imageUrl((string) $part['images'][0], \Core\Seo::imageSlug((string) $part['name'], $part['oem'] ?? null, is_string($carModelName) ? $carModelName : null))
-                                : '/assets/logo/logo.webp';
-                            $imgAlt = \Core\Seo::suggestAlt((string) $part['name'], is_string($carModelName) ? $carModelName : null, $part['oem'] ?? null);
+                            $imgSrc = (string) ($part['image_url'] ?? '');
+                            $imgAlt = (string) ($part['image_alt']
+                                ?? \Core\Seo::suggestAlt((string) $part['name'], is_string($carModelName) ? $carModelName : null, $part['oem'] ?? null));
                             $safeSlug = rawurlencode($part['slug']);
                             ?>
                             <div
@@ -243,9 +242,16 @@
 
                                     <a href="/product/<?= $safeSlug ?>"
                                         class="w-full h-40 bg-brand-dark rounded-xl flex items-center justify-center mb-4 text-brand-red relative group overflow-hidden border border-white/5 cursor-pointer block">
-                                        <img src="<?= e($imgSrc) ?>" alt="<?= e($imgAlt) ?>" loading="lazy"
-                                            width="300" height="300"
-                                            class="max-w-full max-h-full object-contain transition transform group-hover:scale-110 duration-300">
+                                        <?php if ($imgSrc !== ''): ?>
+                                            <img src="<?= e($imgSrc) ?>" alt="<?= e($imgAlt) ?>" loading="lazy" decoding="async"
+                                                width="300" height="300"
+                                                class="max-w-full max-h-full object-contain transition transform group-hover:scale-110 duration-300">
+                                        <?php else: ?>
+                                            <span class="text-gray-600 flex flex-col items-center gap-2" role="img" aria-label="تصویر محصول ثبت نشده است">
+                                                <i data-lucide="image-off" class="w-10 h-10" aria-hidden="true"></i>
+                                                <small class="text-[10px]">بدون تصویر</small>
+                                            </span>
+                                        <?php endif; ?>
                                         <span
                                             class="absolute bottom-2 left-2 text-[10px] text-gray-500 bg-brand-dark/80 px-2 py-0.5 rounded border border-white/10"
                                             dir="ltr">OEM: <?= e($part['oem']) ?></span>

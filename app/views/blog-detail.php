@@ -81,9 +81,15 @@
                         <?php foreach ($relatedProducts as $rp): ?>
                             <div class="bg-brand-grey border border-white/5 rounded-2xl p-3 flex gap-3 items-center hover:border-brand-red/40 transition">
                                 <a href="<?= e(\Core\Seo::productUrl($rp['slug'])) ?>" class="shrink-0">
-                                    <img src="<?= e($rp['image']) ?>" alt="<?= e($rp['alt'] ?: $rp['name']) ?>" loading="lazy"
-                                        width="80" height="80"
-                                        class="w-20 h-20 object-contain bg-brand-dark rounded-xl border border-white/5 p-1.5">
+                                    <?php if (!empty($rp['image'])): ?>
+                                        <img src="<?= e($rp['image']) ?>" alt="<?= e($rp['alt'] ?: $rp['name']) ?>" loading="lazy" decoding="async"
+                                            width="80" height="80"
+                                            class="w-20 h-20 object-contain bg-brand-dark rounded-xl border border-white/5 p-1.5">
+                                    <?php else: ?>
+                                        <span class="w-20 h-20 flex items-center justify-center bg-brand-dark rounded-xl border border-white/5 text-gray-600" role="img" aria-label="تصویر محصول ثبت نشده است">
+                                            <i data-lucide="image-off" class="w-8 h-8" aria-hidden="true"></i>
+                                        </span>
+                                    <?php endif; ?>
                                 </a>
                                 <div class="flex-1 min-w-0 space-y-1.5">
                                     <a href="<?= e(\Core\Seo::productUrl($rp['slug'])) ?>"

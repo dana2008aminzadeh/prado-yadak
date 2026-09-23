@@ -166,6 +166,38 @@ $canStock = can('products.stock');
                         <span>قطعه اصل (Genuine)</span>
                     </label>
 
+                    <div class="field mt">
+                        <label class="fl">سیاست چرخه‌عمر محصول</label>
+                        <select name="lifecycle_status">
+                            <option value="active" <?= ($product['lifecycle_status'] ?? 'active') === 'active' ? 'selected' : '' ?>>فعال (ناموجودی موقت مجاز)</option>
+                            <option value="out_of_stock" <?= ($product['lifecycle_status'] ?? '') === 'out_of_stock' ? 'selected' : '' ?>>ناموجود تا اطلاع بعدی</option>
+                            <option value="discontinued" <?= ($product['lifecycle_status'] ?? '') === 'discontinued' ? 'selected' : '' ?>>توقف عرضه</option>
+                        </select>
+                        <div class="hint">ناموجودی موقت با OutOfStock در صفحه و Sitemap می‌ماند؛ توقف عرضه از Sitemap حذف می‌شود.</div>
+                    </div>
+
+                    <div class="field">
+                        <label class="fl">محصول جایگزین (برای Redirect 301)</label>
+                        <select name="replacement_product_id">
+                            <option value="">بدون جایگزین</option>
+                            <?php foreach ($replacementProducts as $rp): ?>
+                                <option value="<?= (int) $rp['id'] ?>" <?= (int) ($product['replacement_product_id'] ?? 0) === (int) $rp['id'] ? 'selected' : '' ?>>
+                                    <?= e($rp['name']) ?><?= !empty($rp['oem_code']) ? ' — ' . e($rp['oem_code']) : '' ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="hint">برای محصول متوقف/حذف‌شده، URL قدیمی دائماً به این محصول منتقل می‌شود.</div>
+                    </div>
+
+                    <div class="field">
+                        <label class="fl">سیاست Sitemap</label>
+                        <select name="sitemap_policy">
+                            <option value="auto" <?= ($product['sitemap_policy'] ?? 'auto') === 'auto' ? 'selected' : '' ?>>خودکار (پیشنهادی)</option>
+                            <option value="include" <?= ($product['sitemap_policy'] ?? '') === 'include' ? 'selected' : '' ?>>نگه‌داشتن</option>
+                            <option value="exclude" <?= ($product['sitemap_policy'] ?? '') === 'exclude' ? 'selected' : '' ?>>حذف از Sitemap</option>
+                        </select>
+                    </div>
+
                     <button class="btn btn-primary btn-block mt" type="submit" <?= $canEdit ? '' : 'disabled' ?>>
                         <i data-lucide="save" style="width:15px"></i> ذخیره محصول
                     </button>
@@ -181,15 +213,10 @@ $canStock = can('products.stock');
             <?php if ($pid && can('products.delete')): ?>
                 <div class="card mb">
                     <div class="card-body">
-                        <form method="POST" action="<?= admin_url('products/delete') ?>"
-                              onsubmit="return confirmDelete('حذف محصول «<?= e($product['name']) ?>»؟')">
-                            <?= Auth::csrfField() ?>
-                            <input type="hidden" name="product_id" value="<?= $pid ?>">
-                            <button class="btn btn-danger btn-block" type="submit">
-                                <i data-lucide="trash-2" style="width:14px"></i> حذف محصول
-                            </button>
-                        </form>
-                        <div class="hint mt">اگر محصول سابقه سفارش داشته باشد، به‌جای حذف ناموجود می‌شود.</div>
+                        <button class="btn btn-danger btn-block" type="submit" form="deleteProductForm">
+                            <i data-lucide="trash-2" style="width:14px"></i> حذف محصول
+                        </button>
+                        <div class="hint mt">اگر محصول سابقه سفارش داشته باشد، حذف نمی‌شود. اگر بالاتر جایگزین ذخیره کرده باشید، محصول متوقف و Redirect 301 ثبت می‌شود؛ در غیر این صورت ناموجود باقی می‌ماند.</div>
                     </div>
                 </div>
             <?php endif; ?>
@@ -214,6 +241,15 @@ $canStock = can('products.stock');
         </div>
     </div>
 </form>
+
+<?php if ($pid && can('products.delete')): ?>
+    <form id="deleteProductForm" method="POST" action="<?= admin_url('products/delete') ?>"
+          onsubmit="return confirmDelete('حذف محصول «<?= e($product['name']) ?>»؟')" style="display:none">
+        <?= Auth::csrfField() ?>
+        <input type="hidden" name="product_id" value="<?= $pid ?>">
+        <input type="hidden" name="replacement_product_id" value="<?= (int) ($product['replacement_product_id'] ?? 0) ?>">
+    </form>
+<?php endif; ?>
 
 <!-- گالری تصاویر (فرم جداگانه برای آپلود) -->
 <?php if ($pid): ?>

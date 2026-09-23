@@ -48,6 +48,13 @@ function seo_migrate(): array
         return (bool) $st->fetchColumn();
     };
 
+    $indexExists = static function (string $table, string $index) use ($db): bool {
+        $st = $db->prepare("SELECT COUNT(*) FROM information_schema.STATISTICS
+                            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?");
+        $st->execute([$table, $index]);
+        return (bool) $st->fetchColumn();
+    };
+
     // ---------- ستون‌های سئو ----------
     $seoColumns = [
         'meta_title'       => "VARCHAR(255) NULL",
@@ -67,6 +74,40 @@ function seo_migrate(): array
             if ($columnExists($table, $col)) continue;
             $db->exec("ALTER TABLE `{$table}` ADD COLUMN `{$col}` {$def}");
             $log[] = "✔ ستون {$table}.{$col} اضافه شد.";
+        }
+    }
+
+    // ---------- سیاست چرخه‌عمر محصول و جایگزین ----------
+    if ($tableExists('products')) {
+        $productPolicyColumns = [
+            'lifecycle_status'      => "VARCHAR(20) NOT NULL DEFAULT 'active'",
+            'replacement_product_id' => 'INT UNSIGNED NULL',
+            'sitemap_policy'        => "VARCHAR(20) NOT NULL DEFAULT 'auto'",
+        ];
+        foreach ($productPolicyColumns as $col => $def) {
+            if ($columnExists('products', $col)) continue;
+            $db->exec("ALTER TABLE `products` ADD COLUMN `{$col}` {$def}");
+            $log[] = "✔ ستون products.{$col} اضافه شد.";
+        }
+        if (!$indexExists('products', 'idx_products_lifecycle_sitemap')) {
+            $db->exec('CREATE INDEX `idx_products_lifecycle_sitemap` ON `products` (`lifecycle_status`, `sitemap_policy`)');
+            $log[] = '✔ ایندکس چرخه‌عمر و Sitemap محصول اضافه شد.';
+        }
+    }
+
+    // ---------- انتساب نظر به خریدار واقعی ----------
+    if ($tableExists('product_comments')) {
+        if (!$columnExists('product_comments', 'user_id')) {
+            $db->exec('ALTER TABLE `product_comments` ADD COLUMN `user_id` INT UNSIGNED NULL');
+            $log[] = '✔ ستون product_comments.user_id اضافه شد.';
+        }
+        if (!$columnExists('product_comments', 'verified_purchase')) {
+            $db->exec('ALTER TABLE `product_comments` ADD COLUMN `verified_purchase` TINYINT(1) NOT NULL DEFAULT 0');
+            $log[] = '✔ ستون product_comments.verified_purchase اضافه شد.';
+        }
+        if (!$indexExists('product_comments', 'idx_comments_product_user_status')) {
+            $db->exec('CREATE INDEX `idx_comments_product_user_status` ON `product_comments` (`product_id`, `user_id`, `status`)');
+            $log[] = '✔ ایندکس نظرهای خریداران اضافه شد.';
         }
     }
 

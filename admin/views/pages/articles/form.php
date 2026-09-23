@@ -7,7 +7,7 @@ $coverUrl = $article['cover_image']
         ? '/' . $article['cover_image']
         : (str_starts_with((string) $article['cover_image'], 'http') || str_starts_with((string) $article['cover_image'], '/')
             ? $article['cover_image']
-            : '/image?id=' . urlencode((string) $article['cover_image'])))
+            : \Core\Seo::imageUrl((string) $article['cover_image'], \Core\Seo::imageSlug((string) ($article['title'] ?? 'مقاله')))))
     : '/assets/logo/logo.webp';
 ?>
 
@@ -26,7 +26,9 @@ $coverUrl = $article['cover_image']
                 <div class="field"><label class="fl">خلاصه</label>
                     <textarea name="summary" rows="3"><?= e($article['summary']) ?></textarea></div>
                 <div class="field"><label class="fl">متن کامل (HTML مجاز)</label>
-                    <textarea name="content" rows="20" class="mono" style="font-size:12px"><?= e($article['content']) ?></textarea></div>
+                    <textarea name="content" rows="20" class="mono" style="font-size:12px"><?= e($article['content']) ?></textarea>
+                    <div class="hint">هر تصویر داخل متن باید src داخلی معتبر یا HTTPS و alt توصیفی داشته باشد؛ تصویر نامعتبر هنگام ذخیره حذف و مقاله پیش‌نویس می‌شود.</div>
+                </div>
             </div>
         </div>
 

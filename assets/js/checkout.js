@@ -342,11 +342,15 @@ function renderCheckoutItems(cart) {
         subtotalAmount += lineTotal;
         totalCount += qty;
 
-        const imgSrc = (prod.images && prod.images[0]) ? '/image?id=' + encodeURIComponent(prod.images[0]) : '/assets/logo/logo.webp';
+        const legacyId = (prod.images && prod.images[0]) ? String(prod.images[0]) : '';
+        const imgSrc = prod.image_url || (legacyId ? '/media/product-image--' + encodeURIComponent(legacyId) + '.jpg' : '');
+        const imageHtml = imgSrc
+            ? `<img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(prod.image_alt || prod.name)}" loading="lazy" decoding="async" class="w-14 h-14 object-contain rounded-xl bg-white p-1 border border-[#E8E2D9] shrink-0">`
+            : '<span class="w-14 h-14 rounded-xl bg-white border border-[#E8E2D9] shrink-0 flex items-center justify-center text-[#8B533A]" aria-label="تصویر محصول ثبت نشده است">بدون تصویر</span>';
 
         const html = `
             <div class="flex items-center gap-3 bg-[#F8F6F0] border border-[#E8E2D9] p-3 rounded-2xl">
-                <img src="${imgSrc}" alt="${escapeHtml(prod.name)}" class="w-14 h-14 object-contain rounded-xl bg-white p-1 border border-[#E8E2D9] shrink-0">
+                ${imageHtml}
                 <div class="flex-1 min-w-0">
                     <h4 class="font-bold text-xs text-[#251E1B] truncate mb-0.5">${escapeHtml(prod.name)}</h4>
                     <div class="flex items-center justify-between text-[11px] text-[#5F605C]">

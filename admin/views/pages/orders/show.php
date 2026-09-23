@@ -2,7 +2,7 @@
 use Admin\core\Auth;
 
 $receipt = $order['receipt_telegram_id']
-    ? '/image?id=' . urlencode($order['receipt_telegram_id'])
+    ? \Core\Seo::imageUrl((string) $order['receipt_telegram_id'], 'receipt-' . (string) ($order['id'] ?? ''))
     : ($order['receipt_path'] ? '/' . ltrim($order['receipt_path'], '/') : '');
 
 $canStatus = can('orders.status');
@@ -50,7 +50,7 @@ $canEdit = can('orders.edit');
                             <tr>
                                 <td>
                                     <div class="flex items-center gap">
-                                        <img class="thumb" src="<?= $it['telegram_photo_id'] ? '/image?id=' . urlencode($it['telegram_photo_id']) : '/assets/logo/logo.webp' ?>" alt="" loading="lazy">
+                                        <img class="thumb" src="<?= e($it['telegram_photo_id'] ? \Core\Seo::imageUrl((string) $it['telegram_photo_id'], \Core\Seo::imageSlug((string) ($it['name'] ?? 'محصول'))) : '/assets/logo/logo.webp') ?>" alt="<?= e($it['name'] ?? 'محصول') ?>" loading="lazy">
                                         <div>
                                             <a href="<?= admin_url('products/edit/' . (int) $it['product_id']) ?>" style="font-weight:700"><?= e($it['name'] ?? 'محصول حذف‌شده') ?></a>
                                             <?php if ($it['stock_qty'] !== null): ?>

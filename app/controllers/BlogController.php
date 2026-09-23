@@ -3,6 +3,7 @@ namespace App\controllers;
 
 use App\models\Article;
 use Core\Seo;
+use Core\UrlCanonicalizer;
 
 /**
  * کنترلر وبلاگ و دانشنامه فنی
@@ -101,6 +102,9 @@ class BlogController extends Controller
             require_once VIEWS_PATH . '/404.php';
             exit;
         }
+
+        // اسلاگ واقعی دیتابیس، encoding فارسی و بزرگی/کوچکی حروف یک URL واحد دارند.
+        UrlCanonicalizer::redirectIfDifferent(Seo::articleUrl((string) $article['slug']));
 
         // =========================================================================
         // اصلاح شمارنده بازدید: نادیده گرفتن ربات‌ها و ممانعت از ثبت بازدید تکراری در رفرش
@@ -208,10 +212,7 @@ class BlogController extends Controller
     /** ریدایرکت ۳۰۱ امن (پیش از ارسال هرگونه خروجی) */
     private function redirectPermanent(string $target): void
     {
-        if (!headers_sent()) {
-            header('Location: ' . $target, true, 301);
-        }
-        exit;
+        UrlCanonicalizer::redirect($target, 301, 'legacy-article');
     }
 
     private function isBot(): bool

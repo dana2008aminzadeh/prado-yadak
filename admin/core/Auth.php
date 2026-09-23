@@ -122,8 +122,7 @@ class Auth
                 exit;
             }
             $_SESSION['admin_redirect'] = $_SERVER['REQUEST_URI'] ?? '/admin';
-            header('Location: /admin/login');
-            exit;
+            \Core\UrlCanonicalizer::redirect('/admin/login', 302, 'admin-auth');
         }
         return $u;
     }

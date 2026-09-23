@@ -360,18 +360,49 @@ class Seo
         return $slug !== '' ? mb_substr($slug, 0, 120, 'UTF-8') : 'toyota-part';
     }
 
-    /** متن جایگزین پیشنهادی تصویر (alt) بر پایه نام قطعه، خودرو و کد فنی */
+    /** متن جایگزین پیشنهادی تصویر، بدون تکرار مصنوعی نام مدل/OEM و کلمات کلیدی. */
     public static function suggestAlt(string $productName, ?string $carModelName = null, ?string $oem = null, int $index = 0): string
     {
-        $alt = trim($productName);
-        if ($carModelName) {
-            $alt .= ' تویوتا ' . $carModelName;
+        $alt = self::clean($productName);
+        $haystack = mb_strtolower($alt, 'UTF-8');
+
+        $model = self::clean($carModelName);
+        if ($model !== '' && !str_contains($haystack, mb_strtolower($model, 'UTF-8'))) {
+            $alt .= ($alt !== '' ? ' برای ' : '') . 'تویوتا ' . $model;
+            $haystack = mb_strtolower($alt, 'UTF-8');
         }
-        if ($oem) {
-            $alt .= ' کد فنی ' . $oem;
+
+        $oem = self::clean($oem);
+        if ($oem !== '' && !str_contains($haystack, mb_strtolower($oem, 'UTF-8'))) {
+            $alt .= ($alt !== '' ? '، ' : '') . 'کد فنی ' . $oem;
         }
-        $alt .= $index > 0 ? ' — نمای ' . ($index + 1) : '';
-        return mb_substr(trim($alt), 0, 160, 'UTF-8');
+        if ($index > 0) {
+            $alt .= '، نمای ' . ($index + 1);
+        }
+        return self::sanitizeAltText($alt);
+    }
+
+    /**
+     * پاک‌سازی alt دستی: حذف HTML، عبارت‌های تبلیغاتی و تکرار واژه‌ها؛ متن نهایی
+     * توصیفی و حداکثر ۱۶۰ نویسه باقی می‌ماند.
+     */
+    public static function sanitizeAltText(?string $alt): string
+    {
+        $alt = self::clean($alt);
+        $alt = preg_replace('/\b(خرید|قیمت|ارزان|بهترین|فروش ویژه)\b/u', '', $alt) ?? $alt;
+        $tokens = preg_split('/\s+/u', trim($alt)) ?: [];
+        $seen = [];
+        $clean = [];
+        foreach ($tokens as $token) {
+            $key = mb_strtolower(trim($token, "،؛,:|"), 'UTF-8');
+            if ($key === '' || isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $clean[] = $token;
+        }
+        $alt = trim(preg_replace('/\s+/u', ' ', implode(' ', $clean)) ?? '');
+        return mb_substr($alt, 0, 160, 'UTF-8');
     }
 
     /**
@@ -383,7 +414,9 @@ class Seo
     {
         $identifier = trim((string) $identifier);
         if ($identifier === '') {
-            return '/assets/logo/logo.webp';
+            // تصویر محصولِ ناموجود نباید با لوگوی فروشگاه جعل شود. View می‌تواند
+            // placeholder غیرتصویری نشان دهد، ولی Image SEO هیچ URLی دریافت نمی‌کند.
+            return '';
         }
 
         // فایل‌های ذخیره‌شده روی دیسک مستقیم سرو می‌شوند
@@ -567,6 +600,20 @@ class Seo
                 $attrs = $m[1];
                 $index++;
 
+                // محتوای قدیمی بدون نیاز به ذخیره مجدد نیز از /image به URL یکتای /media منتقل می‌شود.
+                if (preg_match('/\bsrc\s*=\s*(["\'])([^"\']+)\1/i', $attrs, $srcMatch)) {
+                    $src = html_entity_decode($srcMatch[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                    $query = (string) parse_url($src, PHP_URL_QUERY);
+                    if ((str_starts_with($src, '/image?') || str_starts_with($src, 'image?')) && $query !== '') {
+                        parse_str($query, $legacyImage);
+                        $id = trim((string) ($legacyImage['id'] ?? ''));
+                        if (preg_match('/^[A-Za-z0-9_-]+$/', $id)) {
+                            $canonicalSrc = self::imageUrl($id, self::imageSlug($fallbackAlt, null, null, $index - 1));
+                            $attrs = str_replace($srcMatch[0], 'src="' . htmlspecialchars($canonicalSrc, ENT_QUOTES, 'UTF-8') . '"', $attrs);
+                        }
+                    }
+                }
+
                 $hasAlt = preg_match('/\balt\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', $attrs, $altMatch) === 1;
                 $altValue = $hasAlt ? trim($altMatch[1], "\"' \t") : '';
 
@@ -598,6 +645,15 @@ class Seo
                     $attrs = $hasAlt
                         ? preg_replace('/\balt\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', 'alt="' . $alt . '"', $attrs, 1)
                         : $attrs . ' alt="' . $alt . '"';
+                } else {
+                    $sanitizedAlt = self::sanitizeAltText(html_entity_decode($altValue, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                    $sanitizedAlt = htmlspecialchars($sanitizedAlt ?: $fallbackAlt, ENT_QUOTES, 'UTF-8');
+                    $attrs = preg_replace(
+                        '/\balt\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i',
+                        'alt="' . $sanitizedAlt . '"',
+                        $attrs,
+                        1
+                    );
                 }
 
                 if (!preg_match('/\bloading\s*=/i', (string) $attrs)) {
@@ -611,6 +667,138 @@ class Seo
             },
             $html
         );
+    }
+
+    /**
+     * اعتبارسنجی تصاویر مقاله در لحظه ذخیره‌سازی.
+     *
+     * - data/blob/javascript و HTTP ناامن رد می‌شوند؛
+     * - مسیرهای local باید واقعاً فایل تصویر باشند؛
+     * - /image?id قدیمی به /media canonical تبدیل می‌شود؛
+     * - alt توصیفی الزامی و از تکرار مصنوعی پاک می‌شود؛
+     * - تصاویر نامعتبر پیش از ذخیره از HTML حذف می‌شوند.
+     *
+     * @return array{valid:bool,html:string,errors:array<int,string>,count:int}
+     */
+    public static function validateArticleImages(string $html, string $fallbackAlt = ''): array
+    {
+        if ($html === '' || stripos($html, '<img') === false) {
+            return ['valid' => true, 'html' => $html, 'errors' => [], 'count' => 0];
+        }
+        if (!class_exists('DOMDocument')) {
+            return [
+                'valid' => false,
+                'html' => $html,
+                'errors' => ['افزونه DOM برای اعتبارسنجی تصاویر روی سرور فعال نیست.'],
+                'count' => 0,
+            ];
+        }
+
+        $dom = new \DOMDocument('1.0', 'UTF-8');
+        libxml_use_internal_errors(true);
+        $dom->loadHTML(
+            '<!doctype html><html><head><meta charset="utf-8"></head><body>' . $html . '</body></html>',
+            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
+        );
+        libxml_clear_errors();
+
+        $xpath = new \DOMXPath($dom);
+        $nodes = [];
+        foreach ($xpath->query('//body//img') ?: [] as $node) {
+            $nodes[] = $node;
+        }
+
+        $errors = [];
+        $validCount = 0;
+        $root = defined('SITE_ROOT') ? SITE_ROOT : (defined('BASE_PATH') ? BASE_PATH : dirname(__DIR__));
+        $allowedLocalPrefixes = ['/uploads/', '/assets/'];
+
+        foreach ($nodes as $index => $img) {
+            /** @var \DOMElement $img */
+            $number = $index + 1;
+            $src = trim(html_entity_decode($img->getAttribute('src'), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+            $isValid = true;
+
+            if ($src === '' || preg_match('#^(?:data|blob|javascript|vbscript):#i', $src)) {
+                $errors[] = "تصویر {$number}: آدرس تصویر خالی یا ناامن است.";
+                $isValid = false;
+            } elseif (str_starts_with($src, '/image?') || str_starts_with($src, 'image?')) {
+                $query = (string) parse_url($src, PHP_URL_QUERY);
+                parse_str($query, $legacy);
+                $id = trim((string) ($legacy['id'] ?? ''));
+                if (!preg_match('/^[A-Za-z0-9_-]+$/', $id)) {
+                    $errors[] = "تصویر {$number}: شناسه قدیمی تصویر معتبر نیست.";
+                    $isValid = false;
+                } else {
+                    $src = self::imageUrl($id, self::imageSlug($fallbackAlt ?: 'تصویر مقاله', null, null, $index));
+                    $img->setAttribute('src', $src);
+                }
+            } elseif (str_starts_with($src, '//') || preg_match('#^http://#i', $src)) {
+                $errors[] = "تصویر {$number}: فقط آدرس HTTPS یا مسیر داخلی مجاز است.";
+                $isValid = false;
+            } elseif (preg_match('#^https://#i', $src)) {
+                $host = strtolower((string) parse_url($src, PHP_URL_HOST));
+                $isIp = filter_var($host, FILTER_VALIDATE_IP) !== false;
+                $isPublicIp = filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false;
+                if ($host === '' || $host === 'localhost' || ($isIp && !$isPublicIp)) {
+                    $errors[] = "تصویر {$number}: میزبان خارجی تصویر معتبر نیست.";
+                    $isValid = false;
+                }
+            } else {
+                $path = '/' . ltrim((string) parse_url($src, PHP_URL_PATH), '/');
+                $allowed = false;
+                foreach ($allowedLocalPrefixes as $prefix) {
+                    if (str_starts_with($path, $prefix)) {
+                        $allowed = true;
+                        break;
+                    }
+                }
+                if (str_starts_with($path, '/media/')) {
+                    $allowed = (bool) preg_match('#--[A-Za-z0-9_-]+\.(?:jpe?g|png|webp|gif|avif)$#i', rawurldecode($path));
+                } elseif ($allowed) {
+                    $full = realpath($root . $path);
+                    $rootReal = realpath($root);
+                    $allowed = $full !== false && $rootReal !== false && str_starts_with($full, $rootReal)
+                        && is_file($full) && @getimagesize($full) !== false;
+                }
+                if (!$allowed) {
+                    $errors[] = "تصویر {$number}: فایل داخلی وجود ندارد یا فرمت تصویر معتبر نیست.";
+                    $isValid = false;
+                }
+            }
+
+            $alt = self::sanitizeAltText($img->getAttribute('alt'));
+            if ($alt === '') {
+                $errors[] = "تصویر {$number}: متن جایگزین (alt) توصیفی الزامی است.";
+                $isValid = false;
+            } else {
+                $img->setAttribute('alt', $alt);
+            }
+
+            if (!$isValid) {
+                $img->parentNode?->removeChild($img);
+                continue;
+            }
+
+            $img->setAttribute('loading', $img->getAttribute('loading') === 'eager' ? 'eager' : 'lazy');
+            $img->setAttribute('decoding', 'async');
+            $validCount++;
+        }
+
+        $body = $xpath->query('//body')->item(0);
+        $output = '';
+        if ($body) {
+            foreach ($body->childNodes as $child) {
+                $output .= $dom->saveHTML($child);
+            }
+        }
+
+        return [
+            'valid' => $errors === [],
+            'html' => trim($output),
+            'errors' => $errors,
+            'count' => $validCount,
+        ];
     }
 
     /** گره نان‌ریزه از روی آرایه [ ['name'=>..., 'url'=>...], ... ] */
@@ -642,7 +830,8 @@ class Seo
     {
         $inStock = !empty($product['inStock']) || !empty($product['in_stock']);
         $qty = isset($product['stock_qty']) ? (int) $product['stock_qty'] : null;
-        $discontinued = !empty($product['discontinued']);
+        $discontinued = !empty($product['discontinued'])
+            || (($product['lifecycle_status'] ?? 'active') === 'discontinued');
 
         if ($discontinued) {
             return 'https://schema.org/Discontinued';

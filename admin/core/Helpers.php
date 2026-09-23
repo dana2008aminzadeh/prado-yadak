@@ -76,8 +76,7 @@ function take_flash(): array
 
 function redirect(string $url): void
 {
-    header('Location: ' . $url);
-    exit;
+    \Core\UrlCanonicalizer::redirect($url, 302, 'admin');
 }
 
 /** بازگشت به صفحه قبلی به‌صورت امن (فقط مسیرهای داخلی /admin) */

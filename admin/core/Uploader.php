@@ -4,7 +4,7 @@ namespace Admin\core;
 use Throwable;
 
 /**
- * آپلود امن فایل با پشتیبانی از ارسال به تلگرام (سازگار با پروکسی /image?id=)
+ * آپلود امن فایل با پشتیبانی از ارسال به تلگرام و URL واحد /media/
  */
 class Uploader
 {
@@ -15,6 +15,7 @@ class Uploader
         'image/jpeg' => 'jpg',
         'image/png'  => 'png',
         'image/webp' => 'webp',
+        'image/avif' => 'avif',
         'image/gif'  => 'gif',
     ];
 
@@ -24,8 +25,8 @@ class Uploader
     ];
 
     /**
-     * آپلود یک تصویر. ابتدا تلاش می‌کند به تلگرام بفرستد (تا مثل بقیه سایت
-     * از طریق /image?id= سرو شود) و در صورت شکست روی دیسک ذخیره می‌کند.
+     * آپلود یک تصویر. ابتدا تلاش می‌کند به تلگرام بفرستد (از طریق URL یکتای
+     * /media/ سرو می‌شود) و در صورت شکست روی دیسک ذخیره می‌کند.
      *
      * @return array{success:bool, message?:string, telegram_file_id?:string, path?:string}
      */
@@ -40,6 +41,11 @@ class Uploader
         $info = @getimagesize($file['tmp_name']);
         if ($info === false) {
             return ['success' => false, 'message' => 'فایل ارسالی یک تصویر معتبر نیست.'];
+        }
+        $width = (int) ($info[0] ?? 0);
+        $height = (int) ($info[1] ?? 0);
+        if ($width < 1 || $height < 1 || $width > 12000 || $height > 12000 || ($width * $height) > 40000000) {
+            return ['success' => false, 'message' => 'ابعاد تصویر نامعتبر یا بیش از حد مجاز (۴۰ مگاپیکسل) است.'];
         }
 
         $telegramId = self::sendToTelegram($file['tmp_name'], $file['name'] ?? 'image.jpg');
@@ -203,10 +209,10 @@ class Uploader
     }
 
     /** آدرس قابل نمایش برای یک رکورد تصویر */
-    public static function url(?string $telegramId, ?string $path, string $fallback = '/assets/logo/logo.webp'): string
+    public static function url(?string $telegramId, ?string $path, string $fallback = ''): string
     {
         if ($telegramId) {
-            return '/image?id=' . urlencode($telegramId);
+            return \Core\Seo::imageUrl($telegramId, 'image');
         }
         if ($path) {
             return '/' . ltrim($path, '/');

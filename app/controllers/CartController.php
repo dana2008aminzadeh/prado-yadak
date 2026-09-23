@@ -36,7 +36,13 @@ class CartController extends Controller
         $formatted = [];
         
         foreach($items as $item) {
-            $images = !empty($item['telegram_photo_id']) ? json_decode($item['telegram_photo_id'], true) : [];
+            $rawPhoto = (string) ($item['telegram_photo_id'] ?? '');
+            $images = $rawPhoto !== '' ? json_decode($rawPhoto, true) : [];
+            $images = is_array($images) ? $images : ($rawPhoto !== '' ? [$rawPhoto] : []);
+            $primary = $images[0] ?? '';
+            $imageUrl = $primary !== ''
+                ? \Core\Seo::imageUrl((string) $primary, \Core\Seo::imageSlug((string) $item['name'], $item['oem_code'] ?? null))
+                : '';
             $formatted[] = [
                 'quantity' => (int)$item['quantity'],
                 'product' => [
@@ -45,7 +51,9 @@ class CartController extends Controller
                     'slug' => $item['slug'],
                     'oem' => $item['oem_code'],
                     'price' => (float)$item['price'],
-                    'images' => is_array($images) ? $images : []
+                    'images' => $images,
+                    'image_url' => $imageUrl,
+                    'image_alt' => \Core\Seo::suggestAlt((string) $item['name'], null, $item['oem_code'] ?? null)
                 ]
             ];
         }

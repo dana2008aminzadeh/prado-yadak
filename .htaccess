@@ -1,4 +1,18 @@
 RewriteEngine On
+
+# کش و MIME صحیح تصاویر استاتیک/آپلودی؛ تصاویر تلگرام هدرهای متناظر را در
+# ImageController دریافت می‌کنند. ETag و Last-Modified توسط Apache حفظ می‌شود.
+<IfModule mod_mime.c>
+    AddType image/avif .avif
+    AddType image/webp .webp
+</IfModule>
+<IfModule mod_headers.c>
+    <FilesMatch "\.(?:jpe?g|png|gif|webp|avif)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+        Header set X-Content-Type-Options "nosniff"
+    </FilesMatch>
+</IfModule>
+
 # اجبار HTTPS و حذف www
 RewriteCond %{HTTPS} off [OR]
 RewriteCond %{HTTP_HOST} ^www\. [NC]

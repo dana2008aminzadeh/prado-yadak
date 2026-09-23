@@ -89,7 +89,7 @@ function clean_html($html)
         'td' => ['class', 'style', 'colspan', 'rowspan', 'width'],
         'tr' => ['class', 'style'],
         // ویژگی‌های مجاز برای تصاویر
-        'img' => ['src', 'alt', 'title', 'width', 'height', 'class', 'style', 'loading'],
+        'img' => ['src', 'alt', 'title', 'width', 'height', 'class', 'style', 'loading', 'decoding'],
         'figure' => ['class', 'style'],
         'figcaption' => ['class', 'style']
     ];
@@ -247,6 +247,7 @@ spl_autoload_register(function ($class) {
 });
 
 use Core\Router;
+use Core\UrlCanonicalizer;
 
 try {
     $GLOBALS['settings'] = \App\models\Setting::getAll();
@@ -257,35 +258,14 @@ try {
 
 $router = new Router();
 
-// =============================================================================
-// نرمال‌سازی آدرس — تنها محل مجاز برای ریدایرکت ساختاری
-// -----------------------------------------------------------------------------
-// تمام ریدایرکت‌های سئویی (اسلش پایانی، /index، /index.php) اینجا و پیش از
-// هرگونه خروجی انجام می‌شوند، نه داخل قالب (assets/php/head.php)؛ چون در لایه
-// قالب ممکن است بخشی از HTML ارسال شده باشد و header() خطای
-// «headers already sent» بدهد و ریدایرکت بی‌اثر شود.
-// =============================================================================
-$uri = (string) (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/');
-$uri = '/' . ltrim($uri, '/');
-$queryString = (string) ($_SERVER['QUERY_STRING'] ?? '');
+// تمام نرمال‌سازی‌های ساختاری، encoding فارسی، query تکراری و URLهای قدیمی
+// پیش از هر خروجی و از یک نقطه مرکزی انجام می‌شوند.
+$uri = UrlCanonicalizer::handleRequest();
 
-$redirectTo = null;
-
-// ۱) حذف اسلش پایانی — یک نسخه واحد از هر آدرس
-if ($uri !== '/' && substr($uri, -1) === '/') {
-    $redirectTo = rtrim($uri, '/');
-}
-
-// ۲) /index و /index.php همیشه به ریشه سایت
-if ($uri === '/index' || $uri === '/index.php') {
-    $redirectTo = '/';
-}
-
-if ($redirectTo !== null) {
-    if (!headers_sent()) {
-        header('Location: ' . $redirectTo . ($queryString !== '' ? '?' . $queryString : ''), true, 301);
-    }
-    exit;
+// ریدایرکت‌های ثبت‌شده مدیر (تغییر اسلاگ یا جایگزین محصول) حتی اگر مسیر قدیمی
+// هنوز با یک route معتبر match شود، باید پیش از dispatch اعمال شوند.
+if (in_array(strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')), ['GET', 'HEAD'], true)) {
+    \App\models\Redirect::handle($uri, (string) ($_SERVER['QUERY_STRING'] ?? ''));
 }
 
 $router->dispatch($uri);

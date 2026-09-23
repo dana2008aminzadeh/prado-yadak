@@ -213,7 +213,7 @@ global $settings;
                         $catTags = explode(',', $cat['tags']);
                     }
                 ?>
-                <a href="/parts?category=<?= e($slug) ?>"
+                <a href="/parts?category=<?= e(rawurlencode((string) $slug)) ?>"
                 class="cat-card bg-brand-grey rounded-2xl p-8 border border-white/5 block scroll-reveal group">
                     <div class="relative z-10 flex flex-col h-full">
                         <div class="cat-icon w-16 h-16 bg-brand-accent/10 rounded-xl flex items-center justify-center mb-5 text-brand-accent">
@@ -286,7 +286,8 @@ global $settings;
                             <?php if (!empty($latestProducts)): ?>
                                 <?php foreach ($latestProducts as $part): 
                                     $safeSlug = rawurlencode((string) $part['slug']);
-                                    $imgSrc = !empty($part['images']) ? "/image?id=" . e($part['images'][0]) : "/assets/logo/logo.webp";
+                                    $imgSrc = (string) ($part['image_url'] ?? '');
+                                    $imgAlt = (string) ($part['image_alt'] ?? $part['name']);
                                     $modelData = $GLOBALS['car_models'][$part['model']] ?? $part['model'];
                                     $modelName = is_array($modelData) ? ($modelData['name'] ?? $part['model']) : $modelData;
                                     $productUrl = "/product/" . $safeSlug;
@@ -320,12 +321,18 @@ global $settings;
                                         <a href="<?= $productUrl ?>" 
                                         class="w-full h-24 sm:h-36 bg-[#f8f6f0] rounded-xl flex items-center justify-center p-1.5 sm:p-3 mb-2 sm:mb-3 relative overflow-hidden border border-[#a88d7c]/20 block group"
                                         title="<?= e($part['name']) ?>">
-                                            <img src="<?= $imgSrc ?>" 
-                                                alt="<?= e($part['name']) ?>" 
-                                                loading="lazy" 
-                                                itemprop="image"
-                                                onerror="this.onerror=null; this.src='/assets/logo/logo.webp'; this.className='max-w-[60%] max-h-[60%] object-contain opacity-40';"
-                                                class="max-w-full max-h-full object-contain transition-transform duration-500 group-hover:scale-105">
+                                            <?php if ($imgSrc !== ''): ?>
+                                                <img src="<?= e($imgSrc) ?>"
+                                                    alt="<?= e($imgAlt) ?>"
+                                                    loading="lazy" decoding="async"
+                                                    itemprop="image"
+                                                    class="max-w-full max-h-full object-contain transition-transform duration-500 group-hover:scale-105">
+                                            <?php else: ?>
+                                                <span class="text-[#8b533a]/50 flex flex-col items-center gap-1" role="img" aria-label="تصویر محصول ثبت نشده است">
+                                                    <i data-lucide="image-off" class="w-8 h-8" aria-hidden="true"></i>
+                                                    <small class="text-[8px]">بدون تصویر</small>
+                                                </span>
+                                            <?php endif; ?>
                                             
                                             <?php if (!empty($part['oem'])): ?>
                                                 <span class="absolute bottom-1 left-1 text-[7px] sm:text-[9px] font-mono text-[#5c473b] bg-white/95 px-1 py-0.5 rounded border border-[#a88d7c]/30 shadow-2xs" dir="ltr">
@@ -487,7 +494,7 @@ global $settings;
                         $modelName = is_array($model) ? $model['name'] : $model;
                         $modelLogo = is_array($model) && !empty($model['logo_svg']) ? $model['logo_svg'] : '<i data-lucide="car" style="width:24px;height:24px;"></i>';
                         ?>
-                        <a href="/parts?model=<?= e($slug) ?>"
+                        <a href="/parts?model=<?= e(rawurlencode((string) $slug)) ?>"
                             class="group flex items-center justify-between p-4 md:p-5 bg-brand-grey rounded-2xl border border-white/5 transition-all duration-300 ease-out hover:-translate-y-1.5 hover:border-brand-accent/30 active:border-brand-accent/30 hover:shadow-[0_15px_40px_-10px_rgba(139,83,58,0.15)] active:bg-white/5 relative overflow-hidden">
                             <div
                                 class="absolute inset-0 bg-gradient-to-r from-brand-accent/0 via-transparent to-brand-accent/10 opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity duration-300 ease-out pointer-events-none">

@@ -12,6 +12,19 @@ class Product
         $conditions = ["1=1"];
         $params = [];
 
+        // محصولات متوقف‌شده در فهرست‌ها ظاهر نمی‌شوند؛ صفحه مستقیم آن‌ها برای
+        // noindex یا انتقال به جایگزین همچنان توسط findBySlug قابل دسترس است.
+        if (self::hasColumn('products', 'lifecycle_status')) {
+            $conditions[] = "COALESCE(p.lifecycle_status, 'active') <> 'discontinued'";
+        }
+        if (!empty($filters['excludeIds']) && is_array($filters['excludeIds'])) {
+            $excludeIds = array_values(array_unique(array_filter(array_map('intval', $filters['excludeIds']))));
+            if ($excludeIds) {
+                $conditions[] = 'p.id NOT IN (' . implode(',', array_fill(0, count($excludeIds), '?')) . ')';
+                array_push($params, ...$excludeIds);
+            }
+        }
+
         if (!empty($filters['q'])) {
             $conditions[] = "(p.name LIKE ? OR p.oem_code LIKE ?)";
             $params[] = '%' . $filters['q'] . '%';
@@ -126,6 +139,20 @@ class Product
         return !empty($data['items']) ? $data['items'][0] : null;
     }
 
+    /** واکشی مستقیم برای URLهای قدیمی/مدیریتی، حتی اگر محصول discontinued باشد. */
+    public static function findByIdIncludingDiscontinued($id)
+    {
+        $db = Database::getInstance();
+        $stmt = $db->prepare(
+            'SELECT p.*, c.slug AS category_slug
+             FROM products p LEFT JOIN categories c ON c.id = p.category_id
+             WHERE p.id = ? LIMIT 1'
+        );
+        $stmt->execute([(int) $id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ? self::mapRow($row, true) : null;
+    }
+
     public static function findBySlug($slug)
     {
         $db = Database::getInstance();
@@ -134,7 +161,7 @@ class Product
                 LEFT JOIN categories c ON p.category_id = c.id 
                 WHERE p.slug = ? LIMIT 1";
         $stmt = $db->prepare($sql);
-        $stmt->execute([urldecode($slug)]);
+        $stmt->execute([rawurldecode($slug)]);
         $r = $stmt->fetch();
 
         if (!$r)
@@ -154,7 +181,20 @@ class Product
         $legacy = is_array($legacy) ? $legacy : ($rawPhoto !== '' ? [$rawPhoto] : []);
 
         $gallery = $withGallery ? self::getGallery((int) $r['id']) : [];
-        $images = $gallery ? array_column($gallery, 'identifier') : $legacy;
+        $images = $gallery ? array_column($gallery, 'identifier') : array_values(array_filter($legacy, 'is_string'));
+
+        $modelData = $GLOBALS['car_models'][$r['car_model'] ?? ''] ?? ($r['car_model'] ?? '');
+        $modelName = is_array($modelData) ? ($modelData['name'] ?? '') : (string) $modelData;
+        $primaryIdentifier = $gallery[0]['identifier'] ?? ($images[0] ?? '');
+        $imageUrl = $gallery[0]['url'] ?? ($primaryIdentifier !== ''
+            ? \Core\Seo::imageUrl(
+                (string) $primaryIdentifier,
+                \Core\Seo::imageSlug((string) $r['name'], $r['oem_code'] ?? null, $modelName ?: null)
+            )
+            : '');
+        $imageAlt = $gallery[0]['alt'] ?? ($primaryIdentifier !== ''
+            ? \Core\Seo::suggestAlt((string) $r['name'], $modelName ?: null, $r['oem_code'] ?? null)
+            : '');
 
         return [
             'id' => (int) $r['id'],
@@ -170,7 +210,16 @@ class Product
             'stock_qty' => isset($r['stock_qty']) ? (int) $r['stock_qty'] : null,
             'desc' => $r['description'],
             'images' => $images,
+            'image_url' => $imageUrl,
+            'image_alt' => $imageAlt,
             'gallery' => $gallery,
+            'technicalSpecifications' => $withGallery ? self::getAttributes((int) $r['id']) : [],
+            // چرخه عمر: ناموجودی موقت صفحه را نگه می‌دارد؛ discontinued از
+            // Sitemap حذف و در صورت داشتن replacement با 301 منتقل می‌شود.
+            'lifecycle_status' => $r['lifecycle_status'] ?? 'active',
+            'replacement_product_id' => isset($r['replacement_product_id']) ? (int) $r['replacement_product_id'] : null,
+            'sitemap_policy' => $r['sitemap_policy'] ?? 'auto',
+            'discontinued' => ($r['lifecycle_status'] ?? 'active') === 'discontinued',
             // ---- فیلدهای اختصاصی سئو (اولویت با مقدار دستی مدیر) ----
             'meta_title' => $r['meta_title'] ?? null,
             'meta_description' => $r['meta_description'] ?? null,
@@ -215,7 +264,7 @@ class Product
                 $modelName = is_array($md) ? ($md['name'] ?? '') : (string) $md;
             }
 
-            $alt = trim((string) ($row['alt_text'] ?? ''));
+            $alt = \Core\Seo::sanitizeAltText((string) ($row['alt_text'] ?? ''));
             if ($alt === '') {
                 $alt = \Core\Seo::suggestAlt((string) $row['name'], $modelName ?: null, $row['oem_code'] ?? null, (int) $i);
             }
@@ -234,12 +283,54 @@ class Product
         return $out;
     }
 
+    /** مشخصات فنی سفارشی ثبت‌شده در پنل. */
+    public static function getAttributes(int $productId): array
+    {
+        try {
+            $stmt = Database::getInstance()->prepare(
+                'SELECT attr_key, attr_value FROM product_attributes
+                 WHERE product_id = ? AND attr_key <> \'\' AND attr_value <> \'\'
+                 ORDER BY sort_order, id'
+            );
+            $stmt->execute([$productId]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * فقط نظرات approved در صفحه قابل مشاهده‌اند. verified_purchase مستقل محاسبه
+     * می‌شود تا Review Schema هرگز از نظر دستی/قدیمیِ فاقد خرید تحویل‌شده ساخته نشود.
+     */
     public static function getComments($productId)
     {
         $db = Database::getInstance();
-        $stmt = $db->prepare("SELECT * FROM product_comments WHERE product_id = ? AND status = 'approved' ORDER BY created_at DESC");
+        if (self::hasColumn('product_comments', 'user_id')) {
+            $stmt = $db->prepare(
+                "SELECT pc.*,
+                        CASE WHEN pc.user_id IS NOT NULL AND EXISTS (
+                            SELECT 1 FROM orders o
+                            JOIN order_items oi ON oi.order_id = o.id
+                            WHERE o.user_id = pc.user_id AND oi.product_id = pc.product_id
+                              AND o.status = 'delivered'
+                        ) THEN 1 ELSE 0 END AS verified_purchase
+                 FROM product_comments pc
+                 WHERE pc.product_id = ? AND pc.status = 'approved'
+                 ORDER BY pc.created_at DESC"
+            );
+        } else {
+            // دیدگاه‌های قدیمی قابل نمایش‌اند، اما چون قابل انتساب به خریدار نیستند
+            // وارد Review Schema و نشان «خریدار» نمی‌شوند.
+            $stmt = $db->prepare(
+                "SELECT pc.*, 0 AS verified_purchase
+                 FROM product_comments pc
+                 WHERE pc.product_id = ? AND pc.status = 'approved'
+                 ORDER BY pc.created_at DESC"
+            );
+        }
         $stmt->execute([$productId]);
-        return $stmt->fetchAll();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
 
     public static function canUserComment($productId, $userId)
@@ -252,6 +343,143 @@ class Product
         ");
         $stmt->execute([$userId, $productId]);
         return $stmt->fetch() ? true : false;
+    }
+
+    /**
+     * محصولات واقعاً مرتبط با امتیازدهی OEM، خودرو، دسته و برند.
+     * محصول جاری حذف می‌شود و رکوردهای تکراریِ OEM+brand نیز یک بار نمایش دارند.
+     */
+    public static function getSimilar(array $product, int $limit = 4): array
+    {
+        $id = (int) ($product['id'] ?? 0);
+        if ($id <= 0) {
+            return [];
+        }
+
+        $db = Database::getInstance();
+        $conditions = [];
+        $scoreParts = [];
+        $selectFlags = [];
+        $params = [];
+
+        $oem = trim((string) ($product['oem'] ?? ''));
+        if ($oem !== '') {
+            $conditions[] = 'p.oem_code = ?';
+            $params[] = $oem;
+            $scoreParts[] = '(CASE WHEN p.oem_code = ' . $db->quote($oem) . ' THEN 12 ELSE 0 END)';
+            $selectFlags[] = '(p.oem_code = ' . $db->quote($oem) . ') AS same_oem';
+        } else {
+            $selectFlags[] = '0 AS same_oem';
+        }
+
+        $model = trim((string) ($product['model'] ?? ''));
+        if ($model !== '') {
+            $conditions[] = 'p.car_model = ?';
+            $params[] = $model;
+            $scoreParts[] = '(CASE WHEN p.car_model = ' . $db->quote($model) . ' THEN 8 ELSE 0 END)';
+            $selectFlags[] = '(p.car_model = ' . $db->quote($model) . ') AS same_model';
+        } else {
+            $selectFlags[] = '0 AS same_model';
+        }
+
+        $category = trim((string) ($product['category'] ?? ''));
+        if ($category !== '') {
+            $conditions[] = 'c.slug = ?';
+            $params[] = $category;
+            $scoreParts[] = '(CASE WHEN c.slug = ' . $db->quote($category) . ' THEN 6 ELSE 0 END)';
+            $selectFlags[] = '(c.slug = ' . $db->quote($category) . ') AS same_category';
+        } else {
+            $selectFlags[] = '0 AS same_category';
+        }
+
+        $brand = trim((string) ($product['brand'] ?? ''));
+        if ($brand !== '') {
+            $conditions[] = 'LOWER(p.brand) = LOWER(?)';
+            $params[] = $brand;
+            $scoreParts[] = '(CASE WHEN LOWER(p.brand) = LOWER(' . $db->quote($brand) . ') THEN 3 ELSE 0 END)';
+            $selectFlags[] = '(LOWER(p.brand) = LOWER(' . $db->quote($brand) . ')) AS same_brand';
+        } else {
+            $selectFlags[] = '0 AS same_brand';
+        }
+
+        // روابط چندبه‌چند خودرو دقیق‌تر از ستون legacy car_model هستند.
+        try {
+            $hasVehicles = (bool) $db->query(
+                'SELECT COUNT(*) FROM product_vehicles WHERE product_id = ' . $id
+            )->fetchColumn();
+        } catch (\Throwable $e) {
+            $hasVehicles = false;
+        }
+        if ($hasVehicles) {
+            $vehicleMatch = "EXISTS (
+                SELECT 1 FROM product_vehicles current_pv
+                JOIN product_vehicles candidate_pv ON candidate_pv.car_model_id = current_pv.car_model_id
+                WHERE current_pv.product_id = {$id} AND candidate_pv.product_id = p.id
+            )";
+            $conditions[] = $vehicleMatch;
+            $scoreParts[] = "(CASE WHEN {$vehicleMatch} THEN 10 ELSE 0 END)";
+            $selectFlags[] = "({$vehicleMatch}) AS same_vehicle";
+        } else {
+            $selectFlags[] = '0 AS same_vehicle';
+        }
+
+        if (!$conditions) {
+            return [];
+        }
+
+        $lifecycle = self::hasColumn('products', 'lifecycle_status')
+            ? "AND COALESCE(p.lifecycle_status, 'active') <> 'discontinued'" : '';
+        $fetchLimit = max($limit * 5, 20);
+        $scoreSql = implode(' + ', $scoreParts ?: ['0']);
+        $sql = "SELECT p.*, c.slug AS category_slug, {$scoreSql} AS similarity_score,
+                       " . implode(', ', $selectFlags) . "
+                FROM products p
+                LEFT JOIN categories c ON c.id = p.category_id
+                WHERE p.id <> ? {$lifecycle} AND (" . implode(' OR ', $conditions) . ")
+                ORDER BY similarity_score DESC, p.in_stock DESC, p.id DESC
+                LIMIT {$fetchLimit}";
+
+        // شناسه مربوط به WHERE پیش از پارامترهای condition قرار دارد.
+        $stmt = $db->prepare($sql);
+        $stmt->execute([$id, ...$params]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+
+        $items = [];
+        $seen = [];
+        foreach ($rows as $row) {
+            $rowOem = trim((string) ($row['oem_code'] ?? ''));
+            $dedupeKey = mb_strtolower(
+                $rowOem !== ''
+                    ? $rowOem . '|' . trim((string) ($row['brand'] ?? ''))
+                    : trim((string) ($row['name'] ?? '')) . '|' . trim((string) ($row['car_model'] ?? '')),
+                'UTF-8'
+            );
+            if (isset($seen[$dedupeKey])) {
+                continue;
+            }
+            $seen[$dedupeKey] = true;
+
+            $reasons = [];
+            if (!empty($row['same_oem'])) $reasons[] = 'OEM یکسان';
+            if (!empty($row['same_vehicle']) || !empty($row['same_model'])) $reasons[] = 'خودروی سازگار';
+            if (!empty($row['same_category'])) $reasons[] = 'دسته یکسان';
+            if (!empty($row['same_brand'])) $reasons[] = 'برند یکسان';
+
+            $mapped = self::mapRow($row);
+            $mapped['similarity_reason'] = implode('، ', array_values(array_unique($reasons)));
+            $mapped['similarity_score'] = (int) $row['similarity_score'];
+            $items[] = $mapped;
+            if (count($items) >= $limit) {
+                break;
+            }
+        }
+        return $items;
+    }
+
+    /** جدیدترین محصولات بدون تکرار محصول جاری و کارت‌های مشابه. */
+    public static function getNewestExcluding(array $ids, int $limit = 4): array
+    {
+        return self::search(['excludeIds' => $ids, 'sort' => 'newest'], 1, $limit)['items'];
     }
 
     /**
@@ -274,24 +502,32 @@ class Product
         $images = [];
         if (!empty($product['gallery']) && is_array($product['gallery'])) {
             foreach ($product['gallery'] as $g) {
-                $images[] = $base . $g['url'];
+                if (!empty($g['url'])) {
+                    $images[] = \Core\Seo::absolute((string) $g['url']);
+                }
             }
         } elseif (!empty($product['images']) && is_array($product['images'])) {
             foreach ($product['images'] as $i => $img) {
                 $seoName = \Core\Seo::imageSlug((string) $product['name'], $product['oem'] ?? null, $product['model'] ?? null, (int) $i);
-                $images[] = $base . \Core\Seo::imageUrl((string) $img, $seoName);
+                $url = \Core\Seo::imageUrl((string) $img, $seoName);
+                if ($url !== '') {
+                    $images[] = \Core\Seo::absolute($url);
+                }
             }
         }
-        if (!$images) {
-            $images[] = $base . '/assets/logo/logo.webp';
-        }
+        $images = array_values(array_unique($images));
 
         // ---------- دیدگاه‌ها ----------
-        $commentCount = count($comments ?? []);
+        // تنها نظر approved + قابل مشاهده + منتسب به خرید تحویل‌شده وارد Schema می‌شود.
         $reviews = [];
-        $sum = 0;
+        $sum = 0.0;
         foreach ($comments ?? [] as $c) {
-            $rating = (float) ($c['rating'] ?? 5);
+            $status = (string) ($c['status'] ?? '');
+            $body = \Core\Seo::clean($c['comment_text'] ?? '');
+            $rating = (float) ($c['rating'] ?? 0);
+            if ($status !== 'approved' || empty($c['verified_purchase']) || $body === '' || $rating < 1 || $rating > 5) {
+                continue;
+            }
             $sum += $rating;
             $reviews[] = [
                 '@type' => 'Review',
@@ -306,9 +542,10 @@ class Product
                     'name' => !empty($c['name']) ? $c['name'] : 'خریدار قطعه',
                 ],
                 'datePublished' => !empty($c['created_at']) ? date('Y-m-d', strtotime($c['created_at'])) : date('Y-m-d'),
-                'reviewBody' => \Core\Seo::clean($c['comment_text'] ?? ''),
+                'reviewBody' => $body,
             ];
         }
+        $commentCount = count($reviews);
 
         $metaTitle = trim((string) ($product['meta_title'] ?? '')) ?: \Core\Seo::productTitle($product, $siteName);
         $metaDesc = trim((string) ($product['meta_description'] ?? '')) ?: \Core\Seo::productDescription($product, $siteName);
@@ -337,7 +574,6 @@ class Product
             '@id' => $productUrl . '#product',
             'name' => $product['name'],
             'url' => $productUrl,
-            'image' => $images,
             'description' => $metaDesc,
             'sku' => (string) $sku,
             'mpn' => (string) $sku,
@@ -354,6 +590,10 @@ class Product
             'itemCondition' => 'https://schema.org/NewCondition',
             'mainEntityOfPage' => ['@id' => $productUrl . '#webpage'],
         ];
+        // لوگوی فروشگاه هرگز به‌عنوان تصویر محصول بدون عکس اعلام نمی‌شود.
+        if ($images) {
+            $productNode['image'] = $images;
+        }
 
         // ---- ویژگی‌های تخصصی خودرو: سازگاری قطعه با مدل‌ها ----
         if ($modelName !== '') {
@@ -482,10 +722,66 @@ class Product
         return $stmt->fetch();
     }
 
-    public static function addComment($productId, $name, $rating, $text)
+    public static function addComment($productId, $userId, $name, $rating, $text)
     {
         $db = Database::getInstance();
-        $stmt = $db->prepare("INSERT INTO product_comments (product_id, name, rating, comment_text, status) VALUES (?, ?, ?, ?, 'pending')");
+        $productId = (int) $productId;
+        $userId = (int) $userId;
+        $rating = max(1, min(5, (int) $rating));
+        $name = mb_substr(trim((string) $name), 0, 120, 'UTF-8');
+        $text = mb_substr(trim((string) $text), 0, 3000, 'UTF-8');
+
+        if (!self::canUserComment($productId, $userId)) {
+            return false;
+        }
+
+        if (self::hasColumn('product_comments', 'user_id')) {
+            // برای هر خرید یک نظر فعال کافی است؛ از Review spam و شمارش چندباره جلوگیری می‌شود.
+            $existing = $db->prepare(
+                "SELECT 1 FROM product_comments
+                 WHERE product_id = ? AND user_id = ? AND status IN ('pending', 'approved') LIMIT 1"
+            );
+            $existing->execute([$productId, $userId]);
+            if ($existing->fetchColumn()) {
+                return false;
+            }
+
+            $verifiedColumn = self::hasColumn('product_comments', 'verified_purchase')
+                ? ', verified_purchase' : '';
+            $verifiedValue = self::hasColumn('product_comments', 'verified_purchase') ? ', 1' : '';
+            $stmt = $db->prepare(
+                "INSERT INTO product_comments
+                    (product_id, user_id, name, rating, comment_text, status{$verifiedColumn})
+                 VALUES (?, ?, ?, ?, ?, 'pending'{$verifiedValue})"
+            );
+            return $stmt->execute([$productId, $userId, $name, $rating, $text]);
+        }
+
+        // سازگاری موقت تا اجرای migration؛ این رکورد بدون user_id وارد Schema نمی‌شود.
+        $stmt = $db->prepare(
+            "INSERT INTO product_comments (product_id, name, rating, comment_text, status)
+             VALUES (?, ?, ?, ?, 'pending')"
+        );
         return $stmt->execute([$productId, $name, $rating, $text]);
+    }
+
+    /** بررسی idempotent وجود ستون برای سازگاری پیش و پس از migration. */
+    private static function hasColumn(string $table, string $column): bool
+    {
+        static $cache = [];
+        $key = $table . '.' . $column;
+        if (array_key_exists($key, $cache)) {
+            return $cache[$key];
+        }
+        try {
+            $st = Database::getInstance()->prepare(
+                'SELECT COUNT(*) FROM information_schema.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?'
+            );
+            $st->execute([$table, $column]);
+            return $cache[$key] = (bool) $st->fetchColumn();
+        } catch (\Throwable $e) {
+            return $cache[$key] = false;
+        }
     }
 }

@@ -48,7 +48,7 @@ class OrderController extends Controller
         $now = time();
         if (isset($_SESSION['last_checkout_time']) && ($now - (int) $_SESSION['last_checkout_time']) < 30) {
             $_SESSION['checkout_error'] = 'یک سفارش از سمت شما در حال پردازش است. لطفاً چند لحظه صبر کنید.';
-            header('Location: /checkout');
+            \Core\UrlCanonicalizer::redirect('/checkout', 302, 'checkout');
             exit;
         }
 
@@ -69,26 +69,26 @@ class OrderController extends Controller
 
         if (empty($recipientName) || empty($recipientPhone) || empty($province) || empty($city) || empty($addressDetail) || empty($postalCode)) {
             $_SESSION['checkout_error'] = 'لطفاً تمامی فیلدهای الزامی شامل مشخصات تحویل‌گیرنده، آدرس و کد پستی را تکمیل کنید.';
-            header('Location: /checkout');
+            \Core\UrlCanonicalizer::redirect('/checkout', 302, 'checkout');
             exit;
         }
 
         if (!preg_match('/^09[0-9]{9}$/', $recipientPhone)) {
             $_SESSION['checkout_error'] = 'شماره همراه تحویل‌گیرنده نامعتبر است (مثال: 09189998852).';
-            header('Location: /checkout');
+            \Core\UrlCanonicalizer::redirect('/checkout', 302, 'checkout');
             exit;
         }
 
         if (!preg_match('/^[0-9]{10}$/', $postalCode)) {
             $_SESSION['checkout_error'] = 'کد پستی نامعتبر است (باید دقیقاً یک عدد ۱۰ رقمی باشد).';
-            header('Location: /checkout');
+            \Core\UrlCanonicalizer::redirect('/checkout', 302, 'checkout');
             exit;
         }
 
         // بررسی اعتبار استان و شهر در پایگاه داده
         if (!Location::validateProvinceAndCity($province, $city)) {
             $_SESSION['checkout_error'] = 'استان یا شهر انتخاب‌شده معتبر نیست.';
-            header('Location: /checkout');
+            \Core\UrlCanonicalizer::redirect('/checkout', 302, 'checkout');
             exit;
         }
 
@@ -109,7 +109,7 @@ class OrderController extends Controller
                         // کنترل وضعیت موجودی در لحظه تسویه
                         if (!$prod['inStock']) {
                             $_SESSION['checkout_error'] = "متأسفانه قطعه «{$prod['name']}» در انبار ناموجود است.";
-                            header('Location: /checkout');
+                            \Core\UrlCanonicalizer::redirect('/checkout', 302, 'checkout');
                             exit;
                         }
 
@@ -128,7 +128,7 @@ class OrderController extends Controller
 
         if (empty($validatedItems) || $subtotal <= 0) {
             $_SESSION['checkout_error'] = 'سبد خرید شما خالی است.';
-            header('Location: /checkout');
+            \Core\UrlCanonicalizer::redirect('/checkout', 302, 'checkout');
             exit;
         }
 
@@ -148,7 +148,7 @@ class OrderController extends Controller
         // ۵. اعتبارسنجی چندلایه فایل رسید بانکی
         if (!isset($_FILES['receipt_image']) || $_FILES['receipt_image']['error'] !== UPLOAD_ERR_OK) {
             $_SESSION['checkout_error'] = 'آپلود تصویر یا فایل رسید بانکی الزامی است.';
-            header('Location: /checkout');
+            \Core\UrlCanonicalizer::redirect('/checkout', 302, 'checkout');
             exit;
         }
 
@@ -158,7 +158,7 @@ class OrderController extends Controller
         $maxSizeBytes = 5 * 1024 * 1024;
         if ($file['size'] > $maxSizeBytes || $file['size'] < 1024) {
             $_SESSION['checkout_error'] = 'حجم فایل رسید نامعتبر است (باید بین ۱ کیلوبایت تا ۵ مگابایت باشد).';
-            header('Location: /checkout');
+            \Core\UrlCanonicalizer::redirect('/checkout', 302, 'checkout');
             exit;
         }
 
@@ -174,7 +174,7 @@ class OrderController extends Controller
 
         if (!array_key_exists($mimeType, $allowedMimes)) {
             $_SESSION['checkout_error'] = 'فرمت رسید نامعتبر است (تنها JPG, PNG, WEBP و PDF مجاز است).';
-            header('Location: /checkout');
+            \Core\UrlCanonicalizer::redirect('/checkout', 302, 'checkout');
             exit;
         }
 
@@ -183,7 +183,7 @@ class OrderController extends Controller
             $header = file_get_contents($file['tmp_name'], false, null, 0, 5);
             if (strncmp($header, '%PDF-', 5) !== 0) {
                 $_SESSION['checkout_error'] = 'فایل PDF بارگذاری‌شده معتبر نیست.';
-                header('Location: /checkout');
+                \Core\UrlCanonicalizer::redirect('/checkout', 302, 'checkout');
                 exit;
             }
         } else {
@@ -191,7 +191,7 @@ class OrderController extends Controller
             $imgInfo = @getimagesize($file['tmp_name']);
             if ($imgInfo === false) {
                 $_SESSION['checkout_error'] = 'تصویر رسید بانکی مخدوش یا دستکاری شده است.';
-                header('Location: /checkout');
+                \Core\UrlCanonicalizer::redirect('/checkout', 302, 'checkout');
                 exit;
             }
         }
@@ -208,7 +208,7 @@ class OrderController extends Controller
 
         if (!move_uploaded_file($file['tmp_name'], $destination)) {
             $_SESSION['checkout_error'] = 'خطا در ذخیره‌سازی فایل رسید.';
-            header('Location: /checkout');
+            \Core\UrlCanonicalizer::redirect('/checkout', 302, 'checkout');
             exit;
         }
 
@@ -223,7 +223,7 @@ class OrderController extends Controller
 
         if (!$selectedShipping) {
             $_SESSION['checkout_error'] = 'لطفاً یک شیوه ارسال معتبر را انتخاب کنید.';
-            header('Location: /checkout');
+            \Core\UrlCanonicalizer::redirect('/checkout', 302, 'checkout');
             exit;
         }
 
@@ -252,7 +252,7 @@ class OrderController extends Controller
         if (!$orderResult['success']) {
             @unlink($destination); // حذف فایل آپلود شده در صورت شکست دیتابیس
             $_SESSION['checkout_error'] = 'خطا در ثبت نهایی فاکتور در پایگاه داده.';
-            header('Location: /checkout');
+            \Core\UrlCanonicalizer::redirect('/checkout', 302, 'checkout');
             exit;
         }
 
@@ -260,7 +260,7 @@ class OrderController extends Controller
 
         $_SESSION['last_checkout_time'] = time();
         Address::saveIfNotExists($userId, $provinceCity, $addressDetail, $postalCode);
-        header('Location: /order/success?code=' . urlencode($trackingCode));
+        \Core\UrlCanonicalizer::redirect('/order/success?code=' . rawurlencode($trackingCode), 302, 'checkout');
         exit;
     }
 
@@ -270,7 +270,7 @@ class OrderController extends Controller
 
         $code = trim($_GET['code'] ?? '');
         if (empty($code)) {
-            header('Location: /profile');
+            \Core\UrlCanonicalizer::redirect('/profile', 302, 'auth');
             exit;
         }
 
@@ -278,7 +278,7 @@ class OrderController extends Controller
 
         // جلوگیری از IDOR با بررسی سخت‌گیرانه نوع داده و شناسه کاربر
         if (!$order || (int) $order['user_id'] !== (int) $_SESSION['user_id']) {
-            header('Location: /404');
+            \Core\UrlCanonicalizer::redirect('/404', 302, 'application');
             exit;
         }
 
