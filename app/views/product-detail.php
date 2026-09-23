@@ -11,22 +11,25 @@
     <!-- محتوای اصلی -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 sm:py-12 space-y-12 sm:space-y-16">
 
-        <div class="flex items-center gap-2 text-xs text-gray-400 mb-4 overflow-x-auto whitespace-nowrap pb-2">
-            <a href="/" class="hover:text-white transition">صفحه اصلی</a>
-            <i data-lucide="chevron-left" style="width:12px;height:12px;"></i>
+        <nav aria-label="Breadcrumb" class="mb-4 overflow-x-auto whitespace-nowrap pb-2">
+            <ol class="flex items-center gap-2 text-xs text-gray-400">
+                <li><a href="/" class="hover:text-white transition">صفحه اصلی</a></li>
+                <li aria-hidden="true"><i data-lucide="chevron-left" style="width:12px;height:12px;"></i></li>
+                <li><a href="/parts" class="hover:text-white transition">کاتالوگ قطعات</a></li>
+                <li aria-hidden="true"><i data-lucide="chevron-left" style="width:12px;height:12px;"></i></li>
 
-            <a href="/parts" class="hover:text-white transition">کاتالوگ قطعات</a>
-            <i data-lucide="chevron-left" style="width:12px;height:12px;"></i>
+                <?php if (!empty($product['category'])): ?>
+                    <li>
+                        <a href="<?= e(\Core\Seo::categoryUrl((string) $product['category'])) ?>" class="hover:text-white transition">
+                            <?= e($GLOBALS['part_categories'][$product['category']]['name'] ?? $product['category']) ?>
+                        </a>
+                    </li>
+                    <li aria-hidden="true"><i data-lucide="chevron-left" style="width:12px;height:12px;"></i></li>
+                <?php endif; ?>
 
-            <?php if (!empty($product['category'])): ?>
-                <a href="/parts?category=<?= e(rawurlencode((string) $product['category'])) ?>" class="hover:text-white transition">
-                    <?= e($GLOBALS['part_categories'][$product['category']]['name'] ?? $product['category']) ?>
-                </a>
-                <i data-lucide="chevron-left" style="width:12px;height:12px;"></i>
-            <?php endif; ?>
-
-            <span class="text-brand-red font-bold"><?= e($product['name']) ?></span>
-        </div>
+                <li aria-current="page" class="text-brand-red font-bold"><?= e($product['name']) ?></li>
+            </ol>
+        </nav>
 
         <!-- باکس اصلی محصول -->
         <div id="product-container"
@@ -37,7 +40,8 @@
 
                 <!-- ستون راست: تصویر محصول و گالری (5 از 12) -->
                 <div class="lg:col-span-5 w-full flex flex-col gap-4">
-                    <div id="main-product-image" onclick="toggleZoomModal(true)"
+                    <button type="button" id="main-product-image" onclick="toggleZoomModal(true)"
+                        aria-label="بزرگ‌نمایی تصویر <?= e($product['name']) ?>"
                         class="w-full bg-brand-dark rounded-2xl p-6 sm:p-8 border border-white/5 relative flex items-center justify-center cursor-zoom-in group h-64 sm:h-80 overflow-hidden">
                         <?php
                         // گالری سئوشده: آدرس تصویر شامل نام قطعه/کد فنی است و alt از پنل مدیریت می‌آید
@@ -53,23 +57,23 @@
                         $mainImage = $gallery[0]['url'] ?? ($product['image_url'] ?? '');
                         $mainAlt = $gallery[0]['alt'] ?? ($product['image_alt'] ?? '');
                         ?>
-                        <div id="main-product-inner" class="w-full h-full flex items-center justify-center">
+                        <span id="main-product-inner" class="w-full h-full flex items-center justify-center">
                             <?php if ($mainImage !== ''): ?>
                                 <img src="<?= e($mainImage) ?>" alt="<?= e($mainAlt) ?>" width="600" height="600"
                                     class="max-w-full max-h-full object-contain drop-shadow-2xl transition transform group-hover:scale-110 duration-300">
                             <?php else: ?>
-                                <div class="text-gray-500 flex flex-col items-center gap-3" role="img"
+                                <span class="text-gray-500 flex flex-col items-center gap-3" role="img"
                                     aria-label="تصویری برای <?= e($product['name']) ?> ثبت نشده است">
                                     <i data-lucide="image-off" class="w-16 h-16" aria-hidden="true"></i>
                                     <span class="text-xs">تصویر محصول ثبت نشده است</span>
-                                </div>
+                                </span>
                             <?php endif; ?>
-                        </div>
+                        </span>
 
-                        <div
+                        <span
                             class="absolute top-3 right-3 bg-brand-grey/80 border border-white/10 p-2 rounded-xl opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                             <i data-lucide="zoom-in" style="width:16px;height:16px;" class="text-white"></i>
-                        </div>
+                        </span>
 
                         <?php if ($product['isGenuine']): ?>
                             <span
@@ -77,18 +81,20 @@
                                 <i data-lucide="shield-check" class="w-4 h-4"></i> جنیون پارت
                             </span>
                         <?php endif; ?>
-                    </div>
+                    </button>
 
                     <!-- تصاویر کوچک (Thumbnails) -->
                     <?php if (count($gallery) > 1): ?>
                         <div class="grid grid-cols-5 gap-2 sm:gap-3">
                             <?php foreach ($gallery as $index => $g): ?>
-                                <div onclick="changeMainImage(<?= e(json_encode($g['url'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>, this, <?= e(json_encode($g['alt'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>)"
+                                <button type="button"
+                                    onclick="changeMainImage(<?= e(json_encode($g['url'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>, this, <?= e(json_encode($g['alt'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>)"
+                                    aria-label="نمایش <?= e($g['alt']) ?>" aria-pressed="<?= $index === 0 ? 'true' : 'false' ?>"
                                     class="thumb-btn h-16 sm:h-20 border rounded-xl flex items-center justify-center cursor-pointer transition duration-200 hover:border-brand-red/50 p-2 <?= $index === 0 ? 'border-brand-red bg-brand-dark' : 'border-white/5 bg-brand-dark/40' ?>">
                                     <img src="<?= e($g['url']) ?>" loading="lazy" width="120" height="120"
                                         class="max-w-full max-h-full object-contain anim-float"
-                                        alt="<?= e($g['alt']) ?>">
-                                </div>
+                                        alt="">
+                                </button>
                             <?php endforeach; ?>
                         </div>
                     <?php endif; ?>
@@ -177,7 +183,8 @@
                                     class="text-sm font-normal text-white">تومان</span>
                             </div>
                         </div>
-                        <button <?= $product['inStock'] ? '' : 'disabled' ?> onclick="addToCart(<?= $product['id'] ?>)"
+                        <button type="button" <?= $product['inStock'] ? '' : 'disabled' ?> onclick="addToCart(<?= $product['id'] ?>)"
+                            aria-label="<?= e($product['inStock'] ? 'افزودن ' . $product['name'] . ' به سبد خرید' : $product['name'] . ' ناموجود است') ?>"
                             class="w-full sm:w-auto <?= $product['inStock'] ? 'bg-brand-red hover:bg-red-700 text-white shadow-[0_5px_20px_rgba(225,6,0,0.3)]' : 'bg-white/5 text-gray-500 cursor-not-allowed' ?> font-black px-6 sm:px-8 py-3.5 rounded-xl transition flex items-center justify-center gap-3 text-sm shrink-0">
                             <i data-lucide="<?= $product['inStock'] ? 'shopping-cart' : 'x-circle' ?>"
                                 style="width:20px;height:20px;"></i>
@@ -239,13 +246,14 @@
                 </h2>
                 <p class="text-xs text-gray-400 leading-relaxed">کد سفارش خود را وارد کنید تا از وضعیت فرآیند بسته‌بندی
                     و زمان تحویل مطلع شوید.</p>
-                <div class="flex gap-2">
-                    <input type="text" id="tracking-code" placeholder="مثال: 403192"
+                <form class="flex gap-2" onsubmit="event.preventDefault(); trackOrder()" aria-label="پیگیری سفارش">
+                    <label for="tracking-code" class="sr-only">کد سفارش</label>
+                    <input type="text" id="tracking-code" name="tracking_code" inputmode="numeric" placeholder="مثال: 403192"
                         class="flex-1 bg-brand-dark border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-red transition text-center font-mono placeholder:text-gray-400">
-                    <button onclick="trackOrder()"
+                    <button type="submit"
                         class="bg-white text-brand-dark hover:bg-gray-200 px-4 sm:px-5 py-3 rounded-xl text-xs font-bold transition whitespace-nowrap border border-gray-300">پیگیری
                         قطعه</button>
-                </div>
+                </form>
                 <div id="tracking-result"
                     class="hidden text-xs p-3 rounded-xl border transition-all duration-300 font-bold"></div>
             </div>
@@ -300,16 +308,17 @@
                             <div id="comment-msg" class="hidden text-xs font-bold p-2 rounded-lg text-center"></div>
 
                             <div>
-                                <label class="block text-xs text-gray-400 mb-2">نام و نام خانوادگی</label>
+                                <label for="comment-name" class="block text-xs text-gray-400 mb-2">نام و نام خانوادگی</label>
                                 <input type="text" id="comment-name" required placeholder="مثال: علی محمدی"
                                     class="w-full bg-brand-dark border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-red transition">
                             </div>
 
                             <div>
-                                <label class="block text-xs text-gray-400 mb-2">امتیاز شما به قطعه</label>
-                                <div class="flex gap-1.5 text-gray-400 direction-ltr justify-end" id="star-picker">
+                                <span id="star-picker-label" class="block text-xs text-gray-400 mb-2">امتیاز شما به قطعه</span>
+                                <div class="flex gap-1.5 text-gray-400 direction-ltr justify-end" id="star-picker" role="group" aria-labelledby="star-picker-label">
                                     <?php for ($i = 5; $i >= 1; $i--): ?>
                                         <button type="button" onclick="setStarRating(<?= $i ?>)"
+                                            aria-label="<?= $i ?> ستاره از ۵" aria-pressed="<?= $i == 5 ? 'true' : 'false' ?>"
                                             class="hover:text-amber-400 transition <?= $i == 5 ? 'text-amber-400' : '' ?>"
                                             data-star="<?= $i ?>">
                                             <i data-lucide="star"
@@ -320,7 +329,7 @@
                             </div>
 
                             <div>
-                                <label class="block text-xs text-gray-400 mb-2">متن نظر شما</label>
+                                <label for="comment-text" class="block text-xs text-gray-400 mb-2">متن نظر شما</label>
                                 <textarea id="comment-text" required rows="4"
                                     placeholder="تجربه خود را از کیفیت و تطابق قطعه بنویسید..."
                                     class="w-full bg-brand-dark border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-brand-red transition resize-none"></textarea>
@@ -471,12 +480,13 @@
     </main>
 
     <!-- مودال زوم تصویر -->
-    <div id="image-zoom-modal"
+    <div id="image-zoom-modal" role="dialog" aria-modal="true" aria-label="بزرگ‌نمایی تصویر محصول"
         class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4 cursor-zoom-out"
         onclick="toggleZoomModal(false)">
-        <button class="absolute top-6 right-6 text-white bg-white/10 hover:bg-brand-red rounded-full p-2 transition"
+        <button type="button" aria-label="بستن تصویر بزرگ"
+            class="absolute top-6 right-6 text-white bg-white/10 hover:bg-brand-red rounded-full p-2 transition"
             onclick="toggleZoomModal(false)">
-            <i data-lucide="x" style="width:24px;height:24px;"></i>
+            <i data-lucide="x" style="width:24px;height:24px;" aria-hidden="true"></i>
         </button>
         <div id="zoom-modal-content"
             class="scale-95 transition-transform duration-300 flex items-center justify-center w-full h-full"></div>

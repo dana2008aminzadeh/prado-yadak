@@ -25,8 +25,8 @@
                         همه</button>
                 </div>
 
-                <div>
-                    <h2 class="font-bold text-sm text-gray-200 mb-3">مدل‌های تویوتا</h2>
+                <div role="group" aria-labelledby="desktop-model-filter-label">
+                    <p id="desktop-model-filter-label" class="font-bold text-sm text-gray-200 mb-3">مدل‌های تویوتا</p>
                     <div class="space-y-2.5" id="model-filters">
                         <?php
                         global $car_models;
@@ -44,8 +44,8 @@
                 </div>
 
                 <!-- فیلتر دسته‌بندی قطعه -->
-                <div>
-                    <h2 class="font-bold text-sm text-gray-200 mb-3">دسته‌بندی قطعه</h2>
+                <div role="group" aria-labelledby="desktop-category-filter-label">
+                    <p id="desktop-category-filter-label" class="font-bold text-sm text-gray-200 mb-3">دسته‌بندی قطعه</p>
                     <div class="space-y-2.5" id="category-filters">
                         <?php
                         global $part_categories;
@@ -62,9 +62,9 @@
                     </div>
                 </div>
 
-                <div>
-                    <h2 class="font-bold text-sm text-gray-200 mb-3">حدود قیمت (تومان)</h2>
-                    <input type="range" id="price-slider" min="0" max="300000000" step="1000000" value="300000000"
+                <div role="group" aria-labelledby="desktop-price-filter-label">
+                    <p id="desktop-price-filter-label" class="font-bold text-sm text-gray-200 mb-3">حدود قیمت (تومان)</p>
+                    <input type="range" id="price-slider" aria-labelledby="desktop-price-filter-label" min="0" max="300000000" step="1000000" value="300000000"
                         class="w-full h-1 bg-brand-dark rounded-lg appearance-none cursor-pointer"
                         oninput="updatePriceLabel(this.value)">
                     <div class="flex justify-between items-center text-xs text-gray-400 mt-2">
@@ -74,8 +74,8 @@
                 </div>
 
                 <!-- فیلتر اصالت و برند کالا -->
-                <div>
-                    <h2 class="font-bold text-sm text-gray-200 mb-3">اصالت و برند کالا</h2>
+                <div role="group" aria-labelledby="desktop-brand-filter-label">
+                    <p id="desktop-brand-filter-label" class="font-bold text-sm text-gray-200 mb-3">اصالت و برند کالا</p>
                     <div class="space-y-2">
                         <!-- دسته‌بندی‌های کلی -->
                         <label class="flex items-center gap-2.5 text-xs text-gray-400 hover:text-white cursor-pointer">
@@ -110,10 +110,10 @@
 
                 <!-- فقط کالاهای موجود (نسخه دسکتاپ) -->
                 <div class="pt-4 border-t border-white/10 flex items-center justify-between">
-                    <span class="text-sm text-gray-300">فقط کالاهای موجود</span>
+                    <label for="in-stock-toggle" id="in-stock-toggle-label" class="text-sm text-gray-300 cursor-pointer">فقط کالاهای موجود</label>
                     <label class="relative inline-flex items-center cursor-pointer shrink-0">
                         <input type="checkbox" id="in-stock-toggle" class="sr-only peer"
-                            onchange="toggleInStock(this.checked)">
+                            aria-labelledby="in-stock-toggle-label" onchange="toggleInStock(this.checked)">
                         <!-- پس‌زمینه سوییچ -->
                         <div
                             class="w-11 h-6 bg-gray-400/50 rounded-full peer-checked:bg-brand-red transition-colors duration-300">
@@ -130,18 +130,21 @@
             <div class="flex-1 space-y-6">
                 <div class="pb-2">
                     <?php
-                        // در لندینگ‌پیج اختصاصی، H1 و متن معرفی از پنل مدیریت می‌آید
+                        // در لندینگ‌پیج اختصاصی، H1 و متن معرفی از پنل مدیریت می‌آید.
+                        // لندینگ تمیز دسته/مدل نیز H1 را در کنترلر تنظیم می‌کند.
                         $isLanding = !empty($landingPage);
                         if ($isLanding) {
                             $h1_title = $landingPage['h1'];
-                        } else {
+                        } elseif (!isset($h1_title)) {
                             $h1_title = 'کاتالوگ و قیمت لوازم یدکی تویوتا';
-                            if (!empty($_GET['category']) && isset($GLOBALS['part_categories'][$_GET['category']])) {
-                                $catData = $GLOBALS['part_categories'][$_GET['category']];
+                            $requestedCategory = $selectedCat ?? ($_GET['category'] ?? null);
+                            $requestedModel = $selectedModel ?? ($_GET['model'] ?? null);
+                            if ($requestedCategory && isset($GLOBALS['part_categories'][$requestedCategory])) {
+                                $catData = $GLOBALS['part_categories'][$requestedCategory];
                                 $catName = is_array($catData) ? ($catData['name'] ?? '') : $catData;
                                 $h1_title = 'خرید لوازم ' . $catName . ' تویوتا';
-                            } elseif (!empty($_GET['model']) && isset($GLOBALS['car_models'][$_GET['model']])) {
-                                $modData = $GLOBALS['car_models'][$_GET['model']];
+                            } elseif ($requestedModel && isset($GLOBALS['car_models'][$requestedModel])) {
+                                $modData = $GLOBALS['car_models'][$requestedModel];
                                 $modName = is_array($modData) ? ($modData['name'] ?? '') : $modData;
                                 $h1_title = 'قطعات یدکی تویوتا ' . $modName;
                             }
@@ -162,25 +165,33 @@
                 <!-- نوار جستجو و دکمه فیلتر موبایل -->
                 <div
                     class="bg-brand-grey border border-white/10 rounded-2xl p-4 flex flex-col sm:flex-row gap-3 items-center">
-                    <!-- فیلد جستجو -->
-                    <div class="relative w-full flex-1">
+                    <!-- فرم استاندارد GET برای جستجوی قابل خزش و قابل استفاده بدون جاوااسکریپت -->
+                    <form action="/parts" method="GET" role="search" aria-label="جستجو در کاتالوگ قطعات"
+                        class="relative w-full flex-1">
                         <div class="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
-                            <i data-lucide="search" class="text-gray-400 w-5 h-5"></i>
+                            <i data-lucide="search" class="text-gray-400 w-5 h-5" aria-hidden="true"></i>
                         </div>
-                        <input type="text" id="search-input"
+                        <label for="search-input" class="sr-only">نام قطعه یا شماره فنی</label>
+                        <input type="search" id="search-input" name="q"
+                            value="<?= e((string) ($_GET['q'] ?? '')) ?>"
                             placeholder="نام قطعه یا شماره فنی آن را جستجو کنید... (مثلا: لنت ترمز)"
-                            class="w-full bg-brand-dark border border-white/10 rounded-xl pr-12 pl-4 py-3 text-sm text-white focus:outline-none focus:border-brand-red transition"
+                            class="w-full bg-brand-dark border border-white/10 rounded-xl pr-12 pl-12 py-3 text-sm text-white focus:outline-none focus:border-brand-red transition"
                             oninput="triggerFilter()">
-                    </div>
+                        <button type="submit" aria-label="اجرای جستجو"
+                            class="absolute inset-y-1.5 left-1.5 w-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-white hover:bg-brand-red transition">
+                            <i data-lucide="arrow-left" class="w-4 h-4" aria-hidden="true"></i>
+                        </button>
+                    </form>
 
                     <div class="flex w-full sm:w-auto gap-2">
                         <!-- دکمه فیلتر مخصوص موبایل -->
-                        <button onclick="toggleMobileFilters(true)"
+                        <button type="button" onclick="toggleMobileFilters(true)" aria-controls="mobile-filter-drawer" aria-expanded="false"
                             class="lg:hidden flex flex-1 items-center justify-center gap-2 border border-white/10 hover:border-brand-red px-5 py-3 rounded-xl text-sm font-bold bg-brand-dark/50 transition">
                             <i data-lucide="sliders-horizontal" style="width:16px;height:16px;"></i> فیلترها
                         </button>
                         <!-- انتخاب مرتب‌سازی -->
                         <div class="relative flex-1 sm:flex-none">
+                            <label for="sort-select" class="sr-only">مرتب‌سازی قطعات</label>
                             <select id="sort-select" onchange="applyFilters(1)"
                                 class="w-full bg-brand-dark border border-white/10 rounded-xl pr-4 pl-10 py-3 text-sm text-gray-300 appearance-none focus:outline-none focus:border-brand-red transition cursor-pointer">
                                 <option value="newest">جدیدترین قطعات</option>
@@ -196,7 +207,7 @@
                 </div>
 
                 <div class="flex justify-between items-center text-xs text-gray-400 px-1">
-                    <h2 class="text-sm font-bold text-white m-0" id="results-count">
+                    <h2 class="text-sm font-bold text-white m-0" id="results-count" aria-live="polite">
                         <?= !empty($products) ? "یافت شده: {$totalCount} قطعه" : "در حال بارگذاری..." ?>
                     </h2>
                     <span>ضمانت تطابق قطعه با شماره شاسی خودرو (VIN)</span>
@@ -216,7 +227,7 @@
                                 ?? \Core\Seo::suggestAlt((string) $part['name'], is_string($carModelName) ? $carModelName : null, $part['oem'] ?? null));
                             $safeSlug = rawurlencode($part['slug']);
                             ?>
-                            <div
+                            <article
                                 class="bg-brand-grey border border-white/5 hover:border-brand-red/30 p-5 rounded-2xl flex flex-col justify-between transition duration-300 hover:shadow-[0_10px_35px_rgba(225,6,0,0.12)]">
                                 <div>
                                     <div class="flex items-center justify-between mb-4">
@@ -277,12 +288,13 @@
                                         <span class="font-black text-sm text-brand-red"><?= number_format($part['price']) ?>
                                             تومان</span>
                                     </div>
-                                    <button <?= $part['inStock'] ? 'onclick="addToCart(' . (int) $part['id'] . ')"' : 'disabled' ?>
+                                    <button type="button" <?= $part['inStock'] ? 'onclick="addToCart(' . (int) $part['id'] . ')"' : 'disabled' ?>
+                                        aria-label="<?= e($part['inStock'] ? 'افزودن ' . $part['name'] . ' به سبد خرید' : $part['name'] . ' ناموجود است') ?>"
                                         class="p-2.5 rounded-xl transition <?= $part['inStock'] ? 'bg-brand-red hover:bg-red-700 text-white shadow-[0_4px_15px_rgba(225,6,0,0.2)]' : 'bg-white/5 text-gray-500 cursor-not-allowed' ?>">
-                                        <i data-lucide="shopping-cart" style="width:18px;height:18px;"></i>
+                                        <i data-lucide="shopping-cart" style="width:18px;height:18px;" aria-hidden="true"></i>
                                     </button>
                                 </div>
-                            </div>
+                            </article>
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </div>
@@ -296,9 +308,12 @@
                         <?php
                         // لینک‌های صفحه‌بندی همیشه با ترتیب پارامتر نرمال‌شده ساخته می‌شوند
                         // تا نسخه‌های موازی از یک صفحه برای گوگل ایجاد نشود.
-                        $listBase = !empty($landingPage) ? '/parts/' . rawurlencode($landingPage['slug']) : '/parts';
-                        $pageLink = function ($n) use ($listBase, $landingPage) {
-                            if (!empty($landingPage)) {
+                        $listBase = !empty($landingPage)
+                            ? '/parts/' . rawurlencode($landingPage['slug'])
+                            : ($catalogBasePath ?? '/parts');
+                        $isCleanList = !empty($landingPage) || !empty($catalogBasePath);
+                        $pageLink = function ($n) use ($listBase, $isCleanList) {
+                            if ($isCleanList) {
                                 return $listBase . ($n > 1 ? '?page=' . (int) $n : '');
                             }
                             $params = $_GET;
@@ -349,7 +364,7 @@
                     <div class="w-16 h-16 bg-brand-red/10 rounded-full flex items-center justify-center mx-auto mb-4">
                         <i data-lucide="info" class="text-brand-red" style="width:32px;height:32px;"></i>
                     </div>
-                    <h4 class="font-bold text-lg mb-2">قطعه مورد نظر پیدا نشد!</h4>
+                    <h2 class="font-bold text-lg mb-2">قطعه مورد نظر پیدا نشد!</h2>
                     <p class="text-gray-400 text-sm max-w-sm mx-auto mb-6">احتمالاً فیلترهای زیادی انتخاب کرده‌اید یا
                         قطعه در انبار موجود نیست.</p>
                     <button onclick="resetFilters()"
@@ -372,7 +387,7 @@
         class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity duration-300"
         onclick="toggleMobileFilters(false)"></div>
 
-    <div id="mobile-filter-drawer"
+    <div id="mobile-filter-drawer" role="dialog" aria-modal="true" aria-label="فیلتر قطعات"
         class="fixed top-0 bottom-0 right-0 w-80 z-50 p-6 flex flex-col justify-between border-l border-white/10 translate-x-full transition-transform duration-300 ease-in-out hidden bg-brand-grey shadow-[0_0_50px_rgba(0,0,0,0.8)]">
 
         <div
@@ -384,13 +399,13 @@
                 </span>
                 <button
                     class="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded-lg transition opacity-60 hover:opacity-100"
-                    onclick="toggleMobileFilters(false)">
-                    <i data-lucide="x" class="w-6 h-6"></i>
+                    onclick="toggleMobileFilters(false)" aria-label="بستن پنل فیلترها">
+                    <i data-lucide="x" class="w-6 h-6" aria-hidden="true"></i>
                 </button>
             </div>
 
-            <div id="mobile-model-filters" class="space-y-2">
-                <h2 class="font-bold text-sm mb-2 opacity-90">مدل خودرو</h2>
+            <div id="mobile-model-filters" class="space-y-2" role="group" aria-labelledby="mobile-model-filter-label">
+                <p id="mobile-model-filter-label" class="font-bold text-sm mb-2 opacity-90">مدل خودرو</p>
                 <?php
                 if (!empty($car_models)) {
                     foreach ($car_models as $slug => $data) {
@@ -404,8 +419,8 @@
                 ?>
             </div>
 
-            <div id="mobile-category-filters" class="space-y-2 pt-2 border-t border-black/10 dark:border-white/10">
-                <h2 class="font-bold text-sm mb-2 opacity-90">دسته‌بندی</h2>
+            <div id="mobile-category-filters" class="space-y-2 pt-2 border-t border-black/10 dark:border-white/10" role="group" aria-labelledby="mobile-category-filter-label">
+                <p id="mobile-category-filter-label" class="font-bold text-sm mb-2 opacity-90">دسته‌بندی</p>
                 <?php
                 if (!empty($part_categories)) {
                     foreach ($part_categories as $slug => $data) {
@@ -419,9 +434,9 @@
                 ?>
             </div>
 
-            <div class="space-y-2 pt-4 border-t border-black/10 dark:border-white/10">
-                <h2 class="font-bold text-sm mb-2 opacity-90">حدود قیمت (تومان)</h2>
-                <input type="range" id="mobile-price-slider" min="0" max="300000000" step="1000000" value="300000000"
+            <div class="space-y-2 pt-4 border-t border-black/10 dark:border-white/10" role="group" aria-labelledby="mobile-price-filter-label">
+                <p id="mobile-price-filter-label" class="font-bold text-sm mb-2 opacity-90">حدود قیمت (تومان)</p>
+                <input type="range" id="mobile-price-slider" aria-labelledby="mobile-price-filter-label" min="0" max="300000000" step="1000000" value="300000000"
                     class="w-full h-1 bg-brand-dark rounded-lg appearance-none cursor-pointer"
                     oninput="updatePriceLabel(this.value)">
                 <div class="flex justify-between items-center text-xs opacity-70 mt-2">
@@ -430,8 +445,8 @@
                 </div>
             </div>
 
-            <div class="space-y-2 pt-4 border-t border-black/10 dark:border-white/10">
-                <h2 class="font-bold text-sm mb-2 opacity-90">اصالت و برند کالا</h2>
+            <div class="space-y-2 pt-4 border-t border-black/10 dark:border-white/10" role="group" aria-labelledby="mobile-brand-filter-label">
+                <p id="mobile-brand-filter-label" class="font-bold text-sm mb-2 opacity-90">اصالت و برند کالا</p>
                 <div class="space-y-2">
                     <label class="flex items-center gap-2.5 text-xs opacity-80 hover:opacity-100 cursor-pointer">
                         <input type="checkbox" name="brand" value="genuine"
@@ -462,10 +477,10 @@
             </div>
 
             <div class="pt-4 pb-12 border-t border-black/10 dark:border-white/10 flex items-center justify-between">
-                <span class="text-sm opacity-90">فقط کالاهای موجود</span>
+                <label for="mobile-in-stock-toggle" id="mobile-in-stock-toggle-label" class="text-sm opacity-90 cursor-pointer">فقط کالاهای موجود</label>
                 <label class="relative inline-flex items-center cursor-pointer shrink-0">
                     <input type="checkbox" id="mobile-in-stock-toggle" class="sr-only peer"
-                        onchange="toggleInStock(this.checked)">
+                        aria-labelledby="mobile-in-stock-toggle-label" onchange="toggleInStock(this.checked)">
                     <!-- پس‌زمینه سوییچ -->
                     <div
                         class="w-11 h-6 bg-gray-400/50 rounded-full peer-checked:bg-brand-red transition-colors duration-300">
@@ -494,13 +509,13 @@
     <div id="detail-modal-overlay"
         class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4"
         onclick="toggleDetailModal(false)">
-        <div id="detail-modal"
+        <div id="detail-modal" role="dialog" aria-modal="true" aria-label="جزئیات قطعه"
             class="w-full max-w-2xl bg-brand-grey rounded-2xl border border-white/10 p-6 md:p-8 relative scale-95 opacity-0 transition-all duration-300"
             onclick="event.stopPropagation()">
-            <button
+            <button type="button" aria-label="بستن جزئیات قطعه"
                 class="absolute top-4 left-4 text-gray-400 hover:text-white p-1 hover:bg-white/5 rounded-lg transition"
                 onclick="toggleDetailModal(false)">
-                <i data-lucide="x" style="width:20px;height:20px;"></i>
+                <i data-lucide="x" style="width:20px;height:20px;" aria-hidden="true"></i>
             </button>
             <div id="detail-modal-content">
                 <!-- ساختار پویا از جاوااسکریپت -->
@@ -512,7 +527,7 @@
     <script type="application/json" id="ssr-parts-data">
     <?= json_encode($products ?? [], JSON_UNESCAPED_UNICODE) ?>
     </script>
-    <script src="assets/js/main.js"></script>
+    <script src="/assets/js/main.js"></script>
 
 
 </body>

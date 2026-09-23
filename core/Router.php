@@ -112,6 +112,10 @@ class Router
 
         // کاتالوگ قطعات و محصولات
         $this->get('/parts', 'PartController@index');
+        // لندینگ‌های تجاری پایدار برای دسته‌ها و مدل‌ها؛ این مسیرها جایگزین
+        // URLهای پارامتردار /parts?category=... و /parts?model=... هستند.
+        $this->get('/parts/category/{category}', 'PartController@categoryLanding');
+        $this->get('/parts/model/{model}', 'PartController@modelLanding');
         // لندینگ‌پیج‌های اختصاصی سئو با آدرس تمیز (مثلا /parts/لوازم-یدکی-کمری-لنت-ترمز)
         $this->get('/parts/{landing}', 'PartController@landing');
         $this->get('/product', 'PartController@show');

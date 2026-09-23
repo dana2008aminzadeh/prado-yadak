@@ -80,7 +80,8 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <?php foreach ($relatedProducts as $rp): ?>
                             <div class="bg-brand-grey border border-white/5 rounded-2xl p-3 flex gap-3 items-center hover:border-brand-red/40 transition">
-                                <a href="<?= e(\Core\Seo::productUrl($rp['slug'])) ?>" class="shrink-0">
+                                <a href="<?= e(\Core\Seo::productUrl($rp['slug'])) ?>" class="shrink-0"
+                                    aria-label="مشاهده <?= e($rp['name']) ?>">
                                     <?php if (!empty($rp['image'])): ?>
                                         <img src="<?= e($rp['image']) ?>" alt="<?= e($rp['alt'] ?: $rp['name']) ?>" loading="lazy" decoding="async"
                                             width="80" height="80"
@@ -142,7 +143,7 @@
 
             <div class="flex items-center gap-3">
                 <span class="text-xs text-gray-500 font-bold">اشتراک‌گذاری:</span>
-                <button onclick="copyArticleLink()"
+                <button type="button" onclick="copyArticleLink()" aria-label="کپی لینک مقاله"
                     class="w-8 h-8 bg-brand-grey rounded-full flex items-center justify-center border border-white/10 hover:text-brand-red hover:bg-brand-red transition relative group"
                     title="کپی لینک مقاله">
                     <i data-lucide="link" style="width:14px;height:14px;"></i>
@@ -156,12 +157,12 @@
                 $shareUrl = $canonicalUrl ?? \Core\Seo::articleUrl($article['slug'] ?? '', true);
                 ?>
                 <a href="https://api.whatsapp.com/send?text=<?= urlencode($pageTitle . "\n" . $shareUrl) ?>"
-                    target="_blank" rel="noopener nofollow"
+                    target="_blank" rel="noopener nofollow" aria-label="اشتراک مقاله در واتساپ"
                     class="w-8 h-8 bg-brand-grey rounded-full flex items-center justify-center border border-white/10 hover:text-brand-red hover:bg-[#25D366] transition">
                     <i data-lucide="message-circle" style="width:14px;height:14px;"></i>
                 </a>
                 <a href="https://t.me/share/url?url=<?= urlencode($shareUrl) ?>&text=<?= urlencode($article['title']) ?>"
-                    target="_blank" rel="noopener nofollow"
+                    target="_blank" rel="noopener nofollow" aria-label="اشتراک مقاله در تلگرام"
                     class="w-8 h-8 bg-brand-grey rounded-full flex items-center justify-center border border-white/10 hover:text-brand-red hover:bg-[#229ED9] transition">
                     <i data-lucide="send" style="width:14px;height:14px;"></i>
                 </a>

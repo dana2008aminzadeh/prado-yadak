@@ -75,6 +75,20 @@ class Seo
         return $absolute ? self::absolute($path) : $path;
     }
 
+    /** آدرس تمیز لندینگ یک دسته‌بندی کاتالوگ. */
+    public static function categoryUrl(?string $slug, bool $absolute = false): string
+    {
+        $path = '/parts/category/' . rawurlencode(trim((string) $slug));
+        return $absolute ? self::absolute($path) : $path;
+    }
+
+    /** آدرس تمیز لندینگ قطعات یک مدل خودرو. */
+    public static function modelUrl(?string $slug, bool $absolute = false): string
+    {
+        $path = '/parts/model/' . rawurlencode(trim((string) $slug));
+        return $absolute ? self::absolute($path) : $path;
+    }
+
     /** مسیر جاری درخواست، نرمال‌شده و بدون اسلش پایانی */
     public static function currentPath(): string
     {
@@ -449,6 +463,18 @@ class Seo
         return '<script type="application/ld+json">' . "\n"
             . json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT)
             . "\n" . '</script>';
+    }
+
+    /** گره ItemList یکپارچه برای فهرست‌های محصول/مقاله داخل گراف مرکزی. */
+    public static function itemListNode(string $id, string $name, array $items): array
+    {
+        return [
+            '@type' => 'ItemList',
+            '@id' => self::absolute($id),
+            'name' => self::clean($name),
+            'numberOfItems' => count($items),
+            'itemListElement' => array_values($items),
+        ];
     }
 
     /** گره سازمان/فروشگاه — با @id ثابت تا بقیه گره‌ها به آن ارجاع دهند */

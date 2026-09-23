@@ -24,11 +24,21 @@ class BlogController extends Controller
         $siteName = $settings['site_title'] ?? 'پرادو یدک';
 
         $articles = Article::getAll('published');
+        $searchQuery = Seo::clean((string) ($_GET['q'] ?? ''));
+        if ($searchQuery !== '') {
+            $needle = mb_strtolower($searchQuery, 'UTF-8');
+            $articles = array_values(array_filter($articles, static function (array $article) use ($needle): bool {
+                $haystack = mb_strtolower(Seo::clean(
+                    ($article['title'] ?? '') . ' ' . ($article['summary'] ?? '') . ' ' . ($article['content'] ?? '')
+                ), 'UTF-8');
+                return str_contains($haystack, $needle);
+            }));
+        }
 
         $canonicalUrl = Seo::absolute('/blog');
         $pageTitle = 'دانشنامه و وبلاگ تخصصی تویوتا | ' . $siteName;
         $metaDescription = 'راهنمای جامع تشخیص اصالت لوازم یدکی تویوتا، سرویس‌های دوره‌ای و عیب‌یابی خودرو توسط کارشناسان ' . $siteName . '.';
-        $robotsMeta = 'index, follow';
+        $robotsMeta = $searchQuery !== '' ? 'noindex, follow' : 'index, follow';
 
         // کاور اولین مقاله به‌عنوان تصویر اشتراک‌گذاری صفحه فهرست
         $pageImage = !empty($articles[0]) ? Seo::articleCover($articles[0]) : null;

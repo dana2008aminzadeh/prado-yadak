@@ -61,7 +61,7 @@
                         <i data-lucide="<?= e($notice['icon'] ?: 'info') ?>"
                             class="w-5 h-5 shrink-0 mt-0.5 <?= $iconColor ?>"></i>
                         <div class="text-xs sm:text-sm leading-relaxed">
-                            <h4 class="font-bold mb-0.5"><?= e($notice['title']) ?></h4>
+                            <strong class="block font-bold mb-0.5"><?= e($notice['title']) ?></strong>
                             <p class="opacity-90"><?= nl2br(e($notice['message'])) ?></p>
                         </div>
                     </div>
@@ -92,7 +92,7 @@
                                 class="w-8 h-8 rounded-xl bg-[#8B533A]/10 text-[#8B533A] flex items-center justify-center">
                                 <i data-lucide="shopping-bag" class="w-4 h-4"></i>
                             </div>
-                            <h3 class="font-black text-sm sm:text-base text-[#251E1B]">اقلام سفارش شما</h3>
+                            <h2 class="font-black text-sm sm:text-base text-[#251E1B]">اقلام سفارش شما</h2>
                         </div>
                         <span id="items-count-badge"
                             class="bg-[#F8F6F0] border border-[#E8E2D9] text-xs px-3 py-1 rounded-full text-[#5F605C] font-bold">
@@ -278,8 +278,8 @@
                                 class="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-4 flex items-start gap-3 shadow-xs">
                                 <i data-lucide="alert-circle" class="w-5 h-5 text-amber-600 shrink-0 mt-0.5"></i>
                                 <div class="text-xs leading-relaxed text-amber-950 space-y-1">
-                                    <h5 class="font-bold text-amber-900">هزینه ارسال به‌صورت «پس‌کرایه» (پرداخت هنگام
-                                        تحویل):</h5>
+                                    <p class="font-bold text-amber-900">هزینه ارسال به‌صورت «پس‌کرایه» (پرداخت هنگام
+                                        تحویل):</p>
                                     <p>
                                         با توجه به متغیر بودن ابعاد، وزن و نوع بسته‌بندی لوازم یدکی، کرایه حمل در
                                         پیش‌فاکتور محاسبه نشده است؛ بنابراین <strong>پرداخت کل هزینه ارسال کاملاً بر

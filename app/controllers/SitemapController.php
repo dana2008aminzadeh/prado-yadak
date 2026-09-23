@@ -145,7 +145,7 @@ class SitemapController
         $urls = [];
         foreach ($rows as $r) {
             $urls[] = [
-                'loc'        => '/parts?category=' . rawurlencode((string) $r['slug']),
+                'loc'        => Seo::categoryUrl((string) $r['slug']),
                 'lastmod'    => $this->iso($r['lastmod'] ?? null),
                 'changefreq' => 'daily',
                 'priority'   => '0.8',
@@ -168,7 +168,7 @@ class SitemapController
         $urls = [];
         foreach ($rows as $r) {
             $urls[] = [
-                'loc'        => '/parts?model=' . rawurlencode((string) $r['slug']),
+                'loc'        => Seo::modelUrl((string) $r['slug']),
                 'lastmod'    => $this->iso($r['lastmod'] ?? null),
                 'changefreq' => 'daily',
                 'priority'   => '0.8',

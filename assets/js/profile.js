@@ -351,7 +351,7 @@
             const { ok, data } = await api('/api/profile/orders/detail?id=' + encodeURIComponent(orderId));
             if (!ok || !data.success) {
                 content.innerHTML = `
-          <button type="button" class="absolute top-4 left-4 text-gray-400 hover:text-white no-print" onclick="closeOrderDetailModal()">
+          <button type="button" class="absolute top-4 left-4 text-gray-400 hover:text-white no-print" aria-label="بستن جزئیات سفارش" onclick="closeOrderDetailModal()">
             <i data-lucide="x" style="width:20px;height:20px;"></i>
           </button>
           <div class="text-center py-12 text-rose-400 text-sm no-print">${escapeHtml(data.message || 'خطا در دریافت سفارش')}</div>`;
@@ -370,7 +370,7 @@
             const badge = colorMap[o.status_color] || colorMap.gray;
 
             content.innerHTML = `
-        <button type="button" class="absolute top-3 left-3 z-20 text-gray-500 hover:text-black p-1.5 rounded-lg hover:bg-black/5 transition no-print" onclick="closeOrderDetailModal()" title="بستن">
+        <button type="button" class="absolute top-3 left-3 z-20 text-gray-500 hover:text-black p-1.5 rounded-lg hover:bg-black/5 transition no-print" onclick="closeOrderDetailModal()" aria-label="بستن جزئیات سفارش">
           <i data-lucide="x" style="width:20px;height:20px;"></i>
         </button>
 
@@ -399,7 +399,7 @@
         } catch (e) {
             console.error(e);
             content.innerHTML = `
-        <button type="button" class="absolute top-4 left-4 text-gray-400 hover:text-white no-print" onclick="closeOrderDetailModal()">
+        <button type="button" class="absolute top-4 left-4 text-gray-400 hover:text-white no-print" aria-label="بستن جزئیات سفارش" onclick="closeOrderDetailModal()">
           <i data-lucide="x" style="width:20px;height:20px;"></i>
         </button>
         <div class="text-center py-12 text-rose-400 text-sm no-print">خطا در ارتباط با سرور</div>`;
@@ -591,7 +591,7 @@
             <h3 class="font-black text-base text-white">${escapeHtml(t.subject)}</h3>
             <span class="text-[11px] text-gray-500 mt-1 block">#${t.id} — ${escapeHtml(t.status_label)} — ${escapeHtml(t.created_at_shamsi || '')}</span>
           </div>
-          <button onclick="closeTicketDetailModal()" class="text-gray-400 hover:text-white p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
+          <button type="button" onclick="closeTicketDetailModal()" aria-label="بستن جزئیات تیکت" class="text-gray-400 hover:text-white p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
         </div>
         <div id="ticket-messages-list" class="space-y-3 max-h-[40vh] overflow-y-auto mb-4 pr-1">${msgs || '<p class="text-center text-gray-500 text-xs py-6">پیامی نیست</p>'}</div>
         ${canReply
