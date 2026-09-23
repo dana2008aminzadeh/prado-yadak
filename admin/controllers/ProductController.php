@@ -146,9 +146,16 @@ class ProductController extends BaseController
         );
 
         // تحلیل سئو سمت سرور (چراغ راهنمای اولیه؛ نسخه زنده در مرورگر به‌روز می‌شود)
+        $siteName = $GLOBALS['settings']['site_title'] ?? 'پرادو یدک';
         $seo = \Core\SeoAnalyzer::analyzeProduct($product, [
-            'site_name' => $GLOBALS['settings']['site_title'] ?? 'پرادو یدک',
-            'images'    => $images,
+            'site_name'         => $siteName,
+            'images'            => $images,
+            'attributes'        => $attributes,
+            'vehicles'          => $vehicles,
+            'duplicate_content' => \Core\SeoAnalyzer::duplicateContextFromDatabase('product', $product, [
+                'site_name' => $siteName,
+                'pdo'       => Model::db(),
+            ]),
         ]);
 
         $this->view('products/form',
@@ -351,10 +358,23 @@ class ProductController extends BaseController
             return;
         }
         try {
+            $siteName = $GLOBALS['settings']['site_title'] ?? 'پرادو یدک';
             $images = Model::all('SELECT alt_text FROM product_images WHERE product_id = ?', [$pid]);
+            $attributes = Model::hasTable('product_attributes')
+                ? Model::all('SELECT name, value FROM product_attributes WHERE product_id = ?', [$pid])
+                : [];
+            $vehicles = Model::hasTable('product_vehicles')
+                ? Model::all('SELECT car_model_id FROM product_vehicles WHERE product_id = ?', [$pid])
+                : [];
             $res = \Core\SeoAnalyzer::analyzeProduct($product, [
-                'site_name' => $GLOBALS['settings']['site_title'] ?? 'پرادو یدک',
-                'images'    => $images,
+                'site_name'         => $siteName,
+                'images'            => $images,
+                'attributes'        => $attributes,
+                'vehicles'          => $vehicles,
+                'duplicate_content' => \Core\SeoAnalyzer::duplicateContextFromDatabase('product', $product, [
+                    'site_name' => $siteName,
+                    'pdo'       => Model::db(),
+                ]),
             ]);
             Model::exec('UPDATE products SET seo_score = ? WHERE id = ?', [(int) $res['score'], $pid]);
         } catch (\Throwable $e) {

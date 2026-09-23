@@ -147,9 +147,26 @@ class SeoController extends BaseController
         $done = 0;
 
         foreach ($rows as $p) {
-            $images = Model::all('SELECT alt_text FROM product_images WHERE product_id = ?', [(int) $p['id']]);
-            $res = SeoAnalyzer::analyzeProduct($p, ['site_name' => $siteName, 'images' => $images]);
-            Model::exec('UPDATE products SET seo_score = ? WHERE id = ?', [(int) $res['score'], (int) $p['id']]);
+            $pid = (int) $p['id'];
+            $images = Model::all('SELECT alt_text FROM product_images WHERE product_id = ?', [$pid]);
+            $attributes = Model::hasTable('product_attributes')
+                ? Model::all('SELECT name, value FROM product_attributes WHERE product_id = ?', [$pid])
+                : [];
+            $vehicles = Model::hasTable('product_vehicles')
+                ? Model::all('SELECT car_model_id FROM product_vehicles WHERE product_id = ?', [$pid])
+                : [];
+            $res = SeoAnalyzer::analyzeProduct($p, [
+                'site_name'         => $siteName,
+                'images'            => $images,
+                'attributes'        => $attributes,
+                'vehicles'          => $vehicles,
+                'duplicate_content' => SeoAnalyzer::duplicateContextFromDatabase('product', $p, [
+                    'site_name'       => $siteName,
+                    'pdo'             => Model::db(),
+                    'candidate_limit' => 120,
+                ]),
+            ]);
+            Model::exec('UPDATE products SET seo_score = ? WHERE id = ?', [(int) $res['score'], $pid]);
             $done++;
         }
 
