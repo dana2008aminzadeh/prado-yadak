@@ -285,7 +285,7 @@ global $settings;
                             
                             <?php if (!empty($latestProducts)): ?>
                                 <?php foreach ($latestProducts as $part): 
-                                    $safeSlug = urlencode($part['slug']);
+                                    $safeSlug = rawurlencode((string) $part['slug']);
                                     $imgSrc = !empty($part['images']) ? "/image?id=" . e($part['images'][0]) : "/assets/logo/logo.webp";
                                     $modelData = $GLOBALS['car_models'][$part['model']] ?? $part['model'];
                                     $modelName = is_array($modelData) ? ($modelData['name'] ?? $part['model']) : $modelData;
@@ -667,18 +667,27 @@ global $settings;
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <?php if (!empty($latestArticles)): ?>
                     <?php foreach ($latestArticles as $art):
-                        $artUrl = '/blog/' . urlencode($art['slug']);
+                        $artUrl = \Core\Seo::articleUrl($art['slug'] ?? '');
+                        $artCover = !empty($art['cover_image'])
+                            ? \Core\Seo::imageUrl((string) $art['cover_image'], \Core\Seo::imageSlug((string) $art['title']))
+                            : null;
                         ?>
                         <div
                             class="bg-brand-grey border border-white/5 rounded-2xl overflow-hidden group hover:border-brand-accent/30 transition duration-300 flex flex-col justify-between">
-                            <a href="<?= $artUrl ?>"
-                                class="h-40 bg-brand-dark flex items-center justify-center p-6 text-brand-accent border-b border-white/5 relative block">
-                                <i data-lucide="<?= e($art['icon'] ?: 'wrench') ?>" style="width:40px;height:40px;"
-                                    class="group-hover:scale-110 transition-transform"></i>
+                            <a href="<?= e($artUrl) ?>"
+                                class="h-40 bg-brand-dark flex items-center justify-center p-6 text-brand-accent border-b border-white/5 relative block overflow-hidden">
+                                <?php if ($artCover): ?>
+                                    <img src="<?= e($artCover) ?>" alt="<?= e($art['title']) ?>" width="640" height="360"
+                                        loading="lazy" decoding="async"
+                                        class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                <?php else: ?>
+                                    <i data-lucide="<?= e($art['icon'] ?: 'wrench') ?>" style="width:40px;height:40px;"
+                                        class="group-hover:scale-110 transition-transform"></i>
+                                <?php endif; ?>
                             </a>
                             <div class="p-5 space-y-3 flex-1 flex flex-col justify-between">
                                 <div class="space-y-2">
-                                    <a href="<?= $artUrl ?>" class="block">
+                                    <a href="<?= e($artUrl) ?>" class="block">
                                         <h3
                                             class="font-bold text-sm text-white group-hover:text-brand-accent transition-colors line-clamp-1">
                                             <?= e($art['title']) ?>
@@ -691,7 +700,7 @@ global $settings;
                                 <div
                                     class="flex justify-between items-center pt-3 border-t border-white/5 text-[10px] text-gray-500 mt-2">
                                     <span>زمان مطالعه: <?= (int) $art['reading_time'] ?> دقیقه</span>
-                                    <a href="<?= $artUrl ?>" class="text-brand-accent font-bold flex items-center gap-1">
+                                    <a href="<?= e($artUrl) ?>" class="text-brand-accent font-bold flex items-center gap-1">
                                         ادامه مطلب <i data-lucide="arrow-left" style="width:12px;height:12px;"></i>
                                     </a>
                                 </div>

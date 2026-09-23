@@ -17,30 +17,23 @@ global $settings;
 $site_name = $settings['site_title'] ?? 'پرادو یدک';
 
 $hostUrl = Seo::base();
-$uri = (string) (parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?? '');
+$uri = Seo::currentPath();
 
-// حذف اسلش پایانی (یک نسخه واحد از هر آدرس)
-if ($uri !== '/' && substr($uri, -1) === '/') {
-    $qs = $_SERVER['QUERY_STRING'] ?? '';
-    header('Location: ' . rtrim($uri, '/') . ($qs ? '?' . $qs : ''), true, 301);
-    exit;
-}
+// -----------------------------------------------------------------------------
+// توجه: هیچ ریدایرکتی در این فایل انجام نمی‌شود.
+// نرمال‌سازی آدرس (حذف اسلش پایانی، /index → /) وظیفه‌ی Front Controller است
+// و در index.php پیش از هر خروجی انجام می‌گیرد؛ چون در لایه قالب ممکن است
+// بخشی از خروجی ارسال شده باشد و header() دیگر کار نکند.
+// -----------------------------------------------------------------------------
 
 // ---------------------------------------------------------------- کانونیکال
-if (!isset($canonicalUrl)) {
-    if ($uri === '/' || $uri === '/index' || $uri === '') {
-        $canonicalUrl = $hostUrl . '/';
-    } elseif (isset($product['slug']) && (str_starts_with($uri, '/product'))) {
-        $canonicalUrl = $hostUrl . '/product/' . rawurlencode((string) $product['slug']);
-    } elseif (isset($article['slug']) && (str_starts_with($uri, '/blog') || $uri === '/blog-detail')) {
-        $canonicalUrl = $hostUrl . '/blog/' . rawurlencode((string) $article['slug']);
-    } elseif ($uri === '/parts') {
-        // ترتیب پارامترها همیشه نرمال می‌شود تا نسخه‌های موازی ساخته نشود
-        $canonicalUrl = Seo::catalogCanonical($_GET, '/parts');
-    } else {
-        $canonicalUrl = $hostUrl . $uri;
-    }
-}
+// تنها منبع نهایی کانونیکال: Core\Seo::canonical()
+// اگر کنترلر مقداری داده باشد همان استفاده می‌شود، وگرنه از مسیر جاری ساخته می‌شود.
+$canonicalUrl = Seo::canonical($canonicalUrl ?? null, [
+    'article' => $article ?? null,
+    'product' => $product ?? null,
+    'landing' => $landingPage ?? null,
+]);
 
 // ---------------------------------------------------------------- عنوان
 if (!isset($pageTitle)) {

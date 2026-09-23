@@ -818,7 +818,7 @@ function profilePageClass(string $tab, string $active): string
                             <div id="wishlist-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                                 <?php foreach ($wishlist as $item):
                                     $img = !empty($item['images'][0]) ? '/image?id=' . e($item['images'][0]) : '/assets/logo/logo.webp';
-                                    $slug = urlencode($item['slug'] ?? '');
+                                    $slug = rawurlencode((string) ($item['slug'] ?? ''));
                                     ?>
                                     <div id="wishlist-item-<?= (int) $item['id'] ?>"
                                         class="bg-brand-dark border border-white/10 p-5 rounded-3xl space-y-4 hover:border-brand-red transition relative group">

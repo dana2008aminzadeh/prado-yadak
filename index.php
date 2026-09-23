@@ -256,21 +256,35 @@ try {
 }
 
 $router = new Router();
-$uri = (string) (parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?? '');
 
-$rawUri = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?? '';
-if ($rawUri !== '/' && substr($rawUri, -1) === '/') {
-    $qs = $_SERVER['QUERY_STRING'] ?? '';
-    header('HTTP/1.1 301 Moved Permanently');
-    header('Location: ' . rtrim($rawUri, '/') . ($qs ? '?' . $qs : ''));
-    exit;
+// =============================================================================
+// نرمال‌سازی آدرس — تنها محل مجاز برای ریدایرکت ساختاری
+// -----------------------------------------------------------------------------
+// تمام ریدایرکت‌های سئویی (اسلش پایانی، /index، /index.php) اینجا و پیش از
+// هرگونه خروجی انجام می‌شوند، نه داخل قالب (assets/php/head.php)؛ چون در لایه
+// قالب ممکن است بخشی از HTML ارسال شده باشد و header() خطای
+// «headers already sent» بدهد و ریدایرکت بی‌اثر شود.
+// =============================================================================
+$uri = (string) (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/');
+$uri = '/' . ltrim($uri, '/');
+$queryString = (string) ($_SERVER['QUERY_STRING'] ?? '');
+
+$redirectTo = null;
+
+// ۱) حذف اسلش پایانی — یک نسخه واحد از هر آدرس
+if ($uri !== '/' && substr($uri, -1) === '/') {
+    $redirectTo = rtrim($uri, '/');
 }
 
+// ۲) /index و /index.php همیشه به ریشه سایت
 if ($uri === '/index' || $uri === '/index.php') {
-    $queryString = $_SERVER['QUERY_STRING'] ?? '';
-    $targetUrl = '/' . ($queryString !== '' ? '?' . $queryString : '');
-    header('HTTP/1.1 301 Moved Permanently');
-    header('Location: ' . $targetUrl);
+    $redirectTo = '/';
+}
+
+if ($redirectTo !== null) {
+    if (!headers_sent()) {
+        header('Location: ' . $redirectTo . ($queryString !== '' ? '?' . $queryString : ''), true, 301);
+    }
     exit;
 }
 

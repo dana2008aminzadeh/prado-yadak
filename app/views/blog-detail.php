@@ -61,7 +61,14 @@
         <!-- متن اصلی مقاله خوانده شده از دیتابیس -->
         <article
             class="prose prose-invert prose-red max-w-none text-gray-300 text-sm sm:text-base leading-loose sm:leading-loose text-justify space-y-6">
-            <?= clean_html($article['content']) ?>
+            <?php
+            // بدنه مقاله در کنترلر پاک‌سازی شده و alt تمام تصاویر داخل آن تضمین شده است.
+            // (fallback فقط برای موارد لود مستقیم قالب)
+            echo $articleBody ?? \Core\Seo::ensureImageAlt(
+                clean_html($article['content'] ?? ''),
+                trim((string) ($article['focus_keyword'] ?? '')) ?: (string) $article['title']
+            );
+            ?>
 
             <!-- قطعات مرتبط با این مقاله (Silo): کارت خرید با قیمت و موجودی -->
             <?php if (!empty($relatedProducts)): ?>
@@ -73,13 +80,13 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <?php foreach ($relatedProducts as $rp): ?>
                             <div class="bg-brand-grey border border-white/5 rounded-2xl p-3 flex gap-3 items-center hover:border-brand-red/40 transition">
-                                <a href="/product/<?= e($rp['slug']) ?>" class="shrink-0">
-                                    <img src="<?= e($rp['image']) ?>" alt="<?= e($rp['alt']) ?>" loading="lazy"
+                                <a href="<?= e(\Core\Seo::productUrl($rp['slug'])) ?>" class="shrink-0">
+                                    <img src="<?= e($rp['image']) ?>" alt="<?= e($rp['alt'] ?: $rp['name']) ?>" loading="lazy"
                                         width="80" height="80"
                                         class="w-20 h-20 object-contain bg-brand-dark rounded-xl border border-white/5 p-1.5">
                                 </a>
                                 <div class="flex-1 min-w-0 space-y-1.5">
-                                    <a href="/product/<?= e($rp['slug']) ?>"
+                                    <a href="<?= e(\Core\Seo::productUrl($rp['slug'])) ?>"
                                         class="block text-sm font-bold text-white hover:text-brand-red transition line-clamp-2">
                                         <?= e($rp['name']) ?>
                                     </a>
@@ -94,7 +101,7 @@
                                             <?= $rp['inStock'] ? 'موجود' : 'ناموجود' ?>
                                         </span>
                                     </div>
-                                    <a href="/product/<?= e($rp['slug']) ?>"
+                                    <a href="<?= e(\Core\Seo::productUrl($rp['slug'])) ?>"
                                         class="inline-flex items-center gap-1.5 bg-brand-red hover:bg-red-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition mt-1">
                                         <i data-lucide="shopping-cart" style="width:13px;height:13px;"></i> مشاهده و خرید
                                     </a>
@@ -137,13 +144,18 @@
                         class="absolute -top-10 bg-white text-brand-dark font-bold text-[10px] px-3 py-1.5 rounded-lg opacity-0 transition-opacity duration-300 pointer-events-none whitespace-nowrap shadow-lg">لینک
                         کپی شد!</span>
                 </button>
-                <a href="https://api.whatsapp.com/send?text=<?= urlencode($pageTitle . "\n" . 'https://' . ($_SERVER['HTTP_HOST'] ?? '') . $_SERVER['REQUEST_URI']) ?>"
-                    target="_blank"
+                <?php
+                // آدرس اشتراک‌گذاری همیشه کانونیکال مقاله است، نه REQUEST_URI خام.
+                // اینجا urlencode درست است، چون مقدارِ یک پارامتر کوئری‌استرینگ است.
+                $shareUrl = $canonicalUrl ?? \Core\Seo::articleUrl($article['slug'] ?? '', true);
+                ?>
+                <a href="https://api.whatsapp.com/send?text=<?= urlencode($pageTitle . "\n" . $shareUrl) ?>"
+                    target="_blank" rel="noopener nofollow"
                     class="w-8 h-8 bg-brand-grey rounded-full flex items-center justify-center border border-white/10 hover:text-brand-red hover:bg-[#25D366] transition">
                     <i data-lucide="message-circle" style="width:14px;height:14px;"></i>
                 </a>
-                <a href="https://t.me/share/url?url=<?= urlencode('https://' . ($_SERVER['HTTP_HOST'] ?? '') . $_SERVER['REQUEST_URI']) ?>&text=<?= urlencode($article['title']) ?>"
-                    target="_blank"
+                <a href="https://t.me/share/url?url=<?= urlencode($shareUrl) ?>&text=<?= urlencode($article['title']) ?>"
+                    target="_blank" rel="noopener nofollow"
                     class="w-8 h-8 bg-brand-grey rounded-full flex items-center justify-center border border-white/10 hover:text-brand-red hover:bg-[#229ED9] transition">
                     <i data-lucide="send" style="width:14px;height:14px;"></i>
                 </a>
@@ -160,14 +172,23 @@
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <?php foreach ($relatedArticles as $rel):
-                        $relUrl = '/blog/' . urlencode($rel['slug']);
+                        $relUrl = \Core\Seo::articleUrl($rel['slug'] ?? '');
+                        $relCover = !empty($rel['cover_image'])
+                            ? \Core\Seo::imageUrl((string) $rel['cover_image'], \Core\Seo::imageSlug((string) $rel['title']))
+                            : null;
                         ?>
-                        <a href="<?= $relUrl ?>"
+                        <a href="<?= e($relUrl) ?>"
                             class="bg-brand-grey border border-white/5 rounded-2xl overflow-hidden group hover:border-brand-red/30 transition duration-300 flex flex-col justify-between">
                             <div
-                                class="h-32 bg-brand-dark flex items-center justify-center p-6 text-brand-red border-b border-white/5 relative">
-                                <i data-lucide="<?= e($rel['icon'] ?: 'wrench') ?>" style="width:36px;height:36px;"
-                                    class="group-hover:scale-110 transition-transform"></i>
+                                class="h-32 bg-brand-dark flex items-center justify-center p-6 text-brand-red border-b border-white/5 relative overflow-hidden">
+                                <?php if ($relCover): ?>
+                                    <img src="<?= e($relCover) ?>" alt="<?= e($rel['title']) ?>" width="480" height="270"
+                                        loading="lazy" decoding="async"
+                                        class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
+                                <?php else: ?>
+                                    <i data-lucide="<?= e($rel['icon'] ?: 'wrench') ?>" style="width:36px;height:36px;"
+                                        class="group-hover:scale-110 transition-transform"></i>
+                                <?php endif; ?>
                             </div>
                             <div class="p-4 space-y-2 flex-1 flex flex-col justify-between">
                                 <h3

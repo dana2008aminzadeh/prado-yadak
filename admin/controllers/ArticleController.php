@@ -70,7 +70,10 @@ class ArticleController extends BaseController
             'related_products' => count($linkedProducts),
         ]);
 
-        $this->view('articles/form', compact('article', 'linkedProducts', 'seo'), $title);
+        // وضعیت دروازه اجباری انتشار (کلمات، H2 و alt تصاویر)
+        $publishGate = \Core\SeoAnalyzer::publishGate($article);
+
+        $this->view('articles/form', compact('article', 'linkedProducts', 'seo', 'publishGate'), $title);
     }
 
     /** جستجوی زنده محصول برای انتخاب «محصولات مرتبط» در فرم مقاله */
@@ -117,6 +120,31 @@ class ArticleController extends BaseController
             $robots = 'default';
         }
 
+        // =====================================================================
+        // دروازه اجباری سئو پیش از انتشار
+        // ---------------------------------------------------------------------
+        // تعداد کلمات، تیترهای H2 و alt تصاویر فقط «نمایش امتیاز» نیستند؛ اگر
+        // حداقل‌ها رعایت نشده باشد، مقاله منتشر نمی‌شود و به‌عنوان پیش‌نویس
+        // ذخیره می‌ماند تا محتوای ناقص وارد ایندکس گوگل نشود.
+        // =====================================================================
+        $requestedStatus = post('status') === 'draft' ? 'draft' : 'published';
+        $finalStatus = $requestedStatus;
+
+        if ($requestedStatus === 'published') {
+            $gate = \Core\SeoAnalyzer::publishGate([
+                'title'            => $title,
+                'content'          => $content,
+                'summary'          => (string) post('summary'),
+                'meta_description' => (string) post('meta_description'),
+            ]);
+
+            if (!$gate['passed']) {
+                $finalStatus = 'draft';
+                flash('error', 'انتشار انجام نشد؛ مقاله به‌صورت پیش‌نویس ذخیره شد. موارد زیر باید اصلاح شوند: '
+                    . implode(' | ', $gate['errors']));
+            }
+        }
+
         $data = [
             'title'          => mb_substr($title, 0, 255),
             'slug'           => $slug,
@@ -126,8 +154,8 @@ class ArticleController extends BaseController
             'summary'        => (string) post('summary'),
             'content'        => $content,
             'reading_time'   => (int) post('reading_time') ?: max(1, (int) round($words / 200)),
-            'author'         => trim((string) post('author')) ?: 'تیم فنی پرادو یدک',
-            'status'         => post('status') === 'draft' ? 'draft' : 'published',
+            'author'         => trim((string) post('author')) ?: \Core\Seo::AUTHOR_FALLBACK,
+            'status'         => $finalStatus,
             // ---- فیلدهای اختصاصی سئو ----
             'meta_title'       => mb_substr(trim((string) post('meta_title')), 0, 255, 'UTF-8') ?: null,
             'meta_description' => mb_substr(trim((string) post('meta_description')), 0, 320, 'UTF-8') ?: null,
@@ -150,14 +178,20 @@ class ArticleController extends BaseController
 
         $data = Model::filterColumns('articles', $data);
 
+        $statusNote = $finalStatus === 'published' ? ' و منتشر شد.' : ' (پیش‌نویس).';
+
         if ($aid && $old) {
             Model::update('articles', $aid, $data);
             $this->audit('article.update', 'article', $aid, 'ویرایش مقاله: ' . $title, $old, $data);
-            flash('success', 'مقاله به‌روزرسانی شد.');
+            if ($finalStatus === $requestedStatus) {
+                flash('success', 'مقاله به‌روزرسانی شد' . $statusNote);
+            }
         } else {
             $aid = Model::insert('articles', $data);
-            $this->audit('article.create', 'article', $aid, 'انتشار مقاله جدید: ' . $title);
-            flash('success', 'مقاله ایجاد شد.');
+            $this->audit('article.create', 'article', $aid, 'ثبت مقاله جدید: ' . $title);
+            if ($finalStatus === $requestedStatus) {
+                flash('success', 'مقاله ایجاد شد' . $statusNote);
+            }
         }
 
         // ---- ریدایرکت ۳۰۱ برای آدرس قبلی ----
@@ -230,11 +264,24 @@ class ArticleController extends BaseController
     {
         $aid = (int) post('article_id', $id);
         $a = Model::find('articles', $aid);
+
         if ($a) {
-            Model::exec("UPDATE articles SET status = IF(status='published','draft','published') WHERE id = ?", [$aid]);
+            $goingPublic = ($a['status'] ?? '') !== 'published';
+
+            // دروازه اجباری سئو هنگام انتشار از فهرست مقالات نیز اعمال می‌شود
+            if ($goingPublic) {
+                $gate = \Core\SeoAnalyzer::publishGate($a);
+                if (!$gate['passed']) {
+                    flash('error', 'این مقاله هنوز آماده انتشار نیست: ' . implode(' | ', $gate['errors']));
+                    back(admin_url('articles'));
+                }
+            }
+
+            Model::exec('UPDATE articles SET status = ? WHERE id = ?', [$goingPublic ? 'published' : 'draft', $aid]);
             $this->audit('article.update', 'article', $aid, 'تغییر وضعیت انتشار مقاله: ' . $a['title']);
-            flash('success', 'وضعیت انتشار تغییر کرد.');
+            flash('success', $goingPublic ? 'مقاله منتشر شد.' : 'مقاله به پیش‌نویس منتقل شد.');
         }
+
         back(admin_url('articles'));
     }
 }
