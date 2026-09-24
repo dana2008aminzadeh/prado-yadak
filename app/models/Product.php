@@ -214,6 +214,7 @@ class Product
             'image_alt' => $imageAlt,
             'gallery' => $gallery,
             'technicalSpecifications' => $withGallery ? self::getAttributes((int) $r['id']) : [],
+            'vehicles' => $withGallery ? self::getCompatibleVehicles((int) $r['id']) : [],
             // چرخه عمر: ناموجودی موقت صفحه را نگه می‌دارد؛ discontinued از
             // Sitemap حذف و در صورت داشتن replacement با 301 منتقل می‌شود.
             'lifecycle_status' => $r['lifecycle_status'] ?? 'active',
@@ -281,6 +282,23 @@ class Product
             ];
         }
         return $out;
+    }
+
+    /** خودروهای واقعی ثبت‌شده در پنل؛ در متا و جدول سازگاری صفحه نمایش داده می‌شوند. */
+    public static function getCompatibleVehicles(int $productId): array
+    {
+        try {
+            $stmt = Database::getInstance()->prepare(
+                'SELECT cm.name, pv.year_from, pv.year_to, pv.trim_name
+                 FROM product_vehicles pv
+                 JOIN car_models cm ON cm.id = pv.car_model_id
+                 WHERE pv.product_id = ? ORDER BY cm.name, pv.year_from LIMIT 12'
+            );
+            $stmt->execute([$productId]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (\Throwable $e) {
+            return [];
+        }
     }
 
     /** مشخصات فنی سفارشی ثبت‌شده در پنل. */
@@ -490,7 +508,7 @@ class Product
      * ویژگی‌های تخصصی خودرو (برند سازگار، MPN، شماره فنی) نیز درج می‌شود تا
      * قابلیت‌های Merchant Listings و نتایج خرید گوگل فعال شوند.
      */
-    public static function generateSchema($product, $comments = [])
+    public static function generateSchema($product, $comments = [], ?string $pageTitle = null, ?string $pageDescription = null)
     {
         $settings = $GLOBALS['settings'] ?? [];
         $siteName = $settings['site_title'] ?? 'پرادو یدک';
@@ -547,8 +565,10 @@ class Product
         }
         $commentCount = count($reviews);
 
-        $metaTitle = trim((string) ($product['meta_title'] ?? '')) ?: \Core\Seo::productTitle($product, $siteName);
-        $metaDesc = trim((string) ($product['meta_description'] ?? '')) ?: \Core\Seo::productDescription($product, $siteName);
+        $metaTitle = $pageTitle ?? (\Core\Seo::clean((string) ($product['meta_title'] ?? '')) ?: \Core\Seo::productTitle($product, $siteName));
+        $metaDesc = $pageDescription ?? \Core\Seo::metaDescription(
+            (string) ($product['meta_description'] ?? ''), \Core\Seo::productDescription($product, $siteName), $product, $siteName
+        );
 
         // ---------- نان‌ریزه ----------
         $crumbs = [

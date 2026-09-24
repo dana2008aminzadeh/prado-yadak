@@ -37,6 +37,7 @@ class Seo
 
     /** پارامترهایی که در کانونیکال نگه داشته می‌شوند (به همین ترتیب ثابت) */
     public const CANONICAL_PARAMS = ['category', 'model', 'brand', 'page'];
+    public const MAX_CATALOG_PAGE = 1000;
 
     /** پارامترهایی که همیشه باعث noindex می‌شوند (فیلتر کم‌ارزش/جستجو/مرتب‌سازی) */
     public const NOINDEX_PARAMS = ['q', 'sort', 'maxPrice', 'minPrice', 'inStock', 'view', 'utm_source', 'utm_medium', 'utm_campaign'];
@@ -97,18 +98,6 @@ class Seo
                 break;
             }
         }
-        // همچنین هر زیردامنه‌ای از pradoyadak.com مجاز است (مثل staging)
-        if (!$allowed && str_ends_with($host, '.pradoyadak.com')) {
-            $allowed = true;
-        }
-        // در محیط توسعه localhost مجاز است، در غیر این صورت فقط pradoyadak.com
-        if (!$allowed) {
-            // اگر هاست pradoyadak.com را شامل شود ولی دقیق نباشد، باز هم رد می‌کنیم مگر اینکه دقیقا با pradoyadak.com تمام شود
-            if (str_ends_with($host, 'pradoyadak.com')) {
-                $allowed = true;
-            }
-        }
-
         if (!$allowed) {
             return self::PRODUCTION_BASE;
         }
@@ -217,9 +206,8 @@ class Seo
     /**
      * تنها منبع نهایی تولید کانونیکال.
      * ---------------------------------------------------------------------
-     * هیچ قالب یا کنترلری اجازه ندارد منطق جداگانه‌ای برای کانونیکال داشته باشد؛
-     * اگر کنترلر مقدار مشخصی داده باشد همان مطلق‌سازی و برگردانده می‌شود، در غیر
-     * این صورت از روی مسیر جاری و موجودیت صفحه (محصول/مقاله/لندینگ) ساخته می‌شود.
+     * مقدار دستی کنترلر نیز در برابر هاست تنظیم‌شده و query مجاز اعتبارسنجی
+     * می‌شود؛ اگر نامعتبر باشد به URL واقعی همین صفحه برمی‌گردیم.
      *
      * پوشش تست پیشنهادی:
      * /index.php      → 301 به /
@@ -238,42 +226,99 @@ class Seo
      */
     public static function canonical(?string $explicit = null, array $context = []): string
     {
-        $explicit = trim((string) $explicit);
-        if ($explicit !== '') {
-            return self::absolute($explicit);
-        }
-
         $base = self::base();
-        $uri  = self::currentPath();
+        $uri = self::currentPath();
+        $fallback = $base . $uri;
 
         if ($uri === '/' || $uri === '/index' || $uri === '/index.php') {
-            return $base . '/';
+            $fallback = $base . '/';
+        } elseif (is_array($context['article'] ?? null) && !empty($context['article']['slug'])
+            && (str_starts_with($uri, '/blog/') || in_array($uri, ['/blog-detail', '/blog', '/article'], true))) {
+            $fallback = self::articleUrl((string) $context['article']['slug'], true);
+        } elseif (is_array($context['product'] ?? null) && !empty($context['product']['slug'])
+            && str_starts_with($uri, '/product')) {
+            $fallback = self::productUrl((string) $context['product']['slug'], true);
+        } elseif (is_array($context['landing'] ?? null) && !empty($context['landing']['slug'])
+            && str_starts_with($uri, '/parts/')) {
+            $pageQuery = self::normalizeQuery($_GET, ['page']);
+            $fallback = self::absolute('/parts/' . rawurlencode((string) $context['landing']['slug']))
+                . ($pageQuery !== '' ? '?' . $pageQuery : '');
+        } elseif ($uri === '/parts') {
+            $fallback = self::catalogCanonical($_GET, '/parts');
+        } elseif (str_starts_with($uri, '/parts/')) {
+            $pageQuery = self::normalizeQuery($_GET, ['page']);
+            $fallback .= $pageQuery !== '' ? '?' . $pageQuery : '';
         }
 
-        $article = $context['article'] ?? null;
-        if (is_array($article) && !empty($article['slug'])
-            && (str_starts_with($uri, '/blog/') || $uri === '/blog-detail' || $uri === '/blog' || $uri === '/article')) {
-            return self::articleUrl((string) $article['slug'], true);
+        return self::normalizeCanonicalHost(trim((string) $explicit) ?: $fallback, $fallback);
+    }
+
+    /**
+     * آخرین سد دفاعی URL متا: فقط همین هاست (یا www معادل دامنه اصلی)، HTTPS،
+     * مسیر نرمال، بدون fragment و فقط queryهای واقعاً قابل ایندکس همان route.
+     * مقدار خارجی/خراب هرگز با تغییر هاست «داخلی» نمی‌شود؛ به fallback معتبر
+     * همان صفحه برمی‌گردیم، نه به path مهاجم.
+     */
+    public static function normalizeCanonicalHost(string $url, ?string $fallback = null): string
+    {
+        $base = preg_replace('#^http://#i', 'https://', self::base());
+        $baseParts = parse_url($base);
+        $host = strtolower((string) ($baseParts['host'] ?? 'pradoyadak.com'));
+        $basePath = rtrim((string) ($baseParts['path'] ?? ''), '/');
+        $port = $baseParts['port'] ?? null;
+
+        foreach ([$url, $fallback ?? '', self::currentPath(), '/'] as $candidate) {
+            $safe = self::canonicalCandidate($candidate, $base, $host, $basePath, $port);
+            if ($safe !== null) {
+                return $safe;
+            }
+        }
+        return $base . '/';
+    }
+
+    private static function canonicalCandidate(string $url, string $base, string $host, string $basePath, ?int $port): ?string
+    {
+        $url = trim($url);
+        if ($url === '' || preg_match('/[\\x00-\\x1F\\x7F]/', $url)
+            || str_contains($url, '\\') || str_starts_with($url, '//')) {
+            return null;
+        }
+        $parts = parse_url($url);
+        if ($parts === false || isset($parts['user']) || isset($parts['pass'])) {
+            return null;
+        }
+        if (isset($parts['scheme']) && !in_array(strtolower($parts['scheme']), ['http', 'https'], true)) {
+            return null;
+        }
+        if (isset($parts['host'])) {
+            $candidateHost = strtolower($parts['host']);
+            $wwwAlias = $host === 'pradoyadak.com' && $candidateHost === 'www.pradoyadak.com'
+                || $host === 'www.pradoyadak.com' && $candidateHost === 'pradoyadak.com';
+            if (($candidateHost !== $host && !$wwwAlias)
+                || (isset($parts['port']) && $parts['port'] !== $port
+                    && !($port === null && in_array($parts['port'], [80, 443], true)))) {
+                return null;
+            }
+        } elseif (isset($parts['scheme']) || isset($parts['port'])) {
+            return null;
         }
 
-        $product = $context['product'] ?? null;
-        if (is_array($product) && !empty($product['slug']) && str_starts_with($uri, '/product')) {
-            return self::productUrl((string) $product['slug'], true);
+        $path = UrlCanonicalizer::normalizePath((string) ($parts['path'] ?? '/'));
+        if (preg_match('#(?:^|/)\\.{1,2}(?:/|$)#', UrlCanonicalizer::decodePath($path))) {
+            return null;
         }
-
-        $landing = $context['landing'] ?? null;
-        if (is_array($landing) && !empty($landing['slug']) && str_starts_with($uri, '/parts/')) {
-            $page = isset($_GET['page']) ? max(1, (int) $_GET['page']) : 1;
-            return self::absolute('/parts/' . rawurlencode((string) $landing['slug']))
-                . ($page > 1 ? '?page=' . $page : '');
+        if ($basePath !== '' && ($path === $basePath || str_starts_with($path, $basePath . '/'))) {
+            $path = substr($path, strlen($basePath)) ?: '/';
         }
-
-        if ($uri === '/parts') {
-            // ترتیب پارامترها همیشه نرمال می‌شود تا نسخه‌های موازی ساخته نشود
-            return self::catalogCanonical($_GET, '/parts');
+        if (in_array($path, ['/index', '/index.php'], true)) {
+            $path = '/';
         }
+        $query = UrlCanonicalizer::parseQuery((string) ($parts['query'] ?? ''));
+        $allowed = $path === '/parts' ? self::CANONICAL_PARAMS
+            : (str_starts_with($path, '/parts/') ? ['page'] : []);
+        $qs = self::normalizeQuery($query, $allowed);
 
-        return $base . $uri;
+        return $base . $path . ($qs !== '' ? '?' . $qs : '');
     }
 
     /**
@@ -296,10 +341,23 @@ class Seo
             $value = $get[$key];
 
             if (is_array($value)) {
-                $value = implode(',', array_map('strval', $value));
+                $value = implode(',', array_filter($value, 'is_scalar'));
             }
             $value = trim((string) $value);
             if ($value === '') {
+                continue;
+            }
+
+            if ($key === 'page') {
+                // شماره جعلی/بیش از سقف را به صفحه دیگری (مثلاً ۱۰۰۰) تبدیل نکن.
+                if (!preg_match('/^[0-9]{1,4}$/D', $value) || (int) $value > self::MAX_CATALOG_PAGE) {
+                    continue;
+                }
+                $value = (string) (int) $value;
+                if ($value === '0' || $value === '1') {
+                    continue;
+                }
+                $clean[$key] = $value;
                 continue;
             }
 
@@ -333,18 +391,6 @@ class Seo
                 }
             }
 
-            if ($key === 'page') {
-                $page = (int) $value;
-                if ($page <= 1) {
-                    continue;
-                }
-                // محدودیت منطقی برای شماره صفحه
-                if ($page > 1000) {
-                    $page = 1000;
-                }
-                $value = (string) $page;
-            }
-
             $clean[$key] = $value;
         }
 
@@ -363,17 +409,32 @@ class Seo
         return (bool) preg_match('/^[\p{L}\p{N}\-_]{2,80}$/u', $slug);
     }
 
+    /** شماره معتبر صفحه؛ null یعنی ورودی نامعتبر یا فراتر از سقف قابل خزش. */
+    public static function catalogPage(array $get): ?int
+    {
+        if (!isset($get['page'])) {
+            return 1;
+        }
+        $raw = $get['page'];
+        if ((!is_string($raw) && !is_int($raw)) || !preg_match('/^[1-9][0-9]{0,3}$/D', (string) $raw)) {
+            return null;
+        }
+        $page = (int) $raw;
+        return $page <= self::MAX_CATALOG_PAGE ? $page : null;
+    }
+
     /** آدرس کانونیکال نرمال‌شده‌ی کاتالوگ */
     public static function catalogCanonical(array $get, string $path = '/parts'): string
     {
         $qs = self::normalizeQuery($get);
-        return self::absolute($path) . ($qs ? '?' . $qs : '');
+        return self::normalizeCanonicalHost(self::absolute($path) . ($qs ? '?' . $qs : ''));
     }
 
     /**
      * تصمیم‌گیری ربات‌ها برای صفحات کاتالوگ:
      *  - جستجو / مرتب‌سازی / فیلتر قیمت  → noindex, follow
-     *  - ترکیب بیش از دو فیلتر اصلی        → noindex, follow (محتوای کم‌ارزش/تکراری)
+     *  - ترکیب چند فیلتر (لندینگ اختصاصی ندارد) → noindex, follow
+     *  - پارامتر تازه و ثبت‌نشده            → noindex, follow (fail closed)
      *  - در غیر این صورت                   → index, follow
      *
      * همچنین باید بررسی شود که تمام URLهای noindex:
@@ -384,11 +445,20 @@ class Seo
      */
     public static function catalogRobots(array $get): string
     {
-        foreach (self::NOINDEX_PARAMS as $param) {
-            if (isset($get[$param]) && trim((string) (is_array($get[$param]) ? implode(',', $get[$param]) : $get[$param])) !== '') {
-                // اگر پارامتر utm باشد، canonical بدون آن است و noindex ترجیح دارد
+        // فقط فیلترهای اصلی می‌توانند ایندکس شوند؛ افزودن پارامتر جدید در
+        // کنترلر بدون ثبت سیاست crawl هرگز به‌طور ناخواسته index تولید نمی‌کند.
+        foreach ($get as $key => $value) {
+            if (in_array($key, self::NOINDEX_PARAMS, true)
+                || !in_array($key, self::CANONICAL_PARAMS, true)) {
                 return 'noindex, follow';
             }
+            if (in_array($key, ['category', 'model', 'brand'], true)
+                && self::normalizeQuery([$key => $value], [$key]) === '') {
+                return 'noindex, follow';
+            }
+        }
+        if (self::catalogPage($get) === null) {
+            return 'noindex, follow';
         }
 
         $active = 0;
@@ -402,11 +472,19 @@ class Seo
             $active += count(array_filter(array_map('trim', explode(',', $value)), 'strlen'));
         }
 
-        // محدودیت تعداد فیلترهای قابل ترکیب — بیش از 2 فیلتر، صفحه indexable نیست مگر محتوای اختصاصی داشته باشد
-        return $active > 2 ? 'noindex, follow' : 'index, follow';
+        // برای ترکیب‌ها فقط لندینگ با متن یکتا قابل ایندکس است، نه URL فیلترشده.
+        return $active > 1 ? 'noindex, follow' : 'index, follow';
     }
 
     // ---------------------------------------------------------------- متاها
+
+    /** HTTP noindex پیش از رندر view (که ممکن است ارسال خروجی را آغاز کند). */
+    public static function emitNoindexHeader(string $directive): void
+    {
+        if (in_array($directive, ['noindex, follow', 'noindex, nofollow'], true) && !headers_sent()) {
+            header('X-Robots-Tag: ' . $directive, true);
+        }
+    }
 
     /**
      * حل سلسله‌مراتبی متاتگ‌ها.
@@ -436,8 +514,11 @@ class Seo
 
         return [
             'title'       => self::clean($title),
-            'description' => self::clean($desc),
-            'canonical'   => $manualCanon !== '' ? self::absolute($manualCanon) : (string) ($fallback['canonical'] ?? ''),
+            'description' => self::truncate($desc, self::DESC_MAX),
+            'canonical'   => self::normalizeCanonicalHost(
+                $manualCanon !== '' ? $manualCanon : (string) ($fallback['canonical'] ?? ''),
+                (string) ($fallback['canonical'] ?? '')
+            ),
             'robots'      => $robots,
             'source'      => [
                 'title'       => $manualTitle !== '' ? 'manual' : 'auto',
@@ -449,8 +530,9 @@ class Seo
     /** پاک‌سازی متن برای استفاده در متاتگ (حذف تگ‌ها، فاصله‌های اضافه و نیم‌فاصله‌های خراب) */
     public static function clean(?string $text): string
     {
-        $text = strip_tags((string) $text);
-        $text = html_entity_decode($text, ENT_QUOTES, 'UTF-8');
+        // ابتدا entityها را باز کن تا &lt;/script&gt; هم پیش از خروجی پاک شود.
+        $text = html_entity_decode((string) $text, ENT_QUOTES, 'UTF-8');
+        $text = strip_tags($text);
         $text = preg_replace('/\s+/u', ' ', $text) ?? '';
         return trim($text);
     }
@@ -459,10 +541,14 @@ class Seo
     public static function truncate(?string $text, int $limit): string
     {
         $text = self::clean($text);
+        if ($limit <= 0) {
+            return '';
+        }
         if (mb_strlen($text, 'UTF-8') <= $limit) {
             return $text;
         }
-        $cut = mb_substr($text, 0, $limit, 'UTF-8');
+        // جای «…» در سقف طول حساب می‌شود (پیش‌تر خروجی ۱۵۶ نویسه بود).
+        $cut = mb_substr($text, 0, $limit - 1, 'UTF-8');
         $pos = mb_strrpos($cut, ' ', 0, 'UTF-8');
         if ($pos !== false && $pos > $limit * 0.6) {
             $cut = mb_substr($cut, 0, $pos, 'UTF-8');
@@ -470,101 +556,121 @@ class Seo
         return rtrim($cut, ' ،-') . '…';
     }
 
+    /** پالایش نهایی description؛ متن کوتاه محصول با داده واقعی جایگزین می‌شود، نه تبلیغ ساختگی. */
+    public static function metaDescription(?string $value, string $fallback, ?array $product = null, string $siteName = 'پرادو یدک'): string
+    {
+        $text = self::clean($value);
+        if ($product !== null && mb_strlen($text, 'UTF-8') < self::DESC_WARN_MIN) {
+            $specific = self::productDescription($product, $siteName);
+            if (mb_strlen($specific, 'UTF-8') > mb_strlen($text, 'UTF-8')) {
+                $text = $specific;
+            }
+        }
+        return self::truncate(self::clean($text !== '' ? $text : $fallback), self::DESC_MAX);
+    }
+
     // ------------------------------------------------- فرمول‌های پشتیبان متا
 
-    /** عنوان پیشنهادی محصول: نام + کد فنی + برند + نام سایت (کوتاه‌شده به ۶۰ کاراکتر) */
+    /** عنوان محصول با intent خرید؛ OEM برای تمایز قطعات اولویت دارد، نه پسوند تکراری برند. */
     public static function productTitle(array $product, string $siteName): string
     {
-        $name = trim((string) ($product['name'] ?? ''));
-        $oem = trim((string) ($product['oem'] ?? $product['oem_code'] ?? ''));
-
-        // اگر نام شامل کد فنی است، تکرار نکن
-        $parts = [$name];
+        $name = self::clean((string) ($product['name'] ?? ''));
+        $oem = self::clean((string) ($product['oem'] ?? $product['oem_code'] ?? ''));
+        $modelSlug = (string) ($product['model'] ?? $product['car_model'] ?? '');
+        $modelData = $GLOBALS['car_models'][$modelSlug] ?? $modelSlug;
+        $model = self::clean(is_array($modelData) ? (string) ($modelData['name'] ?? '') : (string) $modelData);
+        $title = 'قیمت و خرید ' . $name;
+        if ($model !== '' && !str_contains(mb_strtolower($name, 'UTF-8'), mb_strtolower($model, 'UTF-8'))) {
+            $title .= ' تویوتا ' . $model;
+        }
         if ($oem !== '' && !str_contains(mb_strtolower($name, 'UTF-8'), mb_strtolower($oem, 'UTF-8'))) {
-            // کد فنی را فقط اگر طول عنوان اجازه دهد اضافه کن
-            $parts[] = $oem;
+            $title .= ' - کد ' . $oem;
+        } elseif ($model === '') {
+            $brand = self::clean((string) ($product['brand'] ?? ''));
+            if ($brand !== '' && !str_contains(mb_strtolower($name, 'UTF-8'), mb_strtolower($brand, 'UTF-8'))) {
+                $title .= ' برند ' . $brand;
+            }
         }
-
-        $base = implode(' ', array_filter($parts, 'strlen'));
-        $full = $base . ' | ' . $siteName;
-
-        if (mb_strlen($full, 'UTF-8') > self::TITLE_MAX) {
-            $room = self::TITLE_MAX - mb_strlen(' | ' . $siteName, 'UTF-8');
-            $base = self::truncate($base, max(20, $room));
-            $full = $base . ' | ' . $siteName;
+        // طول کاراکتری تنها یک راهنماست؛ اطلاعات شناسایی قطعه را برای تحمیل
+        // الگوی «نام | پرادو یدک» قطع نکن. Analyzer طول/SERP را هشدار می‌دهد.
+        if (mb_strlen($title . ' | ' . $siteName, 'UTF-8') <= self::TITLE_MAX) {
+            $title .= ' | ' . $siteName;
         }
-        return $full;
+        return $title;
     }
 
     /**
-     * توضیحات پیشنهادی محصول: تلاش می‌کند از محتوای یکتای دیتابیس استفاده کند.
-     *
-     * محتوای زیر باید از دیتابیس محصول بیاید تا description تکراری نشود:
-     * - توضیح فنی یکتا
-     * - علائم خرابی قطعه
-     * - خودروهای سازگار
-     * - برند تولیدکننده
-     * - تفاوت Genuine و OEM
-     * - شرایط گارانتی
-     * - کدهای معادل
-     * - راهنمای نصب یا تعویض
-     *
-     * متای خودکار خوب است، اما جایگزین محتوای اصلی صفحه نیست.
+     * توضیح خودکار محصول فقط از داده‌های واقعی همان قطعه ساخته می‌شود. کاربرد،
+     * خودروهای سازگار، OEM و گارانتی اختصاصی از پنل می‌آیند؛ اگر ثبت نشده‌اند
+     * نباید با متن ساختگی جایگزین شوند (متای دستی برای قطعات مهم اولویت دارد).
      */
     public static function productDescription(array $product, string $siteName): string
     {
-        $name  = trim((string) ($product['name'] ?? ''));
-        $oem   = trim((string) ($product['oem'] ?? $product['oem_code'] ?? ''));
-        $brand = trim((string) ($product['brand'] ?? ''));
-        $stock = !empty($product['inStock']) || !empty($product['in_stock']);
+        $name = self::clean((string) ($product['name'] ?? ''));
+        $oem = self::clean((string) ($product['oem'] ?? $product['oem_code'] ?? ''));
+        $modelSlug = (string) ($product['model'] ?? $product['car_model'] ?? '');
+        $modelData = $GLOBALS['car_models'][$modelSlug] ?? $modelSlug;
+        $model = self::clean(is_array($modelData) ? (string) ($modelData['name'] ?? '') : (string) $modelData);
 
-        // اولویت اول: اگر توضیح یکتای محصول از قبل به اندازه کافی طولانی و باکیفیت است، همان را استفاده کن
-        $uniqueDesc = self::clean((string) ($product['description'] ?? $product['desc'] ?? ''));
-        if (mb_strlen($uniqueDesc, 'UTF-8') >= self::DESC_MIN && mb_strlen($uniqueDesc, 'UTF-8') <= 300) {
-            // اگر توضیح یکتا شامل نام محصول و کد فنی نیست، آن را به ابتدای متن اضافه کن
-            $hasName = $name !== '' && str_contains(mb_strtolower($uniqueDesc, 'UTF-8'), mb_strtolower($name, 'UTF-8'));
-            $hasOem = $oem === '' || str_contains(mb_strtolower($uniqueDesc, 'UTF-8'), mb_strtolower($oem, 'UTF-8'));
-            if (!$hasName || !$hasOem) {
-                $prefix = $name . ($oem !== '' ? ' کد فنی ' . $oem : '');
-                $uniqueDesc = $prefix . '؛ ' . $uniqueDesc;
-            }
-            return self::truncate($uniqueDesc, self::DESC_MAX);
-        }
-
-        // در غیر این صورت، فرمول هوشمند با تکیه بر اطلاعات موجود
-        $desc = 'خرید ' . $name
-            . ($oem !== '' ? ' با کد فنی ' . $oem : '')
-            . ($brand !== '' ? ' برند ' . $brand : '')
-            . ($stock ? '؛ موجود در انبار' : '؛ استعلام موجودی')
-            . ' با ضمانت اصالت، فاکتور رسمی و ارسال سریع از ' . $siteName . '.';
-
-        // اگر توضیح یکتا وجود دارد ولی کوتاه است، به انتهای متا اضافه کن
-        if (mb_strlen($desc, 'UTF-8') < self::DESC_MIN && $uniqueDesc !== '') {
-            $desc = rtrim($desc, '.') . ' ' . $uniqueDesc;
-        }
-
-        // اگر محصول دارای خودروهای سازگار، برند، یا اطلاعات گارانتی است، سعی کن به متا اضافه کنی
-        // (این اطلاعات معمولا از طریق $product['compatible_vehicles'] یا similar می‌آید)
-        $extraHints = [];
-        if (!empty($product['car_model']) || !empty($product['model'])) {
-            $model = $product['car_model'] ?? $product['model'];
-            if (is_string($model) && trim($model) !== '') {
-                $extraHints[] = 'مناسب تویوتا ' . trim($model);
+        $vehicles = [];
+        foreach (($product['vehicles'] ?? []) as $vehicle) {
+            $vehicleName = is_array($vehicle) ? (string) ($vehicle['name'] ?? '') : (string) $vehicle;
+            $vehicleName = self::clean($vehicleName);
+            if ($vehicleName !== '') {
+                $vehicles[] = $vehicleName;
             }
         }
-        if (!empty($product['vehicles']) && is_array($product['vehicles'])) {
-            $vehicleNames = array_slice(array_map(fn($v) => is_array($v) ? ($v['name'] ?? '') : (string) $v, $product['vehicles']), 0, 2);
-            $vehicleNames = array_filter($vehicleNames, 'strlen');
-            if ($vehicleNames) {
-                $extraHints[] = 'سازگار با ' . implode('، ', $vehicleNames);
+        if ($vehicles) {
+            $model = implode('، ', array_slice(array_unique($vehicles), 0, 2));
+        }
+
+        $application = '';
+        $warranty = '';
+        foreach (($product['technicalSpecifications'] ?? []) as $spec) {
+            if (!is_array($spec)) {
+                continue;
+            }
+            $key = self::clean((string) ($spec['attr_key'] ?? ''));
+            $value = self::clean((string) ($spec['attr_value'] ?? ''));
+            if ($value === '') {
+                continue;
+            }
+            if ($application === '' && preg_match('/کاربرد|محل نصب|application/ui', $key)) {
+                $application = $value;
+            }
+            if ($warranty === '' && preg_match('/گارانتی|ضمانت|warranty/ui', $key)) {
+                $warranty = $value;
             }
         }
 
-        if ($extraHints && mb_strlen($desc, 'UTF-8') < self::DESC_MAX - 20) {
-            $desc = rtrim($desc, '.') . ' ' . implode('، ', $extraHints) . '.';
+        $lead = $name;
+        if ($model !== '' && !str_contains(mb_strtolower($lead, 'UTF-8'), mb_strtolower($model, 'UTF-8'))) {
+            $lead .= ' مناسب ' . $model;
+        }
+        if ($oem !== '' && !str_contains(mb_strtolower($lead, 'UTF-8'), mb_strtolower($oem, 'UTF-8'))) {
+            $lead .= ' (OEM ' . $oem . ')';
+        }
+        $brand = self::clean((string) ($product['brand'] ?? ''));
+        if ($brand !== '' && !str_contains(mb_strtolower($lead, 'UTF-8'), mb_strtolower($brand, 'UTF-8'))) {
+            $lead .= ' برند ' . $brand;
         }
 
-        return self::truncate($desc, self::DESC_MAX);
+        $stock = !empty($product['inStock']) || !empty($product['in_stock'])
+            ? 'موجود در انبار' : 'استعلام موجودی';
+        $guarantee = $warranty !== '' ? 'گارانتی ' . self::truncate($warranty, 35) : 'ضمانت اصالت';
+        $tail = '؛ ' . $stock . '؛ ' . $guarantee
+            . ($model !== '' ? '؛ بررسی سازگاری با VIN' : '');
+
+        $unique = $application !== '' ? 'کاربرد: ' . $application : '';
+        $description = self::clean((string) ($product['description'] ?? $product['desc'] ?? ''));
+        if ($description !== '') {
+            $unique .= ($unique !== '' ? '؛ ' : '') . $description;
+        }
+        $unique = preg_replace('/[.،؛\s]+$/u', '', $unique) ?? $unique;
+        $room = self::DESC_MAX - mb_strlen($lead . $tail . '؛ ', 'UTF-8');
+        $middle = $unique !== '' && $room >= 20 ? '؛ ' . self::truncate($unique, $room) : '';
+
+        return self::truncate($lead . $middle . $tail, self::DESC_MAX);
     }
 
     /** توضیحات پیشنهادی مقاله */
@@ -802,7 +908,7 @@ class Seo
         ];
 
         return '<script type="application/ld+json">' . "\n"
-            . json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT)
+            . json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_PRETTY_PRINT)
             . "\n" . '</script>';
     }
 

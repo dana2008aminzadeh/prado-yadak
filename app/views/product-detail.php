@@ -151,6 +151,14 @@
                         if (!empty($product['oem'])) {
                             $specifications[] = ['شماره فنی (OEM)', $product['oem']];
                         }
+                        foreach (($product['vehicles'] ?? []) as $vehicle) {
+                            $years = array_filter([(int) ($vehicle['year_from'] ?? 0), (int) ($vehicle['year_to'] ?? 0)]);
+                            $compatibility = $vehicle['name'] . ($years ? ' (' . implode(' تا ', $years) . ')' : '');
+                            if (!empty($vehicle['trim_name'])) {
+                                $compatibility .= ' - ' . $vehicle['trim_name'];
+                            }
+                            $specifications[] = ['سازگاری ثبت‌شده', $compatibility];
+                        }
                         foreach (($product['technicalSpecifications'] ?? []) as $spec) {
                             $specifications[] = [$spec['attr_key'], $spec['attr_value']];
                         }

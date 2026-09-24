@@ -11,14 +11,18 @@ RewriteEngine On
         Header set Cache-Control "public, max-age=31536000, immutable"
         Header set X-Content-Type-Options "nosniff"
     </FilesMatch>
+    # نام فایل نسخه‌دار است؛ بدون revalidation می‌تواند کش شود.
+    <FilesMatch "^lucide-0\.468\.0\.min\.js$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
 </IfModule>
 
-RewriteCond %{HTTP_HOST} ^www\.pradoyadak\.com$ [NC]
-RewriteRule ^ https://pradoyadak.com%{REQUEST_URI} [R=301,L]
-
-RewriteCond %{HTTPS} !=on
-RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
-RewriteRule ^ https://pradoyadak.com%{REQUEST_URI} [R=301,L]
+# تنها نسخه عمومی: HTTPS و دامنه اصلی. X-Forwarded-Proto ورودی قابل جعل است؛
+# به آن در origin اعتماد نمی‌کنیم. اگر TLS در پراکسی پایان می‌یابد، همین
+# ریدایرکت باید در edge انجام شود و origin فقط از پراکسی مورد اعتماد ترافیک بگیرد.
+RewriteCond %{HTTPS} !=on [OR]
+RewriteCond %{HTTP_HOST} !^pradoyadak\.com$ [NC]
+RewriteRule ^ https://pradoyadak.com%{REQUEST_URI} [R=301,L,NE]
 
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

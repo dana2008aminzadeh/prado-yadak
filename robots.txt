@@ -8,12 +8,17 @@ Disallow: /login
 Disallow: /admin
 Disallow: /assets/uploads/receipts/
 
-# صفحات حاصل جستجو و مرتب‌سازی، ارزش خزش ندارند
+# فیلترهای کم‌ارزش/جستجو: علاوه بر ۳۰۱ یا noindex سمت سرور، خزش هم محدود شود.
+# robots.txt جایگزین noindex برای URLهای قبلاً ایندکس‌شده نیست.
 Disallow: /*?*q=
 Disallow: /*?*sort=
 Disallow: /*?*maxPrice=
+Disallow: /*?*minPrice=
 Disallow: /*?*inStock=
+Disallow: /*?*view=
 Disallow: /*?*utm_
+Disallow: /*?*gclid=
+Disallow: /*?*fbclid=
 
 # اجازه خزش به صفحات اصلی
 Allow: /

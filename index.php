@@ -262,6 +262,13 @@ $router = new Router();
 // پیش از هر خروجی و از یک نقطه مرکزی انجام می‌شوند.
 $uri = UrlCanonicalizer::handleRequest();
 
+// هدر HTTP صفحات خصوصی باید پیش از شروع HTML view ارسال شود (head.php
+// ممکن است بعد از ارسال <!doctype> اجرا شود؛ متای robots به‌تنهایی کافی نیست).
+if (in_array($uri, ['/login', '/profile', '/checkout', '/order/success'], true)
+    || str_starts_with($uri, '/order/')) {
+    \Core\Seo::emitNoindexHeader('noindex, nofollow');
+}
+
 // ریدایرکت‌های ثبت‌شده مدیر (تغییر اسلاگ یا جایگزین محصول) حتی اگر مسیر قدیمی
 // هنوز با یک route معتبر match شود، باید پیش از dispatch اعمال شوند.
 if (in_array(strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')), ['GET', 'HEAD'], true)) {

@@ -277,7 +277,7 @@ $menu = [
         }
         @media print { .sidebar, .topbar, .no-print { display: none !important; } .content { padding: 0; } }
     </style>
-    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js" defer></script>
+    <script src="/assets/js/vendor/lucide-0.468.0.min.js" defer></script>
 </head>
 
 <body data-csrf="<?= e($csrf) ?>">
