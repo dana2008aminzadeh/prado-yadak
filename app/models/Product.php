@@ -563,6 +563,12 @@ class Product
         $crumbs[] = ['name' => $product['name'], 'url' => '/product/' . rawurlencode((string) $product['slug'])];
 
         // ---------- شناسه‌های قطعه ----------
+        // sku یک شناسه داخلی فروشگاه است و همیشه می‌تواند وجود داشته باشد،
+        // اما mpn/productID طبق تعریف Schema.org باید شناسه‌ی واقعیِ سازنده
+        // (OEM) باشند؛ ساختن آن‌ها از یک شناسه ساختگی «PRD-{id}» یک ادعای
+        // غیرقابل‌اثبات به گوگل مرچنت می‌دهد و ریسک رد Merchant Listing یا
+        // حذف Rich Result را افزایش می‌دهد. در نبود OEM واقعی، این دو کلید
+        // اصلاً در گراف درج نمی‌شوند.
         $oem = trim((string) ($product['oem'] ?? ''));
         $sku = $oem !== '' ? $oem : 'PRD-' . $product['id'];
 
@@ -576,8 +582,6 @@ class Product
             'url' => $productUrl,
             'description' => $metaDesc,
             'sku' => (string) $sku,
-            'mpn' => (string) $sku,
-            'productID' => 'oem:' . $sku,
             'category' => $GLOBALS['part_categories'][$product['category'] ?? '']['name'] ?? 'قطعات یدکی خودرو',
             'brand' => [
                 '@type' => 'Brand',
@@ -590,6 +594,10 @@ class Product
             'itemCondition' => 'https://schema.org/NewCondition',
             'mainEntityOfPage' => ['@id' => $productUrl . '#webpage'],
         ];
+        if ($oem !== '') {
+            $productNode['mpn'] = $oem;
+            $productNode['productID'] = 'oem:' . $oem;
+        }
         // لوگوی فروشگاه هرگز به‌عنوان تصویر محصول بدون عکس اعلام نمی‌شود.
         if ($images) {
             $productNode['image'] = $images;

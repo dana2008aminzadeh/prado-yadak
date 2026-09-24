@@ -159,12 +159,16 @@ $current_page = '/login';
     <?php include 'assets/php/footer.php'; ?>
 
     <!-- بارگذاری اسکریپت اصلی شامل کدهای داینامیک لاگین -->
-    <script src="/assets/js/main.js"></script>
+    <script src="/assets/js/main.min.js" defer></script>
     <script>
-        // اطمینان از ساخت آیکون‌های Lucide پس از رندر
-        if (typeof lucide !== 'undefined') {
-            lucide.createIcons();
-        }
+        // main.js با defer بارگذاری می‌شود؛ برای اطمینان از اجرای این بلوک
+        // بعد از آماده شدن DOM و اسکریپت‌های defer (نه قبل از آن‌ها)، این
+        // کد نیز به DOMContentLoaded موکول شده است.
+        document.addEventListener('DOMContentLoaded', function () {
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+        });
     </script>
 </body>
 

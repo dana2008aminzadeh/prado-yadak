@@ -218,7 +218,7 @@
     </main>
 
     <?php include 'assets/php/footer.php'; ?>
-    <script src="/assets/js/main.js"></script>
+    <script src="/assets/js/main.min.js" defer></script>
 </body>
 
 </html>

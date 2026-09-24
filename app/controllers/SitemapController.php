@@ -34,7 +34,11 @@ class SitemapController
         $base = Seo::base();
         $maps = [];
 
-        $maps[] = ['loc' => $base . '/sitemap-static.xml', 'lastmod' => date('c')];
+        // lastmod این شاخه نباید هر بار برابر «همین لحظه» باشد؛ گوگل چنین
+        // مقداری را به‌عنوان سیگنال کاذب تازگی تفسیر می‌کند و بودجه خزش را
+        // هدر می‌دهد. مقدار واقعی از آخرین تغییر محصولات/مقالات (که صفحات
+        // ثابت مثل /parts و /blog به آن‌ها وابسته‌اند) محاسبه می‌شود.
+        $maps[] = ['loc' => $base . '/sitemap-static.xml', 'lastmod' => $this->latestOf(['products', 'articles'])];
 
         $productCount = $this->count('products', $this->productEligibility());
         $chunks = max(1, (int) ceil($productCount / self::CHUNK));
@@ -416,24 +420,53 @@ class SitemapController
         }
     }
 
-    /** آخرین تغییر واقعی یک جدول */
+    /**
+     * آخرین تغییر واقعی یک جدول.
+     * ---------------------------------------------------------------------
+     * تصمیم قطعی پروژه: اگر تاریخ واقعی در دسترس نباشد، رشته خالی برگردانده
+     * می‌شود (نه date('c') لحظه درخواست). lastmod برابر «همین الان» با هر
+     * بار خزش گوگل عوض می‌شود و سیگنال تازگی را جعلی و بی‌اعتبار می‌کند؛
+     * نبود lastmod (حذف کامل تگ در sendUrlSet/index) همیشه بهتر از یک مقدار
+     * نادرست و متغیر است.
+     */
     private function latest(string $table): string
     {
         try {
-            $col = $table === 'articles' ? 'COALESCE(updated_at, created_at)' : 'COALESCE(updated_at, created_at)';
-            $v = Database::getInstance()->query("SELECT MAX({$col}) FROM `{$table}`")->fetchColumn();
+            $v = Database::getInstance()
+                ->query("SELECT MAX(COALESCE(updated_at, created_at)) FROM `{$table}`")
+                ->fetchColumn();
             return $this->iso($v ?: null);
         } catch (Throwable $e) {
-            return date('c');
+            return '';
         }
+    }
+
+    /** جدیدترین lastmod در میان چند جدول — برای صفحاتی که به بیش از یک منبع وابسته‌اند */
+    private function latestOf(array $tables): string
+    {
+        $best = null;
+        foreach ($tables as $table) {
+            try {
+                $v = Database::getInstance()
+                    ->query("SELECT MAX(COALESCE(updated_at, created_at)) FROM `{$table}`")
+                    ->fetchColumn();
+                $ts = $v ? strtotime((string) $v) : false;
+                if ($ts !== false && ($best === null || $ts > $best)) {
+                    $best = $ts;
+                }
+            } catch (Throwable $e) {
+                continue;
+            }
+        }
+        return $best !== null ? date('c', $best) : '';
     }
 
     private function iso(?string $date): string
     {
         if (!$date) {
-            return date('c');
+            return '';
         }
         $ts = strtotime($date);
-        return $ts ? date('c', $ts) : date('c');
+        return $ts ? date('c', $ts) : '';
     }
 }

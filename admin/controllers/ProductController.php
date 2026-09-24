@@ -813,6 +813,11 @@ class ProductController extends BaseController
         foreach (['wishlists', 'cart_items', 'product_comments', 'product_images', 'product_attributes', 'product_vehicles', 'stock_movements'] as $t) {
             Model::exec("DELETE FROM `$t` WHERE product_id = ?", [$pid]);
         }
+        // پیوند سیلوی وبلاگ↔محصول نیز پاک می‌شود؛ در غیر این صورت مقاله‌ای که
+        // به این محصول حذف‌شده لینک داده، رکورد یتیم و لینک داخلی شکسته باقی می‌ماند.
+        if (Model::hasTable('article_products')) {
+            Model::exec('DELETE FROM article_products WHERE product_id = ?', [$pid]);
+        }
         Model::delete('products', $pid);
 
         $this->audit('product.delete', 'product', $pid, 'حذف کامل محصول: ' . $p['name'], $p, null);
@@ -953,6 +958,9 @@ class ProductController extends BaseController
                     }
                     foreach (['wishlists', 'cart_items', 'product_comments', 'product_images', 'product_attributes', 'product_vehicles', 'stock_movements'] as $table) {
                         Model::exec("DELETE FROM `{$table}` WHERE product_id = ?", [$productId]);
+                    }
+                    if (Model::hasTable('article_products')) {
+                        Model::exec('DELETE FROM article_products WHERE product_id = ?', [$productId]);
                     }
                     Model::delete('products', $productId);
                     $deleted++;

@@ -1317,8 +1317,8 @@ function profilePageClass(string $tab, string $active): string
     </div>
 
     <?php include 'assets/php/footer.php'; ?>
-    <script src="/assets/js/main.js"></script>
-    <script src="/assets/js/profile.js"></script>
+    <script src="/assets/js/main.min.js" defer></script>
+    <script src="/assets/js/profile.min.js" defer></script>
 </body>
 
 </html>

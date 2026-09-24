@@ -49,7 +49,7 @@ class PartController extends Controller
         if ($selectedCat && isset($GLOBALS['part_categories'][$selectedCat])) {
             $catInfo = $GLOBALS['part_categories'][$selectedCat];
             $catName = is_array($catInfo) ? ($catInfo['name'] ?? $selectedCat) : $catInfo;
-            $metaDescription = "خرید انواع قطعات و لوازم یدکی {$catName} تویوتا اصل جنیون پارت و وارداتی OEM با تضمین ۱۰۰٪ اصالت و ارسال سریع از فروشگاه {$siteName}.";
+            $metaDescription = "خرید انواع قطعات و لوازم یدکی {$catName} تویوتا اصل جنیون پارت و وارداتی OEM با ضمانت بازگشت وجه در صورت اثبات عدم اصالت و ارسال سریع از فروشگاه {$siteName}.";
         } elseif ($selectedModel && isset($GLOBALS['car_models'][$selectedModel])) {
             $modInfo = $GLOBALS['car_models'][$selectedModel];
             $modName = is_array($modInfo) ? ($modInfo['name'] ?? $selectedModel) : $modInfo;
@@ -57,7 +57,7 @@ class PartController extends Controller
         } elseif (!empty($filters['q'])) {
             $metaDescription = "نتایج جستجو برای قطعه «" . htmlspecialchars($filters['q']) . "» در فروشگاه {$siteName}؛ خرید آنلاین قطعات اصلی تویوتا با ارسال فوری به سراسر کشور.";
         } else {
-            $metaDescription = "کاتالوگ و لیست قیمت روز انواع لوازم یدکی و قطعات مصرفی تویوتا و لکسوس؛ ضمانت ۱۰۰٪ اصالت جنیون پارتس با امکان مرجوعی در فروشگاه {$siteName}.";
+            $metaDescription = "کاتالوگ و لیست قیمت روز انواع لوازم یدکی و قطعات مصرفی تویوتا و لکسوس؛ ضمانت بازگشت وجه در صورت اثبات عدم اصالت جنیون پارتس با امکان مرجوعی در فروشگاه {$siteName}.";
         }
 
         // ---- سئوی کاتالوگ: کانونیکال نرمال‌شده + قانون noindex فیلترهای کم‌ارزش ----
@@ -144,6 +144,15 @@ class PartController extends Controller
         $products = $data['items'];
         $totalCount = (int) $data['total'];
         $totalPages = (int) ceil($totalCount / $perPage);
+
+        // صفحه‌ی درخواستی فراتر از آخرین صفحه‌ی واقعی = محتوای موجود نیست؛
+        // به‌جای ساخت یک لندینگ خالی، ۴۰۴ واقعی برگردانده می‌شود.
+        if ($totalCount > 0 && $page > $totalPages) {
+            http_response_code(404);
+            require_once VIEWS_PATH . '/404.php';
+            exit;
+        }
+
         $brands = Product::getDistinctBrands();
         $selectedCat = $isCategory ? $slug : null;
         $selectedModel = $isCategory ? null : $slug;
@@ -158,7 +167,10 @@ class PartController extends Controller
             $metaDescription = "کاتالوگ و قیمت قطعات یدکی تویوتا {$name}؛ خرید قطعه اصلی با تطابق شماره شاسی (VIN)، ضمانت اصالت و ارسال سریع از {$siteName}.";
             $h1_title = "قطعات یدکی تویوتا {$name}";
         }
-        $robotsMeta = 'index, follow';
+        // لندینگ خالی (هنوز هیچ محصولی در این دسته/مدل ثبت نشده) صفحه‌ی
+        // کم‌ارزشی است که نباید ایندکس شود؛ به محض افزودن اولین محصول به
+        // این تاکسونومی خودبه‌خود index می‌شود.
+        $robotsMeta = $totalCount > 0 ? 'index, follow' : 'noindex, follow';
         $crumbs = [
             ['name' => 'صفحه اصلی', 'url' => '/'],
             ['name' => 'کاتالوگ قطعات', 'url' => '/parts'],
@@ -235,6 +247,14 @@ class PartController extends Controller
         $products = $data['items'];
         $totalCount = (int) $data['total'];
         $totalPages = (int) ceil($totalCount / $perPage);
+
+        // صفحه‌ی درخواستی فراتر از آخرین صفحه‌ی واقعی = محتوای موجود نیست.
+        if ($totalCount > 0 && $page > $totalPages) {
+            http_response_code(404);
+            require_once VIEWS_PATH . '/404.php';
+            exit;
+        }
+
         $brands = Product::getDistinctBrands();
 
         $selectedCat = $filters['categories'][0] ?? null;
@@ -243,11 +263,14 @@ class PartController extends Controller
         $canonicalUrl = Seo::absolute('/parts/' . rawurlencode($landing['slug']))
             . ($page > 1 ? '?page=' . $page : '');
 
+        // لندینگ ترکیبی بدون هیچ محصولی، صفحه‌ای کم‌ارزش و بالقوه تکراری است؛
+        // مدیر می‌تواند صراحتاً noindex ثبت کند، اما در نبود محتوای واقعی
+        // هرگز به‌صورت پیش‌فرض index نمی‌شود.
         $resolved = Seo::resolve($landing, [
             'title'       => $landing['h1'] . ' | ' . $siteName,
             'description' => Seo::truncate(Seo::clean($landing['intro_html'] ?? $landing['h1']), Seo::DESC_MAX),
             'canonical'   => $canonicalUrl,
-            'robots'      => 'index, follow',
+            'robots'      => $totalCount > 0 ? 'index, follow' : 'noindex, follow',
         ]);
 
         $pageTitle = $resolved['title'];

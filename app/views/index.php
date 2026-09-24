@@ -46,7 +46,7 @@ global $settings;
                     </h1>
 
                     <p class="text-[#5c473b] text-sm md:text-base mb-8 leading-relaxed max-w-lg" id="hero-subtitle">
-                        جستجوی دقیق با شماره شاسی (VIN) یا نام قطعه. تضمین ۱۰۰٪ اصالت کالا و ارسال سریع به سراسر ایران.
+                        جستجوی دقیق با شماره شاسی (VIN) یا نام قطعه. ضمانت بازگشت وجه در صورت اثبات عدم اصالت و ارسال سریع به سراسر ایران.
                     </p>
 
                     <!-- باکس فرم جستجوی پیشرفته -->
@@ -270,7 +270,7 @@ global $settings;
                             </h2>
                             
                             <p class="hidden lg:block text-[#5c473b] text-xs leading-relaxed max-w-[170px] mx-auto font-medium">
-                                تضمین ۱۰۰٪ اصالت جنیون با تطابق شماره شاسی (VIN)
+                                ضمانت بازگشت وجه در صورت اثبات عدم اصالت با تطابق شماره شاسی (VIN)
                             </p>
                         </div>
 
@@ -769,8 +769,8 @@ global $settings;
                         مجموعه <strong>پرادو یدک</strong> به عنوان یکی از معتبرترین مراجع تامین قطعات خودروهای تویوتا و
                         لکسوس، افتخار دارد کامل‌ترین سبد محصولات شامل <strong>لوازم استوک تویوتا</strong> و
                         <strong>قطعات نو</strong> را به مشتریان عزیز ارائه دهد. ما با درک دغدغه‌های صاحبان خودرو، تلاش
-                        کرده‌ایم تا بهترین <strong>قیمت قطعات اصلی جنیون (Toyota Genuine Parts)</strong> را با تضمین
-                        ۱۰۰٪ اصالت کالا و تطابق دقیق با شماره شاسی (VIN) فراهم کنیم.
+                        کرده‌ایم تا بهترین <strong>قیمت قطعات اصلی جنیون (Toyota Genuine Parts)</strong> را با ضمانت
+                        بازگشت وجه در صورت اثبات عدم اصالت کالا و تطابق دقیق با شماره شاسی (VIN) فراهم کنیم.
                     </p>
                     <p>
                         یکی از سوالات متداول خریداران، <strong>تفاوت قطعات OEM و اورجینال</strong> است. قطعات اورجینال
@@ -789,7 +789,7 @@ global $settings;
 
     <?php include 'assets/php/footer.php'; ?>
 
-    <script src="assets/js/main.js"></script>
+    <script src="assets/js/main.min.js" defer></script>
 
 </body>
 

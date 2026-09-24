@@ -471,8 +471,8 @@
     <?php include 'assets/php/footer.php'; ?>
 
     <!-- اسکریپت‌های تسویه حساب -->
-    <script src="/assets/js/main.js"></script>
-    <script src="/assets/js/checkout.js"></script>
+    <script src="/assets/js/main.min.js" defer></script>
+    <script src="/assets/js/checkout.min.js" defer></script>
 </body>
 
 </html>

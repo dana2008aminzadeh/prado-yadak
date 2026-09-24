@@ -66,7 +66,7 @@ if (!isset($pageTitle)) {
 }
 
 // ---------------------------------------------------------------- توضیحات
-$defaultDesc = 'فروشگاه تخصصی پرادو یدک؛ تامین قطعات اصلی جنیون پارت تویوتا و لکسوس با ضمانت ۱۰۰٪ اصالت، تطابق با شماره شاسی (VIN) و ارسال سریع به سراسر کشور.';
+$defaultDesc = 'فروشگاه تخصصی پرادو یدک؛ تامین قطعات اصلی جنیون پارت تویوتا و لکسوس با ضمانت بازگشت وجه در صورت اثبات عدم اصالت، تطابق با شماره شاسی (VIN) و ارسال سریع به سراسر کشور.';
 $finalMetaDesc = $metaDescription ?? $defaultDesc;
 
 // ---------------------------------------------------------------- ربات‌ها
@@ -112,6 +112,23 @@ if (!isset($schemaMarkup)) {
 <meta name="csrf-token" content="<?= $_SESSION['csrf_token'] ?? ''; ?>">
 <meta name="robots" content="<?= e($robotsMeta); ?>">
 <meta name="googlebot" content="<?= e($robotsMeta); ?>, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+
+<?php
+// ---------------------------------------------------------------- تایید مالکیت و مانیتورینگ
+// اتصال واقعی به Google Search Console / Bing Webmaster Tools از طریق تنظیمات
+// پنل مدیریت (بدون نیاز به دست‌کاری کد) و بدون افشای هیچ کلید مخفی؛ فقط رشته
+// تایید HTML meta که گوگل/بینگ در ثبت Property درخواست می‌کند.
+$gscVerification = trim((string) ($settings['gsc_verification_content'] ?? ''));
+$bingVerification = trim((string) ($settings['bing_verification_content'] ?? ''));
+$ga4Id = trim((string) ($settings['ga4_measurement_id'] ?? ''));
+$gtmId = trim((string) ($settings['gtm_container_id'] ?? ''));
+?>
+<?php if ($gscVerification !== ''): ?>
+<meta name="google-site-verification" content="<?= e($gscVerification); ?>">
+<?php endif; ?>
+<?php if ($bingVerification !== ''): ?>
+<meta name="msvalidate.01" content="<?= e($bingVerification); ?>">
+<?php endif; ?>
 
 <title><?= e($pageTitle); ?></title>
 <meta name="description" content="<?= e($finalMetaDesc); ?>">
@@ -167,6 +184,10 @@ if (($uri === '/parts' || $catalogBasePath !== null) && isset($page, $totalPages
 <link rel="icon" type="image/webp" href="/assets/logo/logo.webp">
 <link rel="apple-touch-icon" href="/assets/logo/logo.webp">
 
+<!-- پیش‌بارگذاری وزن معمولی فونت اصلی سایت (بیشترین استفاده در متن بدنه)
+     برای کاهش FOIT/CLS ناشی از دیرکرد بارگذاری فونت -->
+<link rel="preload" href="/assets/font/IRANSans.ttf" as="font" type="font/ttf" crossorigin>
+
 <!-- فایل استایل اصلی کامپایل‌شده -->
 <link rel="stylesheet" href="/assets/css/style.css">
 
@@ -181,4 +202,28 @@ if (($uri === '/parts' || $catalogBasePath !== null) && isset($page, $totalPages
 <!-- داده‌های ساختاریافته یکپارچه (JSON-LD @graph) -->
 <?php if (!empty($schemaMarkup)): ?>
     <?= $schemaMarkup; ?>
+<?php endif; ?>
+
+<?php
+// ---------------------------------------------------------------- مانیتورینگ Core Web Vitals / ترافیک
+// GA4 (که فیلد اصلی گزارش Core Web Vitals میدانی و ترافیک واقعی است) فقط با
+// شناسه‌ی واقعی ثبت‌شده در تنظیمات فعال می‌شود؛ صفحات noindex (چک‌اوت و admin
+// از قبل خارج از این include هستند) بدون تغییر ردیابی می‌شوند.
+if (!empty($gtmId) && preg_match('/^GTM-[A-Z0-9]+$/i', $gtmId)):
+?>
+<script>
+(function (w, d, s, l, i) {
+    w[l] = w[l] || []; w[l].push({ 'gtm.start': new Date().getTime(), event: 'gtm.js' });
+    var f = d.getElementsByTagName(s)[0], j = d.createElement(s), dl = l !== 'dataLayer' ? '&l=' + l : '';
+    j.async = true; j.src = 'https://www.googletagmanager.com/gtm.js?id=' + i + dl; f.parentNode.insertBefore(j, f);
+})(window, document, 'script', 'dataLayer', '<?= e($gtmId); ?>');
+</script>
+<?php elseif (!empty($ga4Id) && preg_match('/^G-[A-Z0-9]+$/i', $ga4Id)): ?>
+<script async src="https://www.googletagmanager.com/gtag/js?id=<?= e($ga4Id); ?>"></script>
+<script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', '<?= e($ga4Id); ?>', { anonymize_ip: true });
+</script>
 <?php endif; ?>
