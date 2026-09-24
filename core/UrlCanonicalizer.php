@@ -210,6 +210,7 @@ final class UrlCanonicalizer
     /** @param array<string,string|array<int,string>> $params */
     public static function buildQuery(array $params, string $path = '/'): string
     {
+        // حذف پارامترهای ردیابی (UTM و کلیک)
         foreach ($params as $key => $value) {
             if (in_array(strtolower((string) $key), self::TRACKING_PARAMS, true)) {
                 unset($params[$key]);
@@ -231,20 +232,89 @@ final class UrlCanonicalizer
         }
 
         if ($path === '/parts') {
+            // فقط پارامترهای شناخته‌شده برای کاتالوگ مجاز هستند — بقیه با 301 حذف می‌شوند
+            // تا URLهای موازی و بی‌نهایت ساخته نشود
+            $allowedForParts = ['q', 'category', 'model', 'brand', 'minPrice', 'maxPrice', 'inStock', 'sort', 'page', 'view'];
+            foreach (array_keys($params) as $k) {
+                if (!in_array($k, $allowedForParts, true)) {
+                    unset($params[$k]);
+                }
+            }
+
             foreach (['category', 'model', 'brand'] as $key) {
                 if (!isset($params[$key])) {
                     continue;
                 }
                 $values = is_array($params[$key]) ? $params[$key] : explode(',', (string) $params[$key]);
                 $values = array_values(array_unique(array_filter(array_map('trim', $values), 'strlen')));
+                // اعتبارسنجی اسلاگ — فقط حروف، اعداد، dash، underscore، فارسی
+                $values = array_values(array_filter($values, static function ($slug): bool {
+                    $slug = trim($slug);
+                    if ($slug === '' || mb_strlen($slug, 'UTF-8') > 80) {
+                        return false;
+                    }
+                    return (bool) preg_match('/^[\p{L}\p{N}\-_]{2,80}$/u', $slug);
+                }));
+                // محدودیت تعداد فیلترهای قابل ترکیب — حداکثر 3 مقدار برای هر کلید
+                if (count($values) > 3) {
+                    $values = array_slice($values, 0, 3);
+                }
                 sort($values, SORT_STRING);
-                $params[$key] = implode(',', $values);
+                if (!$values) {
+                    unset($params[$key]);
+                } else {
+                    $params[$key] = implode(',', $values);
+                }
             }
+
+            // q: جستجو — محدودیت طول و محتوای معقول
+            if (isset($params['q'])) {
+                $q = trim((string) $params['q']);
+                if ($q === '' || mb_strlen($q, 'UTF-8') > 100) {
+                    if (mb_strlen($q, 'UTF-8') > 100) {
+                        $q = mb_substr($q, 0, 100, 'UTF-8');
+                    }
+                    if (trim($q) === '') {
+                        unset($params['q']);
+                    } else {
+                        $params['q'] = $q;
+                    }
+                }
+            }
+
+            // اعتبارسنجی قیمت
+            foreach (['minPrice', 'maxPrice'] as $priceKey) {
+                if (isset($params[$priceKey])) {
+                    $v = $params[$priceKey];
+                    if (!is_numeric($v) || (float) $v < 0 || (float) $v > 10000000000) {
+                        unset($params[$priceKey]);
+                    }
+                }
+            }
+
             if (isset($params['page']) && (int) $params['page'] <= 1) {
                 unset($params['page']);
             }
+            if (isset($params['page']) && (int) $params['page'] > 1000) {
+                $params['page'] = '1000';
+            }
             if (($params['sort'] ?? null) === 'newest') {
                 unset($params['sort']);
+            }
+            // view فقط مقادیر مجاز
+            if (isset($params['view']) && !in_array($params['view'], ['grid', 'list'], true)) {
+                unset($params['view']);
+            }
+        }
+
+        // برای صفحات ثابت، هیچ query نباید بماند (به جز /parts و /blog که صفحه‌بندی دارند)
+        if (!in_array($path, ['/parts', '/blog'], true) && !str_starts_with($path, '/parts/') && !str_starts_with($path, '/sitemap')) {
+            // صفحات محصول و مقاله هیچ query معناداری ندارند
+            if (preg_match('#^/(product|blog)/[^/]+$#u', $path)) {
+                $params = [];
+            } elseif ($path === '/' || $path === '/terms' || $path === '/login' || $path === '/profile') {
+                // صفحات ثابت — تمام queryها حذف (به جز موارد خاص)
+                $params = [];
             }
         }
 
