@@ -57,7 +57,7 @@ $scoreColor = $score >= 80 ? 'var(--green)' : ($score >= 50 ? 'var(--amber)' : '
                    placeholder="<?= e($analysis['preview']['title'] ?? '') ?>">
             <div class="hint">
                 <span id="c-title">۰</span> کاراکتر —
-                بازه ایده‌آل ۵۰ تا ۶۰ <span id="s-title"></span>
+                بازه پیشنهادی ۵۰ تا ۶۰ <span id="s-title"></span>؛ عنوان را در پیش‌نمایش موبایل/دسکتاپ هم بررسی کنید (عرض پیکسلی مهم است).
             </div>
         </div>
 
@@ -67,7 +67,10 @@ $scoreColor = $score >= 80 ? 'var(--green)' : ($score >= 50 ? 'var(--amber)' : '
                       placeholder="<?= e($analysis['preview']['description'] ?? '') ?>"><?= e($ent['meta_description'] ?? '') ?></textarea>
             <div class="hint">
                 <span id="c-desc">۰</span> کاراکتر —
-                بازه ایده‌آل ۱۲۰ تا ۱۵۵ <span id="s-desc"></span>
+                بازه پیشنهادی ۱۲۰ تا ۱۵۵ <span id="s-desc"></span>
+                <?php if ($type === 'product'): ?>
+                    <br>کاربرد قطعه، مدل/سال سازگار، کد OEM، وضعیت موجودی، گارانتی ثبت‌شده و روش بررسی با VIN را مطابق اطلاعات واقعی محصول بنویسید؛ فقط نام محصول را در یک متن تکراری عوض نکنید.
+                <?php endif; ?>
             </div>
         </div>
 
@@ -101,6 +104,7 @@ $scoreColor = $score >= 80 ? 'var(--green)' : ($score >= 50 ? 'var(--amber)' : '
             <input type="text" name="canonical_url" class="mono" maxlength="255"
                    value="<?= e($ent['canonical_url'] ?? '') ?>"
                    placeholder="خالی = آدرس خود صفحه">
+            <div class="hint">فقط URL همان دامنه با HTTPS معتبر است؛ fragment و queryهای زائد پیش از نمایش حذف می‌شوند.</div>
         </div>
 
         <?php if ($type === 'product' && (int) ($ent['id'] ?? 0) > 0): ?>

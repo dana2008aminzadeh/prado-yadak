@@ -2,6 +2,8 @@
 
 namespace App\controllers;
 
+use App\models\LandingPage;
+use App\models\Product;
 use Core\Database;
 use Core\Seo;
 use PDO;
@@ -54,7 +56,8 @@ class SitemapController
         $maps[] = ['loc' => $base . '/sitemap-brands.xml',     'lastmod' => $this->latest('products')];
         $maps[] = ['loc' => $base . '/sitemap-articles.xml',   'lastmod' => $this->latest('articles')];
 
-        if ($this->tableExists('seo_landing_pages') && $this->count('seo_landing_pages', 'is_active = 1') > 0) {
+        if ($this->tableExists('seo_landing_pages') && $this->count('seo_landing_pages',
+                "is_active = 1 AND COALESCE(robots_directive, 'default') NOT IN ('noindex', 'noindex_nofollow')") > 0) {
             $maps[] = ['loc' => $base . '/sitemap-landing.xml', 'lastmod' => $this->latest('seo_landing_pages')];
         }
 
@@ -91,10 +94,14 @@ class SitemapController
     {
         $urls = [
             ['loc' => '/',      'priority' => '1.0', 'changefreq' => 'daily'],
-            ['loc' => '/parts', 'priority' => '0.9', 'changefreq' => 'daily',  'lastmod' => $this->latest('products')],
-            ['loc' => '/blog',  'priority' => '0.7', 'changefreq' => 'weekly', 'lastmod' => $this->latest('articles')],
             ['loc' => '/terms', 'priority' => '0.3', 'changefreq' => 'yearly'],
         ];
+        if ($this->count('products', $this->catalogEligibility()) > 0) {
+            $urls[] = ['loc' => '/parts', 'priority' => '0.9', 'changefreq' => 'daily', 'lastmod' => $this->latest('products')];
+        }
+        if ($this->count('articles', "status = 'published'") > 0) {
+            $urls[] = ['loc' => '/blog', 'priority' => '0.7', 'changefreq' => 'weekly', 'lastmod' => $this->latest('articles')];
+        }
         $this->sendUrlSet($urls);
     }
 
@@ -104,9 +111,10 @@ class SitemapController
         $page = max(1, (int) ($_GET['p'] ?? 1));
         $offset = ($page - 1) * self::CHUNK;
         $limit = self::CHUNK;
+        $canonicalColumn = $this->columnExists('products', 'canonical_url') ? 'p.canonical_url' : 'NULL AS canonical_url';
 
         $rows = $this->query(
-            "SELECT p.slug, p.price, p.in_stock, p.stock_qty,
+            "SELECT p.slug, p.price, p.in_stock, p.stock_qty, {$canonicalColumn},
                     GREATEST(
                         COALESCE(p.updated_at, p.created_at),
                         COALESCE((SELECT MAX(sm.created_at) FROM stock_movements sm WHERE sm.product_id = p.id), '1970-01-01'),
@@ -121,9 +129,13 @@ class SitemapController
 
         $urls = [];
         foreach ($rows as $r) {
+            $loc = Seo::productUrl((string) $r['slug'], true);
+            if (Seo::normalizeCanonicalHost((string) (($r['canonical_url'] ?? '') ?: $loc), $loc) !== $loc) {
+                continue;
+            }
             $inStock = (int) ($r['in_stock'] ?? 0) === 1 || (int) ($r['stock_qty'] ?? 0) > 0;
             $urls[] = [
-                'loc'        => '/product/' . rawurlencode((string) $r['slug']),
+                'loc'        => $loc,
                 'lastmod'    => $this->iso($r['lastmod'] ?? null),
                 'changefreq' => 'weekly',
                 // قطعات موجود اولویت بالاتری برای خزش می‌گیرند
@@ -141,7 +153,8 @@ class SitemapController
                     MAX(COALESCE(p.updated_at, p.created_at)) AS lastmod,
                     COUNT(p.id) AS total
              FROM categories c
-             LEFT JOIN products p ON p.category_id = c.id
+             LEFT JOIN products p ON p.category_id = c.id AND " . $this->catalogEligibility('p') . "
+             WHERE c.slug IS NOT NULL AND c.slug <> ''
              GROUP BY c.id, c.slug
              HAVING total > 0"
         );
@@ -164,7 +177,8 @@ class SitemapController
         $rows = $this->query(
             "SELECT cm.slug, MAX(COALESCE(p.updated_at, p.created_at)) AS lastmod, COUNT(p.id) AS total
              FROM car_models cm
-             LEFT JOIN products p ON p.car_model = cm.slug
+             LEFT JOIN products p ON p.car_model = cm.slug AND " . $this->catalogEligibility('p') . "
+             WHERE cm.slug IS NOT NULL AND cm.slug <> ''
              GROUP BY cm.id, cm.slug
              HAVING total > 0"
         );
@@ -187,14 +201,22 @@ class SitemapController
         $rows = $this->query(
             "SELECT brand, MAX(COALESCE(updated_at, created_at)) AS lastmod
              FROM products
-             WHERE brand IS NOT NULL AND brand <> ''
+             WHERE brand IS NOT NULL AND brand <> '' AND " . $this->catalogEligibility() . "
              GROUP BY brand"
         );
 
         $urls = [];
         foreach ($rows as $r) {
+            $brand = (string) $r['brand'];
+            $params = ['brand' => $brand];
+            // برند حاوی فاصله/کاراکتر نامعتبر در /parts به صفحه مادر redirect
+            // می‌شود؛ چنین URL غیرکانونیکال نباید در Sitemap باشد.
+            if (Seo::normalizeQuery($params, ['brand']) !== 'brand=' . rawurlencode($brand)
+                || Seo::catalogRobots($params) !== 'index, follow') {
+                continue;
+            }
             $urls[] = [
-                'loc'        => '/parts?brand=' . rawurlencode((string) $r['brand']),
+                'loc'        => Seo::catalogCanonical($params),
                 'lastmod'    => $this->iso($r['lastmod'] ?? null),
                 'changefreq' => 'weekly',
                 'priority'   => '0.6',
@@ -211,14 +233,23 @@ class SitemapController
         }
 
         $rows = $this->query(
-            "SELECT slug, updated_at FROM seo_landing_pages
-             WHERE is_active = 1 AND COALESCE(robots_directive,'default') <> 'noindex'"
+            "SELECT * FROM seo_landing_pages
+             WHERE is_active = 1 AND COALESCE(robots_directive,'default') NOT IN ('noindex', 'noindex_nofollow')"
         );
 
         $urls = [];
         foreach ($rows as $r) {
+            $slug = (string) ($r['slug'] ?? '');
+            if ($slug === '') {
+                continue;
+            }
+            $loc = Seo::absolute('/parts/' . rawurlencode($slug));
+            if (Seo::normalizeCanonicalHost((string) (($r['canonical_url'] ?? '') ?: $loc), $loc) !== $loc
+                || Product::search(LandingPage::toFilters($r), 1, 1)['total'] <= 0) {
+                continue;
+            }
             $urls[] = [
-                'loc'        => '/parts/' . rawurlencode((string) $r['slug']),
+                'loc'        => $loc,
                 'lastmod'    => $this->iso($r['updated_at'] ?? null),
                 'changefreq' => 'weekly',
                 'priority'   => '0.9',
@@ -230,18 +261,23 @@ class SitemapController
     /** مقالات */
     public function articles(): void
     {
+        $canonicalColumn = $this->columnExists('articles', 'canonical_url') ? 'canonical_url' : 'NULL AS canonical_url';
         $rows = $this->query(
-            "SELECT slug, COALESCE(updated_at, created_at) AS lastmod
+            "SELECT slug, {$canonicalColumn}, COALESCE(updated_at, created_at) AS lastmod
              FROM articles
              WHERE status = 'published' AND slug IS NOT NULL AND slug <> ''
-               AND COALESCE(robots_directive,'default') <> 'noindex'
+               AND COALESCE(robots_directive,'default') NOT IN ('noindex', 'noindex_nofollow')
              ORDER BY id DESC"
         );
 
         $urls = [];
         foreach ($rows as $r) {
+            $loc = Seo::articleUrl((string) $r['slug'], true);
+            if (Seo::normalizeCanonicalHost((string) (($r['canonical_url'] ?? '') ?: $loc), $loc) !== $loc) {
+                continue;
+            }
             $urls[] = [
-                'loc'        => '/blog/' . rawurlencode((string) $r['slug']),
+                'loc'        => $loc,
                 'lastmod'    => $this->iso($r['lastmod'] ?? null),
                 'changefreq' => 'monthly',
                 'priority'   => '0.7',
@@ -309,6 +345,16 @@ class SitemapController
     }
 
     // ---------------------------------------------------------------- داخلی
+
+    /** همان محصولاتی که Product::search در کاتالوگ نشان می‌دهد. */
+    private function catalogEligibility(string $alias = ''): string
+    {
+        if (!$this->columnExists('products', 'lifecycle_status')) {
+            return '1=1';
+        }
+        $prefix = $alias !== '' ? $alias . '.' : '';
+        return "COALESCE({$prefix}lifecycle_status, 'active') <> 'discontinued'";
+    }
 
     /**
      * سیاست Sitemap محصول:

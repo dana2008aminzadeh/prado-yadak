@@ -234,9 +234,10 @@ final class UrlCanonicalizer
         if ($path === '/parts') {
             // فقط پارامترهای شناخته‌شده برای کاتالوگ مجاز هستند — بقیه با 301 حذف می‌شوند
             // تا URLهای موازی و بی‌نهایت ساخته نشود
-            $allowedForParts = ['q', 'category', 'model', 'brand', 'minPrice', 'maxPrice', 'inStock', 'sort', 'page', 'view'];
+            $allowedForParts = ['q', 'category', 'model', 'brand', 'maxPrice', 'inStock', 'sort', 'page'];
             foreach (array_keys($params) as $k) {
-                if (!in_array($k, $allowedForParts, true)) {
+                if (!in_array($k, $allowedForParts, true)
+                    || (!in_array($k, ['category', 'model', 'brand'], true) && is_array($params[$k]))) {
                     unset($params[$k]);
                 }
             }
@@ -292,22 +293,26 @@ final class UrlCanonicalizer
                 }
             }
 
-            if (isset($params['page']) && (int) $params['page'] <= 1) {
+            if (isset($params['page']) && ctype_digit($params['page']) && (int) $params['page'] <= 1) {
                 unset($params['page']);
             }
-            if (isset($params['page']) && (int) $params['page'] > 1000) {
-                $params['page'] = '1000';
-            }
-            if (($params['sort'] ?? null) === 'newest') {
+            // شماره‌های بزرگ را به ۱۰۰۰ redirect نکن؛ کنترلر برای آن‌ها ۴۰۴ می‌دهد.
+            if (isset($params['sort']) && !in_array($params['sort'], ['price-asc', 'price-desc', 'popular'], true)) {
                 unset($params['sort']);
             }
-            // view فقط مقادیر مجاز
-            if (isset($params['view']) && !in_array($params['view'], ['grid', 'list'], true)) {
-                unset($params['view']);
+            if (isset($params['inStock']) && $params['inStock'] !== 'true') {
+                unset($params['inStock']);
             }
         }
 
-        // برای صفحات ثابت، هیچ query نباید بماند (به جز /parts و /blog که صفحه‌بندی دارند)
+        // جستجوی وبلاگ تنها query معتبر آن است؛ برای پارامترهای ناشناخته ۳۰۱.
+        if ($path === '/blog') {
+            $search = $params['q'] ?? null;
+            $params = is_string($search) && $search !== ''
+                ? ['q' => mb_substr($search, 0, 100, 'UTF-8')] : [];
+        }
+
+        // برای صفحات ثابت، هیچ query نباید بماند (به جز /parts و /blog که جستجو دارد)
         if (!in_array($path, ['/parts', '/blog'], true) && !str_starts_with($path, '/parts/') && !str_starts_with($path, '/sitemap')) {
             // صفحات محصول و مقاله هیچ query معناداری ندارند
             if (preg_match('#^/(product|blog)/[^/]+$#u', $path)) {

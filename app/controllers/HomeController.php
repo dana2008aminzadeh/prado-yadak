@@ -23,8 +23,10 @@ class HomeController extends Controller
         $hostUrl = Seo::base();
 
         $pageTitle = $siteName . ' | مرجع تخصصی قطعات اصلی تویوتا و لکسوس';
-        $metaDescription = $settings['site_description']
-            ?? 'فروشگاه تخصصی ' . $siteName . '؛ تامین قطعات اصلی جنیون پارت تویوتا و لکسوس با ضمانت بازگشت وجه در صورت اثبات عدم اصالت، تطابق با شماره شاسی (VIN) و ارسال سریع به سراسر کشور.';
+        $metaDescription = Seo::metaDescription(
+            $settings['site_description'] ?? null,
+            'فروشگاه تخصصی ' . $siteName . '؛ تامین قطعات اصلی جنیون پارت تویوتا و لکسوس با ضمانت بازگشت وجه در صورت اثبات عدم اصالت، تطابق با شماره شاسی (VIN) و ارسال سریع به سراسر کشور.'
+        );
 
         // دریافت ۶ محصول جدیدتر از دیتابیس
         $latestProductsData = \App\models\Product::search([], 1, 6);
@@ -88,7 +90,7 @@ class HomeController extends Controller
         $siteName = $settings['site_title'] ?? 'پرادو یدک';
 
         $pageTitle = 'قوانین، شرایط بازگشت کالا و ضمانت اصالت | ' . $siteName;
-        $metaDescription = 'در مجموعه ' . $siteName . '، حفظ اعتماد شما و ارائه‌ی لوازم یدکی اصلی (Genuine Parts) با ضمانت بازگشت وجه در صورت اثبات عدم اصالت اولویت اول ماست. کلیه شرایط تعویض، مرجوعی، تطابق شاسی و استرداد وجه با شفافیت کامل.';
+        $metaDescription = Seo::truncate('در مجموعه ' . $siteName . '، حفظ اعتماد شما و ارائه‌ی لوازم یدکی اصلی (Genuine Parts) با ضمانت بازگشت وجه در صورت اثبات عدم اصالت اولویت اول ماست. کلیه شرایط تعویض، مرجوعی، تطابق شاسی و استرداد وجه با شفافیت کامل.', Seo::DESC_MAX);
 
         $faqs = [
             [

@@ -1,5 +1,6 @@
 <?php
 http_response_code(404);
+\Core\Seo::emitNoindexHeader('noindex, nofollow');
 global $settings;
 $siteName = $settings['site_title'] ?? 'پرادو یدک';
 $pageTitle = 'صفحه مورد نظر پیدا نشد (خطای ۴۰۴) | ' . $siteName;

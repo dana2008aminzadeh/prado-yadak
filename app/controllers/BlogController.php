@@ -24,6 +24,7 @@ class BlogController extends Controller
         $siteName = $settings['site_title'] ?? 'پرادو یدک';
 
         $articles = Article::getAll('published');
+        $hasPublishedArticles = !empty($articles);
         $searchQuery = Seo::clean((string) ($_GET['q'] ?? ''));
         if ($searchQuery !== '') {
             $needle = mb_strtolower($searchQuery, 'UTF-8');
@@ -37,8 +38,9 @@ class BlogController extends Controller
 
         $canonicalUrl = Seo::absolute('/blog');
         $pageTitle = 'دانشنامه و وبلاگ تخصصی تویوتا | ' . $siteName;
-        $metaDescription = 'راهنمای جامع تشخیص اصالت لوازم یدکی تویوتا، سرویس‌های دوره‌ای و عیب‌یابی خودرو توسط کارشناسان ' . $siteName . '.';
-        $robotsMeta = $searchQuery !== '' ? 'noindex, follow' : 'index, follow';
+        $metaDescription = Seo::truncate('راهنمای جامع تشخیص اصالت لوازم یدکی تویوتا، سرویس‌های دوره‌ای و عیب‌یابی خودرو توسط کارشناسان ' . $siteName . '.', Seo::DESC_MAX);
+        $robotsMeta = ($searchQuery !== '' || !$hasPublishedArticles) ? 'noindex, follow' : 'index, follow';
+        Seo::emitNoindexHeader($robotsMeta);
 
         // کاور اولین مقاله به‌عنوان تصویر اشتراک‌گذاری صفحه فهرست
         $pageImage = !empty($articles[0]) ? Seo::articleCover($articles[0]) : null;
@@ -152,6 +154,7 @@ class BlogController extends Controller
         $metaDescription = $seo['description'];
         $canonicalUrl = Seo::canonical($seo['canonical'], ['article' => $article]);
         $robotsMeta = $seo['robots'];
+        Seo::emitNoindexHeader($robotsMeta);
 
         $coverUrl = Seo::articleCover($article);
         $pageImage = $coverUrl;

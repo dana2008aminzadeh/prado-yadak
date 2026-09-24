@@ -2,13 +2,14 @@
 /**
  * هدر مشترک صفحات — لایه خروجی سئو
  * ---------------------------------------------------------------------------
- * منطق سئو دیگر اینجا «حدس زده» نمی‌شود؛ این فایل فقط مقادیری را چاپ می‌کند که
- * کنترلرها از طریق Core\Seo محاسبه و تحویل داده‌اند. اولویت همیشه با مقادیر
- * دستی ثبت‌شده در پنل مدیریت است و در نبود آن‌ها فرمول خودکار عمل می‌کند.
+ * کنترلرها متاها را از Core\Seo می‌گیرند؛ این لایه آخرین اعتبارسنجی canonical،
+ * description و robots را پیش از چاپ انجام می‌دهد. عنوان‌های بدون تعریفِ route
+ * جدید تا زمان تکمیل محتوا اجازه ایندکس ندارند.
  *
  * متغیرهای قابل تنظیم توسط کنترلر:
  *   $pageTitle, $metaDescription, $canonicalUrl, $robotsMeta,
- *   $pageImage, $pageImageAlt, $schemaMarkup, $prevUrl, $nextUrl
+ *   $pageImage, $pageImageAlt, $pageImageWidth, $pageImageHeight,
+ *   $schemaMarkup, $prevUrl, $nextUrl
  */
 
 use Core\Seo;
@@ -27,16 +28,17 @@ $uri = Seo::currentPath();
 // -----------------------------------------------------------------------------
 
 // ---------------------------------------------------------------- کانونیکال
-// تنها منبع نهایی کانونیکال: Core\Seo::canonical()
-// اگر کنترلر مقداری داده باشد همان استفاده می‌شود، وگرنه از مسیر جاری ساخته می‌شود.
+// حتی مقدار دستی کنترلر/پنل نیز نباید هاست دیگر، fragment یا query زائد داشته باشد.
 $canonicalUrl = Seo::canonical($canonicalUrl ?? null, [
     'article' => $article ?? null,
     'product' => $product ?? null,
     'landing' => $landingPage ?? null,
 ]);
+$canonicalUrl = Seo::normalizeCanonicalHost($canonicalUrl);
 
 // ---------------------------------------------------------------- عنوان
-if (!isset($pageTitle)) {
+$missingTitle = !isset($pageTitle) || Seo::clean((string) $pageTitle) === '';
+if ($missingTitle) {
     $defaultTitles = [
         '/' => $site_name . ' | مرجع تخصصی قطعات اصلی تویوتا و لکسوس',
         '/blog' => 'وبلاگ و دانشنامه فنی تویوتا | ' . $site_name,
@@ -50,48 +52,68 @@ if (!isset($pageTitle)) {
 
     if ($uri === '/parts') {
         $partsTitle = 'کاتالوگ و قیمت قطعات یدکی تویوتا';
-        if (!empty($_GET['category']) && isset($GLOBALS['part_categories'][$_GET['category']])) {
+        if (is_string($_GET['category'] ?? null) && isset($GLOBALS['part_categories'][$_GET['category']])) {
             $catData = $GLOBALS['part_categories'][$_GET['category']];
             $catName = is_array($catData) ? ($catData['name'] ?? '') : $catData;
             $partsTitle = 'خرید قطعات ' . $catName . ' تویوتا';
-        } elseif (!empty($_GET['model']) && isset($GLOBALS['car_models'][$_GET['model']])) {
+        } elseif (is_string($_GET['model'] ?? null) && isset($GLOBALS['car_models'][$_GET['model']])) {
             $modData = $GLOBALS['car_models'][$_GET['model']];
             $modName = is_array($modData) ? ($modData['name'] ?? '') : $modData;
             $partsTitle = 'خرید قطعات تویوتا ' . $modName;
         }
         $pageTitle = $partsTitle . ' | ' . $site_name;
+    } elseif (isset($defaultTitles[$uri])) {
+        $pageTitle = $defaultTitles[$uri];
     } else {
-        $pageTitle = $defaultTitles[$uri] ?? ($site_name . ' | قطعات یدکی تویوتا');
+        // افزودن route عمومی بدون title اختصاصی نباید چند URL indexable یکسان بسازد.
+        $pageTitle = 'محتوای این صفحه | ' . $site_name;
     }
 }
+$pageTitle = Seo::clean((string) $pageTitle);
+$unmappedTitle = $missingTitle && $uri !== '/parts' && !isset($defaultTitles[$uri]);
 
 // ---------------------------------------------------------------- توضیحات
 $defaultDesc = 'فروشگاه تخصصی پرادو یدک؛ تامین قطعات اصلی جنیون پارت تویوتا و لکسوس با ضمانت بازگشت وجه در صورت اثبات عدم اصالت، تطابق با شماره شاسی (VIN) و ارسال سریع به سراسر کشور.';
-$finalMetaDesc = $metaDescription ?? $defaultDesc;
+$isProductPage = str_starts_with($uri, '/product') && isset($product) && is_array($product);
+$finalMetaDesc = Seo::metaDescription($metaDescription ?? null, $defaultDesc, $isProductPage ? $product : null, $site_name);
 
 // ---------------------------------------------------------------- ربات‌ها
-if (!isset($robotsMeta)) {
-    $privatePages = ['/404', '/checkout', '/order/success', '/profile', '/login'];
-    $isPrivateUri = in_array($uri, $privatePages, true) || str_starts_with($uri, '/order/');
-
-    if (http_response_code() === 404 || $isPrivateUri) {
-        $robotsMeta = 'noindex, nofollow';
-    } elseif ($uri === '/parts') {
-        $robotsMeta = Seo::catalogRobots($_GET);
-    } else {
-        $robotsMeta = 'index, follow';
-    }
+$privatePages = ['/404', '/checkout', '/order/success', '/profile', '/login'];
+$isPrivateUri = in_array($uri, $privatePages, true) || str_starts_with($uri, '/order/');
+if (http_response_code() >= 400 || $isPrivateUri) {
+    $robotsMeta = 'noindex, nofollow';
+} elseif ($unmappedTitle) {
+    $robotsMeta = 'noindex, follow';
+    error_log('Indexable route without SEO title: ' . $uri);
+} elseif ($uri === '/parts' && Seo::catalogRobots($_GET) !== 'index, follow') {
+    // فیلتر ناشناخته یا کم‌ارزش حتی با robots اشتباه کنترلر index نمی‌شود.
+    $robotsMeta = 'noindex, follow';
+} else {
+    $robotsMeta = $robotsMeta ?? 'index, follow';
 }
+$robotsMeta = trim((string) $robotsMeta);
+if (!in_array($robotsMeta, ['index, follow', 'noindex, follow', 'noindex, nofollow'], true)) {
+    $robotsMeta = 'noindex, follow';
+}
+Seo::emitNoindexHeader($robotsMeta);
 
 // ---------------------------------------------------------------- تصویر اشتراک‌گذاری
 // در صفحه محصول بدون عکس، لوگو نباید به‌عنوان تصویر همان محصول به موتور جستجو
 // معرفی شود. صفحات عمومی سایت همچنان می‌توانند لوگو را fallback داشته باشند.
-$isProductPage = str_starts_with($uri, '/product') && isset($product);
 $ogImage = !empty($pageImage) ? (string) $pageImage : ($isProductPage ? '' : $hostUrl . '/assets/logo/logo.webp');
 if ($ogImage !== '' && !str_starts_with($ogImage, 'http')) {
     $ogImage = $hostUrl . '/' . ltrim($ogImage, '/');
 }
-$ogImageAlt = $pageImageAlt ?? $pageTitle;
+$ogImageAlt = Seo::clean($pageImageAlt ?? null) ?: $pageTitle;
+// اندازه تصویر فقط وقتی واقعاً معلوم است ارسال شود (نه حدس ۶۰۰×۶۰۰ برای /media/).
+$ogImageWidth = filter_var($pageImageWidth ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
+$ogImageHeight = filter_var($pageImageHeight ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
+if ($ogImage === $hostUrl . '/assets/logo/logo.webp') {
+    $logoPath = __DIR__ . '/../logo/logo.webp';
+    $logoSize = is_file($logoPath) ? @getimagesize($logoPath) : false;
+    $ogImageWidth = $logoSize[0] ?? null;
+    $ogImageHeight = $logoSize[1] ?? null;
+}
 $ogType = (str_starts_with($uri, '/product')) ? 'product'
     : ((str_starts_with($uri, '/blog') && isset($article)) ? 'article' : 'website');
 
@@ -111,7 +133,6 @@ if (!isset($schemaMarkup)) {
 
 <meta name="csrf-token" content="<?= $_SESSION['csrf_token'] ?? ''; ?>">
 <meta name="robots" content="<?= e($robotsMeta); ?>">
-<meta name="googlebot" content="<?= e($robotsMeta); ?>, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
 
 <?php
 // ---------------------------------------------------------------- تایید مالکیت و مانیتورینگ
@@ -144,21 +165,31 @@ $gtmId = trim((string) ($settings['gtm_container_id'] ?? ''));
 <?php if ($ogImage !== ''): ?>
 <meta property="og:image" content="<?= e($ogImage); ?>">
 <meta property="og:image:alt" content="<?= e($ogImageAlt); ?>">
+<?php if ($ogImageWidth !== null && $ogImageHeight !== null): ?>
+<meta property="og:image:width" content="<?= (int) $ogImageWidth; ?>">
+<meta property="og:image:height" content="<?= (int) $ogImageHeight; ?>">
+<?php endif; ?>
 <?php endif; ?>
 <meta name="twitter:card" content="<?= $ogImage !== '' ? 'summary_large_image' : 'summary' ?>">
 <meta name="twitter:title" content="<?= e($pageTitle); ?>">
 <meta name="twitter:description" content="<?= e($finalMetaDesc); ?>">
-<?php if ($ogImage !== ''): ?><meta name="twitter:image" content="<?= e($ogImage); ?>"><?php endif; ?>
+<meta name="twitter:url" content="<?= e($canonicalUrl); ?>">
+<?php if ($ogImage !== ''): ?>
+<meta name="twitter:image" content="<?= e($ogImage); ?>">
+<meta name="twitter:image:alt" content="<?= e($ogImageAlt); ?>">
+<?php endif; ?>
 
 <?php
-// صفحه‌بندی: prev/next روی آدرس نرمال‌شده ساخته می‌شود
-$catalogBasePath = $catalogBasePath ?? null;
-if (($uri === '/parts' || $catalogBasePath !== null) && isset($page, $totalPages) && $totalPages > 1):
+// صفحه‌بندی: برای کاتالوگ و لندینگ‌های دسته/مدل/دستی یکسان است.
+$catalogBasePath = $catalogBasePath ?? (str_starts_with($uri, '/parts/') ? $uri : null);
+$hasCatalogPagination = http_response_code() === 200 && ($uri === '/parts' || $catalogBasePath !== null)
+    && isset($page, $totalPages) && $totalPages > 1 && $page >= 1 && $page <= $totalPages;
+if ($hasCatalogPagination):
     $buildPageUrl = function ($pageNum) use ($catalogBasePath) {
         // لندینگ دسته/مدل فقط پارامتر page می‌گیرد؛ کاتالوگ عمومی پارامترهای
         // مجاز خود را با ترتیب ثابت نگه می‌دارد.
         if (!empty($catalogBasePath)) {
-            return Seo::absolute($catalogBasePath) . ($pageNum > 1 ? '?page=' . $pageNum : '');
+            return Seo::normalizeCanonicalHost(Seo::absolute($catalogBasePath) . ($pageNum > 1 ? '?page=' . $pageNum : ''));
         }
         $params = $_GET;
         if ($pageNum > 1) {
@@ -177,8 +208,14 @@ if (($uri === '/parts' || $catalogBasePath !== null) && isset($page, $totalPages
     <?php endif; ?>
 <?php endif; ?>
 
-<?php if (!empty($prevUrl)): ?><link rel="prev" href="<?= e($prevUrl); ?>"><?php endif; ?>
-<?php if (!empty($nextUrl)): ?><link rel="next" href="<?= e($nextUrl); ?>"><?php endif; ?>
+<?php if (!$hasCatalogPagination && !empty($prevUrl) && http_response_code() < 400): ?>
+    <?php $safePrev = Seo::normalizeCanonicalHost((string) $prevUrl); ?>
+    <?php if ($safePrev !== $canonicalUrl): ?><link rel="prev" href="<?= e($safePrev); ?>"><?php endif; ?>
+<?php endif; ?>
+<?php if (!$hasCatalogPagination && !empty($nextUrl) && http_response_code() < 400): ?>
+    <?php $safeNext = Seo::normalizeCanonicalHost((string) $nextUrl); ?>
+    <?php if ($safeNext !== $canonicalUrl): ?><link rel="next" href="<?= e($safeNext); ?>"><?php endif; ?>
+<?php endif; ?>
 
 <!-- آیکون‌ها -->
 <link rel="icon" type="image/webp" href="/assets/logo/logo.webp">
@@ -196,8 +233,8 @@ if (($uri === '/parts' || $catalogBasePath !== null) && isset($page, $totalPages
     window.isLoggedIn = <?= isset($_SESSION['user_id']) ? 'true' : 'false'; ?>;
 </script>
 
-<!-- آیکون‌های Lucide -->
-<script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js" defer></script>
+<!-- آیکون‌های Lucide، نسخه ثابت روی همین سرور (بدون اتصال به CDN در مسیر رندر) -->
+<script src="/assets/js/vendor/lucide-0.468.0.min.js" defer></script>
 
 <!-- داده‌های ساختاریافته یکپارچه (JSON-LD @graph) -->
 <?php if (!empty($schemaMarkup)): ?>
