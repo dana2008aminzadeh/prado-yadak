@@ -360,29 +360,50 @@ class SeoAnalyzer
         return trim((string) ($entity[$fallbackKey] ?? ''));
     }
 
+    /**
+     * طول عنوان — فقط هشدار، نه شکست قطعی.
+     * طول نمایش در گوگل بر اساس عرض پیکسلی، نوع دستگاه و محتوای فارسی متغیر است.
+     * عنوان خوب ولی کوتاه نباید شکست‌خورده اعلام شود.
+     */
     private static function checkTitleLength(string $title): array
     {
         $len = mb_strlen($title, 'UTF-8');
+        // بازه ایده‌آل 50-60، اما 30-70 قابل قبول است. بیرون این بازه فقط WARN
+        $status = ($len >= Seo::TITLE_MIN && $len <= Seo::TITLE_MAX) ? self::OK : self::WARN;
+        $hint = '';
+        if ($len < Seo::TITLE_WARN_MIN) {
+            $hint = ' عنوان کوتاه است اما اگر معنادار و توصیفی باشد، الزاماً مشکل سئو نیست.';
+        } elseif ($len > Seo::TITLE_WARN_MAX) {
+            $hint = ' عنوان طولانی است؛ ممکن است در نتایج گوگل بریده شود، اما اگر حاوی اطلاعات مفید باشد، جریمه قطعی ندارد.';
+        }
+
         return [
             'key'    => 'title_length',
             'label'  => 'طول عنوان سئو',
             'weight' => 15,
-            'status' => ($len >= Seo::TITLE_MIN && $len <= Seo::TITLE_MAX) ? self::OK
-                : (($len >= 35 && $len <= 70) ? self::WARN : self::FAIL),
-            'message' => $len . ' کاراکتر (بازه ایده‌آل ' . Seo::TITLE_MIN . ' تا ' . Seo::TITLE_MAX . ').',
+            'status' => $status,
+            'message' => $len . ' کاراکتر (بازه پیشنهادی ' . Seo::TITLE_MIN . ' تا ' . Seo::TITLE_MAX . '؛ نمایش واقعی بر اساس عرض پیکسلی و دستگاه متغیر است).' . $hint,
         ];
     }
 
     private static function checkDescriptionLength(string $desc): array
     {
         $len = mb_strlen($desc, 'UTF-8');
+        // بازه ایده‌آل 120-155، اما 80-175 قابل قبول است. فقط WARN، نه FAIL
+        $status = ($len >= Seo::DESC_MIN && $len <= Seo::DESC_MAX) ? self::OK : self::WARN;
+        $hint = '';
+        if ($len < Seo::DESC_WARN_MIN) {
+            $hint = ' توضیحات کوتاه است اما اگر توصیفی و یکتا باشد، بهتر از متن طولانی و تکراری است.';
+        } elseif ($len > Seo::DESC_WARN_MAX) {
+            $hint = ' توضیحات طولانی ممکن است در SERP کوتاه شود، اما محتوای مفید را حذف نکنید.';
+        }
+
         return [
             'key'    => 'desc_length',
             'label'  => 'طول توضیحات متا',
             'weight' => 15,
-            'status' => ($len >= Seo::DESC_MIN && $len <= Seo::DESC_MAX) ? self::OK
-                : (($len >= 80 && $len <= 175) ? self::WARN : self::FAIL),
-            'message' => $len . ' کاراکتر (بازه ایده‌آل ' . Seo::DESC_MIN . ' تا ' . Seo::DESC_MAX . ').',
+            'status' => $status,
+            'message' => $len . ' کاراکتر (بازه پیشنهادی ' . Seo::DESC_MIN . ' تا ' . Seo::DESC_MAX . '؛ گوگل طول را بر اساس نیاز کاربر و محتوا تنظیم می‌کند).' . $hint,
         ];
     }
 

@@ -250,10 +250,21 @@ class Auth
             $port = parse_url($ref, PHP_URL_PORT);
             if ($port) $origin .= ':' . $port;
         }
-        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-        $self = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? '');
-        if (rtrim($origin, '/') !== rtrim($self, '/')) {
-            self::rejectCsrf('مبدأ درخواست نامعتبر است.');
+        // برای جلوگیری از Host Header Injection، هاست معتبر را از Seo::base() می‌گیریم، نه HTTP_HOST
+        $base = \Core\Seo::base();
+        $baseHost = strtolower((string) parse_url($base, PHP_URL_HOST));
+        $originHost = strtolower((string) parse_url($origin, PHP_URL_HOST));
+        // اگر origin ارسال شده، باید با هاست معتبر سایت یا زیردامنه آن مطابقت داشته باشد
+        if ($origin !== '' && $originHost !== '' && $baseHost !== '') {
+            if ($originHost !== $baseHost && !str_ends_with($originHost, '.' . $baseHost) && !in_array($originHost, ['localhost', '127.0.0.1'], true)) {
+                self::rejectCsrf('مبدأ درخواست نامعتبر است.');
+            }
+        } else {
+            $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            $self = $scheme . '://' . ($_SERVER['HTTP_HOST'] ?? '');
+            if (rtrim($origin, '/') !== rtrim($self, '/')) {
+                self::rejectCsrf('مبدأ درخواست نامعتبر است.');
+            }
         }
     }
 

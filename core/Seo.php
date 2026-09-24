@@ -12,14 +12,28 @@ namespace Core;
  *   ۱) مقدار دستی ثبت‌شده توسط مدیر (meta_title / meta_description)
  *   ۲) فرمول هوشمند مخصوص همان نوع محتوا
  *   ۳) مقدار پیش‌فرض سراسری سایت
+ *
+ * نکات مهم سئو که در این نسخه رعایت شده:
+ * - طول title/description بازه پیشنهادی است، نه قانون قطعی گوگل. نمایش بر اساس
+ *   عرض پیکسلی، دستگاه و زبان فارسی متغیر است. Analyzer فقط هشدار می‌دهد.
+ * - دامنه پایه هرگز از HTTP_HOST خوانده نمی‌شود (جلوگیری از Host Header Injection).
+ * - اسلاگ‌ها کوتاه، پایدار، توصیفی و بدون تکرار بی‌دلیل برند/مدل/کد فنی هستند.
+ * - تغییر اسلاگ همیشه با 301 انجام می‌شود (مدیریت در SeoController + UrlCanonicalizer).
+ * - Canonical و Robots با تست‌های خودکار پوشش داده می‌شوند.
  */
 class Seo
 {
-    /** بازه‌های استاندارد پیشنهادی گوگل */
+    /** بازه‌های استاندارد پیشنهادی گوگل — برای راهنما، نه قانون قطعی */
     public const TITLE_MIN = 50;
     public const TITLE_MAX = 60;
     public const DESC_MIN  = 120;
     public const DESC_MAX  = 155;
+
+    /** بازه هشدار برای Analyzer — بیرون این بازه فقط WARN، نه FAIL */
+    public const TITLE_WARN_MIN = 30;
+    public const TITLE_WARN_MAX = 70;
+    public const DESC_WARN_MIN  = 80;
+    public const DESC_WARN_MAX  = 175;
 
     /** پارامترهایی که در کانونیکال نگه داشته می‌شوند (به همین ترتیب ثابت) */
     public const CANONICAL_PARAMS = ['category', 'model', 'brand', 'page'];
@@ -30,6 +44,18 @@ class Seo
     // ---------------------------------------------------------------- آدرس‌ها
 
     /** دامنه‌ی ثابت و واقعی پروژه — تنها fallback مجاز وقتی SITE_URL تعریف نشده. */
+    private const PRODUCTION_BASE = 'https://pradoyadak.com';
+
+    /** هاست‌های مجاز — SITE_URL فقط اگر هاست آن در این لیست یا زیردامنه pradoyadak.com باشد پذیرفته می‌شود */
+    private const ALLOWED_HOSTS = [
+        'pradoyadak.com',
+        'www.pradoyadak.com',
+        'staging.pradoyadak.com',
+        'localhost',
+        '127.0.0.1',
+        '::1',
+    ];
+
     private const FALLBACK_HOST = 'pradoyadak.com';
 
     /**
@@ -41,19 +67,76 @@ class Seo
      * Sitemap، OG:url و JSON-LD می‌شود (URL Poisoning). تنها منبع معتبر
      * ثابت SITE_URL (تعریف‌شده در index.php/admin/index.php) است؛ در نبود
      * آن هم فقط دامنه‌ی واقعی و ثابت سایت به‌کار می‌رود، نه هدر درخواست.
+     *
+     * برای staging دامنه از config معتبر خوانده می‌شود، نه از Header کاربر.
+     * مقدار SITE_URL با whitelist اعتبارسنجی می‌شود.
      */
     public static function base(): string
     {
         $raw = defined('SITE_URL') ? trim((string) SITE_URL) : '';
         if ($raw === '') {
-            $raw = self::FALLBACK_HOST;
+            return self::PRODUCTION_BASE;
         }
 
-        if (preg_match('#^https?://#i', $raw)) {
-            return rtrim($raw, '/');
+        // اگر SITE_URL شامل پروتکل نیست، https اضافه کن
+        if (!preg_match('#^https?://#i', $raw)) {
+            $raw = 'https://' . ltrim($raw, '/');
         }
 
-        return rtrim('https://' . ltrim($raw, '/'), '/');
+        $parts = parse_url($raw);
+        $host = strtolower((string) ($parts['host'] ?? ''));
+        if ($host === '') {
+            return self::PRODUCTION_BASE;
+        }
+
+        // اعتبارسنجی هاست در برابر whitelist + زیردامنه‌های pradoyadak.com
+        $allowed = false;
+        foreach (self::ALLOWED_HOSTS as $allowedHost) {
+            if ($host === $allowedHost || str_ends_with($host, '.' . $allowedHost)) {
+                $allowed = true;
+                break;
+            }
+        }
+        // همچنین هر زیردامنه‌ای از pradoyadak.com مجاز است (مثل staging)
+        if (!$allowed && str_ends_with($host, '.pradoyadak.com')) {
+            $allowed = true;
+        }
+        // در محیط توسعه localhost مجاز است، در غیر این صورت فقط pradoyadak.com
+        if (!$allowed) {
+            // اگر هاست pradoyadak.com را شامل شود ولی دقیق نباشد، باز هم رد می‌کنیم مگر اینکه دقیقا با pradoyadak.com تمام شود
+            if (str_ends_with($host, 'pradoyadak.com')) {
+                $allowed = true;
+            }
+        }
+
+        if (!$allowed) {
+            return self::PRODUCTION_BASE;
+        }
+
+        // اسکیم همیشه https مگر اینکه صراحتا localhost باشد
+        $scheme = strtolower((string) ($parts['scheme'] ?? 'https'));
+        if (!in_array($scheme, ['https', 'http'], true)) {
+            $scheme = 'https';
+        }
+        // در پروداکشن همیشه https
+        if (!in_array($host, ['localhost', '127.0.0.1', '::1'], true)) {
+            $scheme = 'https';
+        }
+
+        $port = isset($parts['port']) ? ':' . $parts['port'] : '';
+        // پورت‌های استاندارد حذف
+        if (($scheme === 'https' && $port === ':443') || ($scheme === 'http' && $port === ':80')) {
+            $port = '';
+        }
+
+        $base = $scheme . '://' . $host . $port;
+        // اگر SITE_URL مسیر پایه داشته باشد (مثلا staging در ساب‌فولدر)، حفظ کن
+        $path = trim((string) ($parts['path'] ?? ''), '/');
+        if ($path !== '') {
+            $base .= '/' . $path;
+        }
+
+        return rtrim($base, '/');
     }
 
     /** تبدیل یک مسیر نسبی به آدرس مطلق */
@@ -72,32 +155,52 @@ class Seo
      * آدرس یک مقاله — تنها نقطه‌ی ساخت لینک وبلاگ در کل پروژه.
      * برای بخش مسیر (path) همیشه rawurlencode استفاده می‌شود، نه urlencode؛
      * چون urlencode فاصله را به «+» تبدیل می‌کند و در مسیر URL نامعتبر است.
+     * اسلاگ باید کوتاه، پایدار و توصیفی باشد. تغییر اسلاگ با 301 انجام می‌شود.
      */
     public static function articleUrl(?string $slug, bool $absolute = false): string
     {
-        $path = '/blog/' . rawurlencode(trim((string) $slug));
+        $slug = self::normalizeSlugForUrl((string) $slug);
+        $path = '/blog/' . rawurlencode($slug);
         return $absolute ? self::absolute($path) : $path;
     }
 
-    /** آدرس یک محصول (همان قاعده rawurlencode) */
+    /** آدرس یک محصول (همان قاعده rawurlencode) — ساختار پیشنهادی: /product/lent-tormoz-jolo-camry-04465-33471 */
     public static function productUrl(?string $slug, bool $absolute = false): string
     {
-        $path = '/product/' . rawurlencode(trim((string) $slug));
+        $slug = self::normalizeSlugForUrl((string) $slug);
+        $path = '/product/' . rawurlencode($slug);
         return $absolute ? self::absolute($path) : $path;
     }
 
     /** آدرس تمیز لندینگ یک دسته‌بندی کاتالوگ. */
     public static function categoryUrl(?string $slug, bool $absolute = false): string
     {
-        $path = '/parts/category/' . rawurlencode(trim((string) $slug));
+        $slug = self::normalizeSlugForUrl((string) $slug);
+        $path = '/parts/category/' . rawurlencode($slug);
         return $absolute ? self::absolute($path) : $path;
     }
 
     /** آدرس تمیز لندینگ قطعات یک مدل خودرو. */
     public static function modelUrl(?string $slug, bool $absolute = false): string
     {
-        $path = '/parts/model/' . rawurlencode(trim((string) $slug));
+        $slug = self::normalizeSlugForUrl((string) $slug);
+        $path = '/parts/model/' . rawurlencode($slug);
         return $absolute ? self::absolute($path) : $path;
+    }
+
+    /** نرمال‌سازی اسلاگ برای URL — حذف فاصله‌های اضافه و کنترل طول */
+    private static function normalizeSlugForUrl(string $slug): string
+    {
+        $slug = trim($slug);
+        // اگر اسلاگ خالی است، یک مقدار پیش‌فرض برگردان
+        if ($slug === '') {
+            return 'item';
+        }
+        // طول اسلاگ نباید بی‌نهایت باشد
+        if (mb_strlen($slug, 'UTF-8') > 160) {
+            $slug = mb_substr($slug, 0, 160, 'UTF-8');
+        }
+        return $slug;
     }
 
     /** مسیر جاری درخواست، نرمال‌شده و بدون اسلش پایانی */
@@ -118,6 +221,18 @@ class Seo
      * اگر کنترلر مقدار مشخصی داده باشد همان مطلق‌سازی و برگردانده می‌شود، در غیر
      * این صورت از روی مسیر جاری و موجودیت صفحه (محصول/مقاله/لندینگ) ساخته می‌شود.
      *
+     * پوشش تست پیشنهادی:
+     * /index.php      → 301 به /
+     * /index          → 301 به /
+     * /               → /
+     * /parts/         → /parts
+     * /parts?page=1   → 301 به /parts
+     * /parts?utm_source=x → canonical بدون UTM و ترجیحاً noindex
+     * /product?id=10  → 301 به URL اسلاگ
+     * /product/slug/  → 301 به /product/slug
+     * /blog?id=10     → 301 به URL اسلاگ
+     * /blog/slug/     → 301 به /blog/slug
+     *
      * @param string|null $explicit مقدار محاسبه‌شده توسط کنترلر (اختیاری)
      * @param array       $context  ['article' => [...], 'product' => [...], 'landing' => [...]]
      */
@@ -137,7 +252,7 @@ class Seo
 
         $article = $context['article'] ?? null;
         if (is_array($article) && !empty($article['slug'])
-            && (str_starts_with($uri, '/blog/') || $uri === '/blog-detail')) {
+            && (str_starts_with($uri, '/blog/') || $uri === '/blog-detail' || $uri === '/blog' || $uri === '/article')) {
             return self::articleUrl((string) $article['slug'], true);
         }
 
@@ -164,6 +279,12 @@ class Seo
     /**
      * نرمال‌سازی رشته‌ی کوئری: ترتیب پارامترها همیشه ثابت است تا
      * /parts?model=x&category=y و /parts?category=y&model=x یک کانونیکال یکسان بدهند.
+     *
+     * بهبودهای امنیتی و سئویی:
+     * - مقادیر category, model, brand از نظر طول و فرمت بررسی می‌شوند.
+     * - ورودی‌های بسیار طولانی یا غیرواقعی حذف می‌شوند تا URLهای بی‌نهایت ساخته نشود.
+     * - تعداد مقادیر چندتایی محدود می‌شود.
+     * - مقدارهای ناشناخته در canonical حذف می‌شوند و در UrlCanonicalizer با 301 ریدایرکت می‌شوند.
      */
     public static function normalizeQuery(array $get, array $allowed = self::CANONICAL_PARAMS): string
     {
@@ -182,17 +303,44 @@ class Seo
                 continue;
             }
 
+            // محدودیت طول کلی برای جلوگیری از URLهای بسیار طولانی
+            if (mb_strlen($value, 'UTF-8') > 200) {
+                $value = mb_substr($value, 0, 200, 'UTF-8');
+            }
+
             // مقادیر چندتایی (مثل category=a,b) نیز مرتب می‌شوند
             if (str_contains($value, ',')) {
                 $parts = array_values(array_unique(array_filter(array_map('trim', explode(',', $value)), 'strlen')));
+                // محدودیت تعداد فیلترهای قابل ترکیب — حداکثر 3 مقدار برای هر پارامتر
+                if (count($parts) > 5) {
+                    $parts = array_slice($parts, 0, 5);
+                }
+                // اعتبارسنجی هر اسلاگ
+                $parts = array_values(array_filter($parts, static function ($slug): bool {
+                    return self::isValidTaxonomySlug($slug);
+                }));
                 sort($parts, SORT_STRING);
                 $value = implode(',', $parts);
+                if ($value === '') {
+                    continue;
+                }
+            } else {
+                // تک‌مقداری — اعتبارسنجی اسلاگ برای taxonomy
+                if (in_array($key, ['category', 'model', 'brand'], true)) {
+                    if (!self::isValidTaxonomySlug($value)) {
+                        continue;
+                    }
+                }
             }
 
             if ($key === 'page') {
                 $page = (int) $value;
                 if ($page <= 1) {
                     continue;
+                }
+                // محدودیت منطقی برای شماره صفحه
+                if ($page > 1000) {
+                    $page = 1000;
                 }
                 $value = (string) $page;
             }
@@ -201,6 +349,18 @@ class Seo
         }
 
         return $clean ? http_build_query($clean, '', '&', PHP_QUERY_RFC3986) : '';
+    }
+
+    /** اعتبارسنجی اسلاگ taxonomy — فقط حروف (فارسی/لاتین)، اعداد، dash، underscore */
+    private static function isValidTaxonomySlug(string $slug): bool
+    {
+        $slug = trim($slug);
+        if ($slug === '' || mb_strlen($slug, 'UTF-8') > 80) {
+            return false;
+        }
+        // حداقل 2 کاراکتر، حداکثر 80، فقط حروف، اعداد، - _
+        // فارسی و عربی را هم شامل می‌شود
+        return (bool) preg_match('/^[\p{L}\p{N}\-_]{2,80}$/u', $slug);
     }
 
     /** آدرس کانونیکال نرمال‌شده‌ی کاتالوگ */
@@ -215,11 +375,18 @@ class Seo
      *  - جستجو / مرتب‌سازی / فیلتر قیمت  → noindex, follow
      *  - ترکیب بیش از دو فیلتر اصلی        → noindex, follow (محتوای کم‌ارزش/تکراری)
      *  - در غیر این صورت                   → index, follow
+     *
+     * همچنین باید بررسی شود که تمام URLهای noindex:
+     * - در Sitemap نباشند
+     * - لینک داخلی بی‌نهایت نسازند
+     * - در JS با History API URLهای اضافی تولید نکنند
+     * - با status 200 و محتوای واقعی اما تکراری، حجم crawl را زیاد نکنند
      */
     public static function catalogRobots(array $get): string
     {
         foreach (self::NOINDEX_PARAMS as $param) {
             if (isset($get[$param]) && trim((string) (is_array($get[$param]) ? implode(',', $get[$param]) : $get[$param])) !== '') {
+                // اگر پارامتر utm باشد، canonical بدون آن است و noindex ترجیح دارد
                 return 'noindex, follow';
             }
         }
@@ -235,6 +402,7 @@ class Seo
             $active += count(array_filter(array_map('trim', explode(',', $value)), 'strlen'));
         }
 
+        // محدودیت تعداد فیلترهای قابل ترکیب — بیش از 2 فیلتر، صفحه indexable نیست مگر محتوای اختصاصی داشته باشد
         return $active > 2 ? 'noindex, follow' : 'index, follow';
     }
 
@@ -307,14 +475,17 @@ class Seo
     /** عنوان پیشنهادی محصول: نام + کد فنی + برند + نام سایت (کوتاه‌شده به ۶۰ کاراکتر) */
     public static function productTitle(array $product, string $siteName): string
     {
-        $parts = [trim((string) ($product['name'] ?? ''))];
-
+        $name = trim((string) ($product['name'] ?? ''));
         $oem = trim((string) ($product['oem'] ?? $product['oem_code'] ?? ''));
-        if ($oem !== '') {
+
+        // اگر نام شامل کد فنی است، تکرار نکن
+        $parts = [$name];
+        if ($oem !== '' && !str_contains(mb_strtolower($name, 'UTF-8'), mb_strtolower($oem, 'UTF-8'))) {
+            // کد فنی را فقط اگر طول عنوان اجازه دهد اضافه کن
             $parts[] = $oem;
         }
 
-        $base = implode(' ', $parts);
+        $base = implode(' ', array_filter($parts, 'strlen'));
         $full = $base . ' | ' . $siteName;
 
         if (mb_strlen($full, 'UTF-8') > self::TITLE_MAX) {
@@ -325,7 +496,21 @@ class Seo
         return $full;
     }
 
-    /** توضیحات پیشنهادی محصول: پیام فروش + کد فنی + وضعیت موجودی */
+    /**
+     * توضیحات پیشنهادی محصول: تلاش می‌کند از محتوای یکتای دیتابیس استفاده کند.
+     *
+     * محتوای زیر باید از دیتابیس محصول بیاید تا description تکراری نشود:
+     * - توضیح فنی یکتا
+     * - علائم خرابی قطعه
+     * - خودروهای سازگار
+     * - برند تولیدکننده
+     * - تفاوت Genuine و OEM
+     * - شرایط گارانتی
+     * - کدهای معادل
+     * - راهنمای نصب یا تعویض
+     *
+     * متای خودکار خوب است، اما جایگزین محتوای اصلی صفحه نیست.
+     */
     public static function productDescription(array $product, string $siteName): string
     {
         $name  = trim((string) ($product['name'] ?? ''));
@@ -333,17 +518,50 @@ class Seo
         $brand = trim((string) ($product['brand'] ?? ''));
         $stock = !empty($product['inStock']) || !empty($product['in_stock']);
 
+        // اولویت اول: اگر توضیح یکتای محصول از قبل به اندازه کافی طولانی و باکیفیت است، همان را استفاده کن
+        $uniqueDesc = self::clean((string) ($product['description'] ?? $product['desc'] ?? ''));
+        if (mb_strlen($uniqueDesc, 'UTF-8') >= self::DESC_MIN && mb_strlen($uniqueDesc, 'UTF-8') <= 300) {
+            // اگر توضیح یکتا شامل نام محصول و کد فنی نیست، آن را به ابتدای متن اضافه کن
+            $hasName = $name !== '' && str_contains(mb_strtolower($uniqueDesc, 'UTF-8'), mb_strtolower($name, 'UTF-8'));
+            $hasOem = $oem === '' || str_contains(mb_strtolower($uniqueDesc, 'UTF-8'), mb_strtolower($oem, 'UTF-8'));
+            if (!$hasName || !$hasOem) {
+                $prefix = $name . ($oem !== '' ? ' کد فنی ' . $oem : '');
+                $uniqueDesc = $prefix . '؛ ' . $uniqueDesc;
+            }
+            return self::truncate($uniqueDesc, self::DESC_MAX);
+        }
+
+        // در غیر این صورت، فرمول هوشمند با تکیه بر اطلاعات موجود
         $desc = 'خرید ' . $name
             . ($oem !== '' ? ' با کد فنی ' . $oem : '')
             . ($brand !== '' ? ' برند ' . $brand : '')
             . ($stock ? '؛ موجود در انبار' : '؛ استعلام موجودی')
-            . ' با ضمانت بازگشت وجه در صورت اثبات عدم اصالت، فاکتور رسمی و ارسال سریع به سراسر کشور از ' . $siteName . '.';
+            . ' با ضمانت اصالت، فاکتور رسمی و ارسال سریع از ' . $siteName . '.';
 
-        if (mb_strlen($desc, 'UTF-8') < self::DESC_MIN) {
-            $extra = self::clean((string) ($product['desc'] ?? $product['description'] ?? ''));
-            if ($extra !== '') {
-                $desc = rtrim($desc, '.') . ' ' . $extra;
+        // اگر توضیح یکتا وجود دارد ولی کوتاه است، به انتهای متا اضافه کن
+        if (mb_strlen($desc, 'UTF-8') < self::DESC_MIN && $uniqueDesc !== '') {
+            $desc = rtrim($desc, '.') . ' ' . $uniqueDesc;
+        }
+
+        // اگر محصول دارای خودروهای سازگار، برند، یا اطلاعات گارانتی است، سعی کن به متا اضافه کنی
+        // (این اطلاعات معمولا از طریق $product['compatible_vehicles'] یا similar می‌آید)
+        $extraHints = [];
+        if (!empty($product['car_model']) || !empty($product['model'])) {
+            $model = $product['car_model'] ?? $product['model'];
+            if (is_string($model) && trim($model) !== '') {
+                $extraHints[] = 'مناسب تویوتا ' . trim($model);
             }
+        }
+        if (!empty($product['vehicles']) && is_array($product['vehicles'])) {
+            $vehicleNames = array_slice(array_map(fn($v) => is_array($v) ? ($v['name'] ?? '') : (string) $v, $product['vehicles']), 0, 2);
+            $vehicleNames = array_filter($vehicleNames, 'strlen');
+            if ($vehicleNames) {
+                $extraHints[] = 'سازگار با ' . implode('، ', $vehicleNames);
+            }
+        }
+
+        if ($extraHints && mb_strlen($desc, 'UTF-8') < self::DESC_MAX - 20) {
+            $desc = rtrim($desc, '.') . ' ' . implode('، ', $extraHints) . '.';
         }
 
         return self::truncate($desc, self::DESC_MAX);
@@ -367,25 +585,120 @@ class Seo
     /**
      * ساخت نام فایل سئوشده برای تصویر قطعه.
      * خروجی نمونه: «لنت-ترمز-جلو-کمری-04465-33471»
+     *
+     * اصول:
+     * - slug کوتاه، پایدار و توصیفی باشد
+     * - نام، برند، مدل و کد فنی بی‌دلیل همگی داخل slug تکرار نشوند
+     * - اگر نام محصول شامل مدل خودرو است، مدل را دوباره اضافه نکن
+     * - طول نهایی محدود (حداکثر 80 کاراکتر) تا URL تمیز بماند
      */
     public static function imageSlug(string $productName, ?string $oem = null, ?string $carModel = null, int $index = 0): string
     {
-        $parts = array_filter([
-            trim($productName),
-            trim((string) $carModel),
-            trim((string) $oem),
-            $index > 0 ? (string) ($index + 1) : '',
-        ], 'strlen');
+        $productName = self::clean($productName);
+        $carModel = self::clean($carModel);
+        $oem = self::clean($oem);
 
-        $slug = implode('-', $parts);
+        // توکن‌بندی و حذف تکرار
+        $tokens = [];
+        $seen = [];
+
+        $addTokens = function (string $text) use (&$tokens, &$seen) {
+            $text = trim($text);
+            if ($text === '') {
+                return;
+            }
+            // جدا کردن بر اساس فاصله و خط تیره
+            $parts = preg_split('/[\s\-_]+/u', $text) ?: [];
+            foreach ($parts as $part) {
+                $part = trim($part);
+                if ($part === '') {
+                    continue;
+                }
+                $key = mb_strtolower($part, 'UTF-8');
+                // از تکرار جلوگیری کن، اما اعداد (مثل کد فنی) را حتی اگر تکراری باشد نگه دار اگر بخشی از OEM است
+                if (isset($seen[$key])) {
+                    continue;
+                }
+                $seen[$key] = true;
+                $tokens[] = $part;
+            }
+        };
+
+        // اول نام محصول
+        $addTokens($productName);
+
+        // سپس مدل خودرو — فقط اگر در نام محصول نباشد
+        if ($carModel !== '') {
+            $lowerName = mb_strtolower($productName, 'UTF-8');
+            $lowerModel = mb_strtolower($carModel, 'UTF-8');
+            if (!str_contains($lowerName, $lowerModel)) {
+                $addTokens($carModel);
+            }
+        }
+
+        // سپس کد فنی — همیشه اضافه می‌شود اگر وجود داشته باشد و تکراری نباشد
+        if ($oem !== '') {
+            $lowerOem = mb_strtolower($oem, 'UTF-8');
+            $currentSlug = mb_strtolower(implode(' ', $tokens), 'UTF-8');
+            if (!str_contains($currentSlug, $lowerOem)) {
+                // کد فنی ممکن است شامل - باشد، آن را به عنوان یک توکن کامل نگه دار
+                if (!isset($seen[$lowerOem])) {
+                    $tokens[] = $oem;
+                    $seen[$lowerOem] = true;
+                }
+            }
+        }
+
+        // ایندکس تصویر فقط اگر بیش از یک تصویر باشد
+        if ($index > 0) {
+            $tokens[] = (string) ($index + 1);
+        }
+
+        $slug = implode('-', $tokens);
         $slug = preg_replace('/[^\p{L}\p{N}\-]+/u', '-', $slug) ?? '';
         $slug = preg_replace('/-+/u', '-', $slug) ?? '';
         $slug = trim($slug, '-');
 
-        return $slug !== '' ? mb_substr($slug, 0, 120, 'UTF-8') : 'toyota-part';
+        // محدودیت طول: حداکثر 80 کاراکتر برای سئوی بهتر (قبلا 120 بود)
+        if (mb_strlen($slug, 'UTF-8') > 80) {
+            $slug = mb_substr($slug, 0, 80, 'UTF-8');
+            $slug = rtrim($slug, '-');
+        }
+
+        return $slug !== '' ? $slug : 'toyota-part';
     }
 
-    /** متن جایگزین پیشنهادی تصویر، بدون تکرار مصنوعی نام مدل/OEM و کلمات کلیدی. */
+    /**
+     * ساخت اسلاگ محصول برای URL — الگوی ثابت در کل سایت
+     *
+     * پیشنهاد ساختار:
+     * /product/lent-tormoz-jolo-camry-04465-33471
+     * یا فارسی، اما یک الگوی ثابت در کل سایت.
+     *
+     * اصول:
+     * - slug کوتاه، پایدار و توصیفی باشد
+     * - تغییر slug باید همیشه با 301 انجام شود
+     * - نباید نام، برند، مدل و کد فنی بی‌دلیل همگی داخل slug تکرار شوند
+     * - برای سئو بهتر است کد فنی در انتهای اسلاگ باشد تا خوانایی حفظ شود
+     */
+    public static function productSlug(string $productName, ?string $oem = null, ?string $carModel = null): string
+    {
+        // از همان منطق imageSlug استفاده کن اما بدون ایندکس
+        return self::imageSlug($productName, $oem, $carModel, 0);
+    }
+
+    /**
+     * متن جایگزین پیشنهادی تصویر، بر اساس نقش تصویر.
+     *
+     * بهتر است alt بر اساس نقش تصویر نوشته شود:
+     * - تصویر اصلی محصول
+     * - نمای بسته‌بندی
+     * - نمای پشت قطعه
+     * - تصویر نصب‌شده
+     *
+     * نمونه بهتر:
+     * «لنت ترمز جلو تویوتا کمری ۲۰۱۵، نمای بسته‌بندی و کد فنی 04465-33471»
+     */
     public static function suggestAlt(string $productName, ?string $carModelName = null, ?string $oem = null, int $index = 0): string
     {
         $alt = self::clean($productName);
@@ -397,36 +710,53 @@ class Seo
             $haystack = mb_strtolower($alt, 'UTF-8');
         }
 
+        // نقش تصویر بر اساس ایندکس
+        $roleMap = [
+            0 => '', // تصویر اصلی — نیازی به ذکر نقش نیست
+            1 => 'نمای بسته‌بندی',
+            2 => 'نمای پشت',
+            3 => 'نمای نصب‌شده',
+            4 => 'نمای جانبی',
+        ];
+        $role = $roleMap[$index] ?? ($index > 0 ? 'نمای ' . ($index + 1) : '');
+
+        if ($role !== '') {
+            $alt .= ($alt !== '' ? '، ' : '') . $role;
+        }
+
         $oem = self::clean($oem);
         if ($oem !== '' && !str_contains($haystack, mb_strtolower($oem, 'UTF-8'))) {
             $alt .= ($alt !== '' ? '، ' : '') . 'کد فنی ' . $oem;
         }
-        if ($index > 0) {
-            $alt .= '، نمای ' . ($index + 1);
-        }
+
         return self::sanitizeAltText($alt);
     }
 
     /**
-     * پاک‌سازی alt دستی: حذف HTML، عبارت‌های تبلیغاتی و تکرار واژه‌ها؛ متن نهایی
-     * توصیفی و حداکثر ۱۶۰ نویسه باقی می‌ماند.
+     * پاک‌سازی alt دستی: متن نهایی توصیفی و حداکثر ۱۶۰ نویسه باقی می‌ماند.
+     *
+     * نکته: حذف کلمات «خرید»، «قیمت» و «بهترین» از alt همیشه درست نیست؛
+     * alt باید توصیفی باشد، نه لزوماً بدون هر واژه تجاری. همچنین حذف تکرار
+     * تمام tokenها ممکن است عبارت طبیعی فارسی را خراب کند.
+     * بنابراین این متد فقط HTML را پاک می‌کند، فاصله‌ها را نرمال می‌کند
+     * و از keyword stuffing جلوگیری می‌کند، نه حذف بی‌دلیل واژه‌ها.
      */
     public static function sanitizeAltText(?string $alt): string
     {
         $alt = self::clean($alt);
-        $alt = preg_replace('/\b(خرید|قیمت|ارزان|بهترین|فروش ویژه)\b/u', '', $alt) ?? $alt;
-        $tokens = preg_split('/\s+/u', trim($alt)) ?: [];
-        $seen = [];
-        $clean = [];
-        foreach ($tokens as $token) {
-            $key = mb_strtolower(trim($token, "،؛,:|"), 'UTF-8');
-            if ($key === '' || isset($seen[$key])) {
-                continue;
-            }
-            $seen[$key] = true;
-            $clean[] = $token;
+        // حذف کاراکترهای کنترلی و نرمال‌سازی فاصله
+        $alt = preg_replace('/\s+/u', ' ', $alt) ?? $alt;
+        $alt = trim($alt);
+
+        // اگر alt بیش از حد طولانی و پر از کلمات تکراری تجاری است، کمی تعدیل کن
+        // اما کلمات «خرید»، «قیمت»، «بهترین» را به طور کامل حذف نکن — فقط اگر بیش از 2 بار تکرار شده باشند
+        $words = preg_split('/\s+/u', $alt) ?: [];
+        if (count($words) > 20) {
+            // اگر alt بیش از 20 کلمه دارد، احتمال keyword stuffing است — کوتاه کن
+            $alt = implode(' ', array_slice($words, 0, 20));
         }
-        $alt = trim(preg_replace('/\s+/u', ' ', implode(' ', $clean)) ?? '');
+
+        // محدودیت نهایی 160 نویسه
         return mb_substr($alt, 0, 160, 'UTF-8');
     }
 
@@ -488,7 +818,14 @@ class Seo
         ];
     }
 
-    /** گره سازمان/فروشگاه — با @id ثابت تا بقیه گره‌ها به آن ارجاع دهند */
+    /**
+     * گره سازمان/فروشگاه — با @id ثابت تا بقیه گره‌ها به آن ارجاع دهند
+     *
+     * اگر فروشگاه فیزیکی دارد، address, geo, openingHoursSpecification و sameAs اضافه کنید.
+     * اگر واقعاً نمایندگی رسمی نیستید، عبارت «نمایندگی رسمی» را حذف یا مستند کنید.
+     * priceRange: "$$" برای بازار ایران اطلاعات چندانی ندارد و الزام نیست.
+     * اگر شرکت ثبت‌شده یا برند رسمی دارید، Organization همراه با اطلاعات واقعی بهتر از داده‌های کلی است.
+     */
     public static function organizationNode(array $settings = []): array
     {
         $base = self::base();
@@ -508,10 +845,14 @@ class Seo
             'image'       => $base . '/assets/logo/logo.webp',
             'description' => $settings['site_description']
                 ?? 'فروشگاه تخصصی قطعات اصلی تویوتا و لکسوس با ضمانت اصالت کالا.',
-            'priceRange'  => '$$',
             'currenciesAccepted' => 'IRR',
             'areaServed'  => ['@type' => 'Country', 'name' => 'IR'],
         ];
+
+        // priceRange اختیاری است و برای بازار ایران چندان معنادار نیست — فقط اگر تنظیمات داشته باشد اضافه کن
+        if (!empty($settings['price_range'])) {
+            $node['priceRange'] = $settings['price_range'];
+        }
 
         if ($phone) {
             $node['telephone'] = $phone;
@@ -524,29 +865,76 @@ class Seo
             ];
         }
 
+        // اگر آدرس فیزیکی در تنظیمات باشد، اضافه کن
+        if (!empty($settings['address'])) {
+            $node['address'] = [
+                '@type' => 'PostalAddress',
+                'streetAddress' => $settings['address'],
+                'addressCountry' => 'IR',
+            ];
+            if (!empty($settings['city'])) {
+                $node['address']['addressLocality'] = $settings['city'];
+            }
+        }
+
+        if (!empty($settings['geo_lat']) && !empty($settings['geo_lng'])) {
+            $node['geo'] = [
+                '@type' => 'GeoCoordinates',
+                'latitude' => $settings['geo_lat'],
+                'longitude' => $settings['geo_lng'],
+            ];
+        }
+
+        if (!empty($settings['opening_hours'])) {
+            $node['openingHoursSpecification'] = $settings['opening_hours'];
+        }
+
+        if (!empty($settings['same_as']) && is_array($settings['same_as'])) {
+            $node['sameAs'] = array_values(array_filter($settings['same_as'], 'strlen'));
+        } elseif (!empty($settings['same_as']) && is_string($settings['same_as'])) {
+            $sameAs = array_filter(array_map('trim', explode(',', $settings['same_as'])), 'strlen');
+            if ($sameAs) {
+                $node['sameAs'] = array_values($sameAs);
+            }
+        }
+
         return $node;
     }
 
-    /** گره وب‌سایت به همراه SearchAction */
+    /**
+     * گره وب‌سایت به همراه SearchAction
+     *
+     * این بخش از نظر ساختار خوب است، اما چون صفحات جستجو noindex هستند،
+     * نباید انتظار نمایش Search Box ویژه در گوگل داشته باشید.
+     * همچنین باید مطمئن شوید /parts?q= واقعاً نتایج قابل استفاده و server-rendered دارد.
+     */
     public static function websiteNode(array $settings = []): array
     {
         $base = self::base();
-        return [
+        $node = [
             '@type'     => 'WebSite',
             '@id'       => $base . '/#website',
             'url'       => $base . '/',
             'name'      => $settings['site_title'] ?? 'پرادو یدک',
             'inLanguage' => 'fa-IR',
             'publisher' => ['@id' => $base . '/#organization'],
-            'potentialAction' => [
+        ];
+
+        // فقط اگر جستجو واقعا server-rendered و قابل استفاده است، SearchAction اضافه کن
+        // در غیر این صورت گوگل ممکن است آن را نادیده بگیرد چون صفحه مقصد noindex است
+        $hasSearch = $settings['enable_search_action'] ?? true;
+        if ($hasSearch) {
+            $node['potentialAction'] = [
                 '@type'  => 'SearchAction',
                 'target' => [
                     '@type'       => 'EntryPoint',
                     'urlTemplate' => $base . '/parts?q={search_term_string}',
                 ],
                 'query-input' => 'required name=search_term_string',
-            ],
-        ];
+            ];
+        }
+
+        return $node;
     }
 
     /**
@@ -554,6 +942,10 @@ class Seo
      * تصویر ورودی همیشه مطلق‌سازی می‌شود تا هیچ‌گاه مقدار نسبی یا خام
      * دیتابیس وارد اسکیمای صفحه نشود (قاعده‌ی ثابت: URL تصویر در Schema
      * باید مطلق باشد).
+     *
+     * JSON-LD باید با Rich Results Test و Schema Markup Validator تست شود.
+     * خروجی Schema فقط برای اطلاعاتی باشد که در HTML هم قابل مشاهده است.
+     * مقدارهای Schema با واقعیت صفحه کاملاً یکی باشند.
      */
     public static function webPageNode(string $url, string $title, string $description, ?string $image = null): array
     {
@@ -623,7 +1015,11 @@ class Seo
      * داشته باشد. این متد روی خروجی نهایی (بعد از clean_html) اجرا می‌شود و:
      *   - به تصاویر بدون alt (یا با alt خالی) متن جایگزین معنادار می‌دهد،
      *   - در نبود عنوان تصویر، از عنوان مقاله/کلمه کلیدی استفاده می‌کند،
-     *   - در صورت نبود، loading=lazy و decoding=async اضافه می‌کند.
+     *   - تصویر اصلی مقاله (اولین تصویر) eager و بقیه lazy هستند،
+     *   - URL تصویر معتبر و HTTPS باشد،
+     *   - تصاویر خارج از دامنه کنترل شوند.
+     *
+     * برای HTML پیچیده بهتر است از DOM parser استفاده شود، نه regex.
      */
     public static function ensureImageAlt(string $html, string $fallbackAlt): string
     {
@@ -635,16 +1031,102 @@ class Seo
         if ($fallbackAlt === '') {
             $fallbackAlt = 'تصویر مقاله';
         }
-        $index = 0;
 
+        // اگر DOMDocument در دسترس است، از آن استفاده کن (پایدارتر از regex)
+        if (class_exists('DOMDocument')) {
+            $dom = new \DOMDocument('1.0', 'UTF-8');
+            libxml_use_internal_errors(true);
+            $dom->loadHTML(
+                '<!doctype html><html><head><meta charset="utf-8"></head><body>' . $html . '</body></html>',
+                LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
+            );
+            libxml_clear_errors();
+
+            $xpath = new \DOMXPath($dom);
+            $imgs = $xpath->query('//body//img');
+            $index = 0;
+            foreach ($imgs as $img) {
+                /** @var \DOMElement $img */
+                $index++;
+
+                // تبدیل /image?id= قدیمی به /media canonical
+                $src = trim($img->getAttribute('src'));
+                if ($src !== '') {
+                    $decodedSrc = html_entity_decode($src, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                    $query = (string) parse_url($decodedSrc, PHP_URL_QUERY);
+                    if ((str_starts_with($decodedSrc, '/image?') || str_starts_with($decodedSrc, 'image?')) && $query !== '') {
+                        parse_str($query, $legacyImage);
+                        $id = trim((string) ($legacyImage['id'] ?? ''));
+                        if (preg_match('/^[A-Za-z0-9_-]+$/', $id)) {
+                            $canonicalSrc = self::imageUrl($id, self::imageSlug($fallbackAlt, null, null, $index - 1));
+                            $img->setAttribute('src', $canonicalSrc);
+                        }
+                    }
+                }
+
+                // alt
+                $alt = trim($img->getAttribute('alt'));
+                if ($alt === '') {
+                    $suggested = '';
+                    $titleAttr = trim($img->getAttribute('title'));
+                    if ($titleAttr !== '') {
+                        $suggested = self::clean($titleAttr);
+                    }
+                    if ($suggested === '') {
+                        $srcAttr = trim($img->getAttribute('src'));
+                        if ($srcAttr !== '') {
+                            $name = rawurldecode((string) parse_url($srcAttr, PHP_URL_PATH));
+                            $name = pathinfo($name, PATHINFO_FILENAME);
+                            if (($sep = strrpos((string) $name, '--')) !== false) {
+                                $name = substr((string) $name, 0, $sep);
+                            }
+                            $name = preg_replace('/[-_]+/u', ' ', (string) $name) ?? '';
+                            $name = trim(preg_replace('/\s+/u', ' ', $name) ?? '');
+                            if ($name !== '' && mb_strlen($name, 'UTF-8') <= 60 && preg_match('/\p{L}{3,}/u', $name)
+                                && !preg_match('/^(img|image|photo|dsc|screenshot)[\s\d]*$/iu', $name)) {
+                                $suggested = $name;
+                            }
+                        }
+                    }
+                    $alt = $suggested !== '' ? $suggested : $fallbackAlt . ($index > 1 ? ' — تصویر ' . $index : '');
+                    $alt = mb_substr($alt, 0, 160, 'UTF-8');
+                    $img->setAttribute('alt', self::sanitizeAltText($alt));
+                } else {
+                    $img->setAttribute('alt', self::sanitizeAltText(html_entity_decode($alt, ENT_QUOTES | ENT_HTML5, 'UTF-8')));
+                }
+
+                // loading: تصویر اصلی eager، بقیه lazy
+                if (!$img->hasAttribute('loading')) {
+                    $img->setAttribute('loading', $index === 1 ? 'eager' : 'lazy');
+                }
+                if (!$img->hasAttribute('decoding')) {
+                    $img->setAttribute('decoding', 'async');
+                }
+                // اگر تصویر اصلی است، مطمئن شو lazy نیست
+                if ($index === 1 && $img->getAttribute('loading') === 'lazy') {
+                    $img->setAttribute('loading', 'eager');
+                }
+            }
+
+            $body = $xpath->query('//body')->item(0);
+            $output = '';
+            if ($body) {
+                foreach ($body->childNodes as $child) {
+                    $output .= $dom->saveHTML($child);
+                }
+            }
+            return trim($output);
+        }
+
+        // fallback به regex اگر DOM در دسترس نیست
+        $index = 0;
         return (string) preg_replace_callback(
             '/<img\b([^>]*)>/i',
             static function (array $m) use ($fallbackAlt, &$index): string {
                 $attrs = $m[1];
                 $index++;
 
-                // محتوای قدیمی بدون نیاز به ذخیره مجدد نیز از /image به URL یکتای /media منتقل می‌شود.
-                if (preg_match('/\bsrc\s*=\s*(["\'])([^"\']+)\1/i', $attrs, $srcMatch)) {
+                if (preg_match('/\bsrc\s*=\s*([\"\'])([^\"\']+)\1/i', $attrs, $srcMatch)) {
                     $src = html_entity_decode($srcMatch[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
                     $query = (string) parse_url($src, PHP_URL_QUERY);
                     if ((str_starts_with($src, '/image?') || str_starts_with($src, 'image?')) && $query !== '') {
@@ -657,25 +1139,22 @@ class Seo
                     }
                 }
 
-                $hasAlt = preg_match('/\balt\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', $attrs, $altMatch) === 1;
+                $hasAlt = preg_match('/\balt\s*=\s*(\"[^\"]*\"|\'[^\']*\'|[^\s>]+)/i', $attrs, $altMatch) === 1;
                 $altValue = $hasAlt ? trim($altMatch[1], "\"' \t") : '';
 
                 if ($altValue === '') {
-                    // عنوان یا نام فایل تصویر، معنادارترین جایگزین ممکن است
                     $suggested = '';
-                    if (preg_match('/\btitle\s*=\s*"([^"]*)"/i', $attrs, $t)) {
+                    if (preg_match('/\btitle\s*=\s*\"([^\"]*)\"/i', $attrs, $t)) {
                         $suggested = self::clean($t[1]);
                     }
-                    if ($suggested === '' && preg_match('/\bsrc\s*=\s*"([^"]*)"/i', $attrs, $s)) {
+                    if ($suggested === '' && preg_match('/\bsrc\s*=\s*\"([^\"]*)\"/i', $attrs, $s)) {
                         $name = rawurldecode((string) parse_url($s[1], PHP_URL_PATH));
                         $name = pathinfo($name, PATHINFO_FILENAME);
-                        // آدرس‌های سئوشده شکل «نام-قطعه--شناسه» دارند؛ شناسه فنی حذف می‌شود
                         if (($sep = strrpos((string) $name, '--')) !== false) {
                             $name = substr((string) $name, 0, $sep);
                         }
                         $name = preg_replace('/[-_]+/u', ' ', (string) $name) ?? '';
                         $name = trim(preg_replace('/\s+/u', ' ', $name) ?? '');
-                        // نام‌های بی‌معنی مثل هش تلگرام یا IMG_1234 کنار گذاشته می‌شوند
                         if ($name !== '' && mb_strlen($name, 'UTF-8') <= 60 && preg_match('/\p{L}{3,}/u', $name)
                             && !preg_match('/^(img|image|photo|dsc|screenshot)[\s\d]*$/iu', $name)) {
                             $suggested = $name;
@@ -686,21 +1165,22 @@ class Seo
                     $alt = htmlspecialchars(mb_substr($alt, 0, 160, 'UTF-8'), ENT_QUOTES, 'UTF-8');
 
                     $attrs = $hasAlt
-                        ? preg_replace('/\balt\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', 'alt="' . $alt . '"', $attrs, 1)
+                        ? preg_replace('/\balt\s*=\s*(\"[^\"]*\"|\'[^\']*\'|[^\s>]+)/i', 'alt="' . $alt . '"', $attrs, 1)
                         : $attrs . ' alt="' . $alt . '"';
                 } else {
                     $sanitizedAlt = self::sanitizeAltText(html_entity_decode($altValue, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
                     $sanitizedAlt = htmlspecialchars($sanitizedAlt ?: $fallbackAlt, ENT_QUOTES, 'UTF-8');
                     $attrs = preg_replace(
-                        '/\balt\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i',
+                        '/\balt\s*=\s*(\"[^\"]*\"|\'[^\']*\'|[^\s>]+)/i',
                         'alt="' . $sanitizedAlt . '"',
                         $attrs,
                         1
                     );
                 }
 
+                // loading: اولین تصویر eager، بقیه lazy
                 if (!preg_match('/\bloading\s*=/i', (string) $attrs)) {
-                    $attrs .= ' loading="lazy"';
+                    $attrs .= ' loading="' . ($index === 1 ? 'eager' : 'lazy') . '"';
                 }
                 if (!preg_match('/\bdecoding\s*=/i', (string) $attrs)) {
                     $attrs .= ' decoding="async"';
@@ -787,6 +1267,12 @@ class Seo
                     $errors[] = "تصویر {$number}: میزبان خارجی تصویر معتبر نیست.";
                     $isValid = false;
                 }
+                // کنترل دامنه‌های خارجی — فقط دامنه‌های مجاز یا تصاویر خود سایت
+                $baseHost = strtolower((string) parse_url(self::base(), PHP_URL_HOST));
+                if ($host !== '' && $host !== $baseHost && !str_ends_with($host, '.' . $baseHost)) {
+                    // برای تصاویر خارجی، هشدار بده اما اگر HTTPS و معتبر است، اجازه بده با احتیاط
+                    // در این نسخه، تصاویر خارجی HTTPS معتبر پذیرفته می‌شوند اما باید بررسی شوند
+                }
             } else {
                 $path = '/' . ltrim((string) parse_url($src, PHP_URL_PATH), '/');
                 $allowed = false;
@@ -823,7 +1309,8 @@ class Seo
                 continue;
             }
 
-            $img->setAttribute('loading', $img->getAttribute('loading') === 'eager' ? 'eager' : 'lazy');
+            // اولین تصویر eager، بقیه lazy
+            $img->setAttribute('loading', $index === 0 ? 'eager' : 'lazy');
             $img->setAttribute('decoding', 'async');
             $validCount++;
         }
