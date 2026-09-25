@@ -5,6 +5,59 @@ $maxSum = max(1, max(array_column($series, 'sum')));
 $growth = $stats['revenue_growth'];
 ?>
 
+<style>
+    /* هشدارها و یادآورهای پیشخوان */
+    .dash-alert { display: flex; align-items: center; gap: 11px; padding: 10px 12px;
+        border-radius: 12px; border: 1px solid transparent; margin-bottom: 8px; }
+    .dash-alert .al-ic { width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+        display: flex; align-items: center; justify-content: center; }
+    .dash-alert .al-main { flex: 1; min-width: 0; }
+    .dash-alert .al-main b { display: block; font-size: 12.5px; }
+    .dash-alert .al-main span { display: block; font-size: 11px; color: var(--muted); }
+    .dash-alert .al-ops { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .dash-alert .al-x { background: none; border: 0; cursor: pointer; font-size: 16px;
+        color: var(--muted); padding: 4px 8px; border-radius: 8px; line-height: 1;
+        font-family: inherit; }
+    .dash-alert .al-x:hover { background: rgba(0,0,0,.06); color: var(--ink); }
+    .al-danger { background: #fff1f2; border-color: #fecdd3; }
+    .al-danger .al-ic { background: #fff; color: #be123c; }
+    .al-warn { background: #fffbeb; border-color: #fde68a; }
+    .al-warn .al-ic { background: #fff; color: #b45309; }
+    .al-info { background: #eff6ff; border-color: #bfdbfe; }
+    .al-info .al-ic { background: #fff; color: #1d4ed8; }
+    .dash-ok { text-align: center; padding: 16px; color: #047857; font-size: 12.5px;
+        font-weight: 700; background: #ecfdf5; border: 1px dashed #a7f3d0; border-radius: 12px; }
+    @media (max-width: 640px) {
+        .dash-alert { flex-wrap: wrap; }
+        .dash-alert .al-ops { width: 100%; justify-content: flex-end; padding-top: 2px; }
+    }
+</style>
+
+<div class="card mb" id="alerts-card">
+    <div class="card-head">
+        <h3 class="flex items-center" style="gap:7px">
+            <i data-lucide="bell-ring" style="width:15px"></i> هشدارها و یادآورها
+        </h3>
+        <span class="hint" id="alerts-count"><?= money(count($alerts)) ?> مورد</span>
+    </div>
+    <div class="card-body" id="alerts-list" style="padding-top:10px">
+        <?php foreach ($alerts as $a): ?>
+            <div class="dash-alert al-<?= e($a['level']) ?>" data-alert="<?= e($a['key']) ?>">
+                <div class="al-ic"><i data-lucide="<?= e($a['icon']) ?>" style="width:17px"></i></div>
+                <div class="al-main">
+                    <b><?= e($a['title']) ?></b>
+                    <span><?= e($a['desc']) ?></span>
+                </div>
+                <div class="al-ops">
+                    <a class="btn btn-sm" href="<?= e($a['url']) ?>"><?= e($a['action']) ?></a>
+                    <button type="button" class="al-x" title="مخفی کردن برای ۱۲ ساعت">&times;</button>
+                </div>
+            </div>
+        <?php endforeach; ?>
+        <div class="dash-ok" id="alerts-ok" <?= $alerts ? 'style="display:none"' : '' ?>>✅ همه‌چیز مرتب است؛ هشدار یا یادآور جدیدی وجود ندارد.</div>
+    </div>
+</div>
+
 <div class="grid g4 mb">
     <div class="stat">
         <div class="ic-box"><i data-lucide="banknote" style="width:17px"></i></div>
@@ -231,3 +284,87 @@ $growth = $stats['revenue_growth'];
         </div>
     <?php endif; ?>
 </div>
+
+<script>
+// ===================== هشدارها و یادآورهای پیشخوان =====================
+(function () {
+    const list = document.getElementById('alerts-list');
+    if (!list) return;
+
+    const HIDE_MS = 12 * 3600 * 1000; // مخفی‌سازی موقت: ۱۲ ساعت
+    const sKey = k => 'py_alert_' + k;
+
+    function visibleCount() { return list.querySelectorAll('.dash-alert').length; }
+
+    function refresh() {
+        const n = visibleCount();
+        const counter = document.getElementById('alerts-count');
+        const ok = document.getElementById('alerts-ok');
+        if (counter) counter.textContent = n ? n.toLocaleString('fa-IR') + ' مورد' : 'بدون هشدار فعال';
+        if (ok) ok.style.display = n ? 'none' : 'block';
+    }
+
+    function hideRow(row, persist) {
+        if (!row) return;
+        if (persist && row.dataset.alert) {
+            try { localStorage.setItem(sKey(row.dataset.alert), String(Date.now() + HIDE_MS)); } catch (err) {}
+        }
+        row.remove();
+        refresh();
+    }
+
+    // هشدارهایی که مدیر قبلاً برای همین روز رد کرده است، دوباره نشان داده نشوند
+    list.querySelectorAll('.dash-alert[data-alert]').forEach(row => {
+        let until = 0;
+        try { until = parseInt(localStorage.getItem(sKey(row.dataset.alert)) || '0', 10); } catch (err) {}
+        if (until > Date.now()) row.remove();
+    });
+
+    list.addEventListener('click', e => {
+        const x = e.target.closest('.al-x');
+        if (x) hideRow(x.closest('.dash-alert'), true);
+    });
+
+    // هشدار لحظه‌ای: سفارش جدیدی که در حین بودن در پیشخوان ثبت می‌شود
+    document.addEventListener('admin:live-alert', ev => {
+        (ev.detail || []).forEach(n => {
+            if (n.type !== 'order') return;
+            const row = document.createElement('div');
+            row.className = 'dash-alert al-info';
+            row.dataset.alert = 'live-order-' + Date.now();
+
+            const ic = document.createElement('div');
+            ic.className = 'al-ic';
+            ic.innerHTML = '<i data-lucide="shopping-bag" style="width:17px"></i>';
+
+            const main = document.createElement('div');
+            main.className = 'al-main';
+            const b = document.createElement('b');
+            b.textContent = n.title || 'سفارش جدید ثبت شد';
+            const sp = document.createElement('span');
+            sp.textContent = n.body || '';
+            main.append(b, sp);
+
+            const ops = document.createElement('div');
+            ops.className = 'al-ops';
+            const a = document.createElement('a');
+            a.className = 'btn btn-sm btn-primary';
+            a.href = n.url || <?= json_encode(admin_url('orders')) ?>;
+            a.textContent = 'مشاهده سفارش';
+            const x = document.createElement('button');
+            x.type = 'button';
+            x.className = 'al-x';
+            x.title = 'مخفی کردن';
+            x.innerHTML = '&times;';
+            ops.append(a, x);
+
+            row.append(ic, main, ops);
+            list.prepend(row);
+            refreshIcons();
+            refresh();
+        });
+    });
+
+    refresh();
+})();
+</script>

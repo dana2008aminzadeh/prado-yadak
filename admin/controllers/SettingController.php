@@ -56,6 +56,9 @@ class SettingController extends BaseController
             'admin_notify_sound'   => ['پخش صدا هنگام رویداد جدید', 'bool'],
             'admin_poll_interval'  => ['فاصله بررسی اعلان‌ها (ثانیه)', 'text'],
         ],
+        'پیشخوان و هشدارها' => [
+            'content_alert_days' => ['بیشینه فاصله مجاز بین انتشار مقاله‌ها (روز)', 'text'],
+        ],
         'Search Console و مانیتورینگ' => [
             'gsc_verification_content' => ['کد تایید Google Search Console (فقط محتوای content=)', 'text'],
             'bing_verification_content' => ['کد تایید Bing Webmaster Tools (فقط محتوای content=)', 'text'],
