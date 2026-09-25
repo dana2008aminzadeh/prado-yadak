@@ -10,8 +10,8 @@ class Database
     private $pdo;
 
     private $host = 'localhost';
-    private $db_name = 'danasvip_pradoyadak';
-    private $username = 'danasvip_pradoyadak';
+    private $db_name = 'pradoyad_pradoyadak';
+    private $username = 'pradoyad_pradoyadak';
     private $password = '1Ob{&XPQ*G^EX8eE';
     private $charset = 'utf8mb4';
 
