@@ -116,14 +116,15 @@ $menu = [
         .p-10 { padding: 40px; } .p-6 { padding: 24px; }
 
         .grid { display: grid; gap: 15px; }
+        .grid > * { min-width: 0; }
         .g2 { grid-template-columns: repeat(2, minmax(0,1fr)); }
         .g3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
         .g4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
         @media (max-width:1100px){ .g4{grid-template-columns:repeat(2,minmax(0,1fr))} .g3{grid-template-columns:repeat(2,minmax(0,1fr))} }
         @media (max-width:720px){
-            .g2,.g3,.g4{grid-template-columns:1fr}
-            /* چیدمان‌های دوستونه با استایل inline هم در موبایل تک‌ستونه شوند */
-            .grid[style]{grid-template-columns:1fr !important}
+            .g2,.g3,.g4{grid-template-columns:minmax(0,1fr)}
+            /* جدول یا محتوای بلند نباید عرض ستون تک‌ستونه را افزایش دهد. */
+            .grid[style]{grid-template-columns:minmax(0,1fr) !important}
             .row-repeat[style], .row-repeat{grid-template-columns:1fr !important}
             .row-repeat > .btn{justify-self:start;min-width:64px}
             .p-10{padding:18px} .p-6{padding:15px}
@@ -135,7 +136,7 @@ $menu = [
             .stat .val { font-size: 19px; }
         }
         @media (max-width:480px){
-            .userbox .sub { display: none; }
+            .userbox { display: none; }
             .topbar { gap: 8px; padding: 10px 12px; }
         }
 

@@ -12,8 +12,8 @@ $growth = $stats['revenue_growth'];
     .dash-alert .al-ic { width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
         display: flex; align-items: center; justify-content: center; }
     .dash-alert .al-main { flex: 1; min-width: 0; }
-    .dash-alert .al-main b { display: block; font-size: 12.5px; }
-    .dash-alert .al-main span { display: block; font-size: 11px; color: var(--muted); }
+    .dash-alert .al-main b { display: block; font-size: 12.5px; overflow-wrap: anywhere; }
+    .dash-alert .al-main span { display: block; font-size: 11px; color: var(--muted); overflow-wrap: anywhere; }
     .dash-alert .al-ops { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
     .dash-alert .al-x { background: none; border: 0; cursor: pointer; font-size: 16px;
         color: var(--muted); padding: 4px 8px; border-radius: 8px; line-height: 1;
@@ -27,6 +27,33 @@ $growth = $stats['revenue_growth'];
     .al-info .al-ic { background: #fff; color: #1d4ed8; }
     .dash-ok { text-align: center; padding: 16px; color: #047857; font-size: 12.5px;
         font-weight: 700; background: #ecfdf5; border: 1px dashed #a7f3d0; border-radius: 12px; }
+    .dash-stats .stat .val { overflow-wrap: anywhere; line-height: 1.5; }
+    .dash-chart-wrap { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .dash-chart { display: flex; align-items: flex-end; gap: 7px; height: 185px; }
+    .dash-chart-day { flex: 1; min-width: 0; text-align: center; }
+    .dash-orders .order-amount { white-space: nowrap; }
+    .dash-order-label { display: none; }
+    @media (max-width: 720px) {
+        .dash-stats .stat .val { font-size: 19px; }
+        /* همهٔ روزها خوانا بمانند، اما فقط خود نمودار به طرفین اسکرول شود. */
+        .dash-chart { min-width: 540px; }
+        .dash-orders, .dash-orders tbody { display: block; width: 100%; }
+        .dash-orders thead { display: none; }
+        .dash-orders tr.order-row { display: grid; grid-template-columns: minmax(0, 1fr) auto;
+            gap: 8px; padding: 13px 15px; border-bottom: 1px solid var(--line); }
+        .dash-orders tr.order-row:last-child { border-bottom: 0; }
+        .dash-orders .order-row td { display: block; min-width: 0; padding: 0; border: 0;
+            overflow-wrap: anywhere; }
+        .dash-orders .order-code { grid-column: 1; grid-row: 1; text-align: right; }
+        .dash-orders .order-status { grid-column: 2; grid-row: 1; }
+        .dash-orders .order-customer { grid-column: 1 / -1; grid-row: 2; }
+        .dash-orders .order-amount { grid-column: 1; grid-row: 3; white-space: normal; }
+        .dash-orders .order-date { grid-column: 2; grid-row: 3; text-align: left; align-self: end; }
+        .dash-orders .order-actions { grid-column: 1 / -1; grid-row: 4; text-align: right; }
+        .dash-orders .order-actions .btn { min-height: 36px; }
+        .dash-orders tr.order-empty, .dash-orders tr.order-empty td { display: block; }
+        .dash-order-label { display: inline; color: var(--muted); font-size: 11px; }
+    }
     @media (max-width: 640px) {
         .dash-alert { flex-wrap: wrap; }
         .dash-alert .al-ops { width: 100%; justify-content: flex-end; padding-top: 2px; }
@@ -58,7 +85,7 @@ $growth = $stats['revenue_growth'];
     </div>
 </div>
 
-<div class="grid g4 mb">
+<div class="grid g4 mb dash-stats">
     <div class="stat">
         <div class="ic-box"><i data-lucide="banknote" style="width:17px"></i></div>
         <span class="lbl">فروش امروز (تومان)</span>
@@ -89,7 +116,7 @@ $growth = $stats['revenue_growth'];
     </div>
 </div>
 
-<div class="grid g4 mb">
+<div class="grid g4 mb dash-stats">
     <?php
     $mini = [
         ['کاربران', $stats['users_total'], '+' . $stats['users_month'] . ' در ۳۰ روز', admin_url('users'), 'users.view'],
@@ -113,15 +140,17 @@ $growth = $stats['revenue_growth'];
         <span class="hint">مبالغ به تومان</span>
     </div>
     <div class="card-body">
-        <div style="display:flex;align-items:flex-end;gap:7px;height:185px">
-            <?php foreach ($series as $s):
-                $h = max(3, (int) round(($s['sum'] / $maxSum) * 155)); ?>
-                <div style="flex:1;text-align:center" title="<?= e($s['label']) ?> — <?= money($s['sum']) ?> تومان / <?= $s['count'] ?> سفارش">
-                    <div style="font-size:9px;color:var(--muted);margin-bottom:3px"><?= $s['count'] ?: '' ?></div>
-                    <div style="height:<?= $h ?>px;background:linear-gradient(180deg,#a5664a,#8b533a);border-radius:7px 7px 3px 3px"></div>
-                    <div style="font-size:8.5px;color:var(--muted);margin-top:5px;white-space:nowrap"><?= e(mb_substr($s['label'], 5)) ?></div>
-                </div>
-            <?php endforeach; ?>
+        <div class="dash-chart-wrap">
+            <div class="dash-chart">
+                <?php foreach ($series as $s):
+                    $h = max(3, (int) round(($s['sum'] / $maxSum) * 155)); ?>
+                    <div class="dash-chart-day" title="<?= e($s['label']) ?> — <?= money($s['sum']) ?> تومان / <?= $s['count'] ?> سفارش">
+                        <div style="font-size:9px;color:var(--muted);margin-bottom:3px"><?= $s['count'] ?: '' ?></div>
+                        <div style="height:<?= $h ?>px;background:linear-gradient(180deg,#a5664a,#8b533a);border-radius:7px 7px 3px 3px"></div>
+                        <div style="font-size:8.5px;color:var(--muted);margin-top:5px;white-space:nowrap"><?= e(mb_substr($s['label'], 5)) ?></div>
+                    </div>
+                <?php endforeach; ?>
+            </div>
         </div>
     </div>
 </div>
@@ -134,23 +163,23 @@ $growth = $stats['revenue_growth'];
                 <a href="<?= admin_url('orders') ?>" class="btn btn-sm">همه سفارش‌ها</a>
             </div>
             <div class="table-wrap">
-                <table>
+                <table class="dash-orders">
                     <thead><tr><th>کد رهگیری</th><th>مشتری</th><th>مبلغ</th><th>وضعیت</th><th>تاریخ</th><th></th></tr></thead>
                     <tbody>
                         <?php if (!$recentOrders): ?>
-                            <tr><td colspan="6" class="empty">هنوز سفارشی ثبت نشده است.</td></tr>
+                            <tr class="order-empty"><td colspan="6" class="empty">هنوز سفارشی ثبت نشده است.</td></tr>
                         <?php endif; ?>
                         <?php foreach ($recentOrders as $o): ?>
-                            <tr>
-                                <td class="mono"><?= e($o['tracking_code']) ?></td>
-                                <td>
+                            <tr class="order-row">
+                                <td class="mono order-code"><?= e($o['tracking_code']) ?></td>
+                                <td class="order-customer">
                                     <div style="font-weight:700"><?= e($o['full_name'] ?? 'حذف‌شده') ?></div>
                                     <div class="hint mono"><?= e($o['phone'] ?? '') ?></div>
                                 </td>
-                                <td style="white-space:nowrap"><?= money($o['total_amount']) ?></td>
-                                <td><span class="badge <?= $colors[$o['status']] ?? 'b-gray' ?>"><?= e($statuses[$o['status']] ?? $o['status']) ?></span></td>
-                                <td class="hint"><?= e(timeAgo($o['created_at'])) ?></td>
-                                <td class="text-left"><a class="btn btn-sm" href="<?= admin_url('orders/show/' . $o['id']) ?>">جزئیات</a></td>
+                                <td class="order-amount"><span class="dash-order-label">مبلغ: </span><?= money($o['total_amount']) ?></td>
+                                <td class="order-status"><span class="badge <?= $colors[$o['status']] ?? 'b-gray' ?>"><?= e($statuses[$o['status']] ?? $o['status']) ?></span></td>
+                                <td class="hint order-date"><?= e(timeAgo($o['created_at'])) ?></td>
+                                <td class="text-left order-actions"><a class="btn btn-sm" href="<?= admin_url('orders/show/' . $o['id']) ?>">جزئیات</a></td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
