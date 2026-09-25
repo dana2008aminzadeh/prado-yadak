@@ -4,6 +4,7 @@ namespace Admin\controllers;
 use Admin\core\Auth;
 use Admin\core\Inventory;
 use Admin\core\Model;
+use Admin\core\Settings;
 
 class DashboardController extends BaseController
 {
@@ -85,12 +86,165 @@ class DashboardController extends BaseController
             ? Model::all('SELECT * FROM admin_audit_logs ORDER BY id DESC LIMIT 8')
             : [];
 
+        // ===================== هشدارها و یادآورهای مدیریتی =====================
+        $alerts = $this->buildAlerts($stats);
+
         $statuses = OrderController::STATUSES;
         $colors = OrderController::STATUS_COLORS;
 
         $this->view('dashboard',
             compact('stats', 'series', 'recentOrders', 'topProducts', 'recentUsers', 'openTickets',
-                    'statusBreakdown', 'lowStock', 'recentAudit', 'statuses', 'colors'),
+                    'statusBreakdown', 'lowStock', 'recentAudit', 'statuses', 'colors', 'alerts'),
             'پیشخوان', 'نمای کلی فروشگاه — ' . shamsiLong(date('Y-m-d')));
+    }
+
+    /**
+     * ساخت فهرست هشدارها و یادآورهای پیشخوان بر اساس آمار و وضعیت محتوا.
+     * سطح‌بندی: danger (بحرانی) > warn (نیازمند توجه) > info (اطلاعی).
+     */
+    private function buildAlerts(array $stats): array
+    {
+        $alerts = [];
+        $contentDays = max(1, Settings::int('content_alert_days', 14));
+
+        // ---------- ۱) موجودی انبار (ناموجود / رو به اتمام) ----------
+        if (can('products.view')) {
+            if ($stats['products_out'] > 0) {
+                $alerts[] = [
+                    'level'  => 'danger',
+                    'icon'   => 'package-x',
+                    'key'    => 'stock-out',
+                    'title'  => money($stats['products_out']) . ' محصول ناموجود است',
+                    'desc'   => $stats['products_low'] > 0
+                        ? 'علاوه بر آن ' . money($stats['products_low']) . ' محصول هم رو به اتمام است؛ این اقلام اکنون قابل سفارش نیستند.'
+                        : 'این اقلام اکنون در فروشگاه قابل سفارش نیستند؛ هرچه سریع‌تر موجودی را تأمین کنید.',
+                    'url'    => admin_url('products', ['stock' => 'out']),
+                    'action' => 'مشاهده ناموجودها',
+                ];
+            } elseif ($stats['products_low'] > 0) {
+                $alerts[] = [
+                    'level'  => 'warn',
+                    'icon'   => 'package-minus',
+                    'key'    => 'stock-low',
+                    'title'  => money($stats['products_low']) . ' محصول رو به اتمام است',
+                    'desc'   => 'موجودی این اقلام به حد هشدار رسیده؛ به‌زودی نیاز به تأمین دارند.',
+                    'url'    => admin_url('products', ['stock' => 'low']),
+                    'action' => 'مشاهده فهرست',
+                ];
+            }
+        }
+
+        // ---------- ۲) سفارش‌ها (ثبت جدید / در انتظار بررسی) ----------
+        if (can('orders.view')) {
+            if ($stats['orders_today'] > 0) {
+                $alerts[] = [
+                    'level'  => 'info',
+                    'icon'   => 'shopping-bag',
+                    'key'    => 'orders-today',
+                    'title'  => money($stats['orders_today']) . ' سفارش جدید امروز ثبت شد',
+                    'desc'   => 'فروش امروز: ' . money($stats['revenue_today']) . ' تومان — سفارش‌های جدید را بررسی و تأیید کنید.',
+                    'url'    => admin_url('orders'),
+                    'action' => 'مدیریت سفارش‌ها',
+                ];
+            }
+            if ($stats['orders_processing'] > 0) {
+                $alerts[] = [
+                    'level'  => 'warn',
+                    'icon'   => 'clock',
+                    'key'    => 'orders-processing',
+                    'title'  => money($stats['orders_processing']) . ' سفارش در انتظار بررسی است',
+                    'desc'   => $stats['orders_packing'] > 0
+                        ? 'همچنین ' . money($stats['orders_packing']) . ' سفارش در مرحله بسته‌بندی است.'
+                        : 'پاسخ‌دادن سریع به سفارش‌ها تجربه خرید بهتری می‌سازد.',
+                    'url'    => admin_url('orders', ['status' => 'processing']),
+                    'action' => 'بررسی سفارش‌ها',
+                ];
+            }
+        }
+
+        // ---------- ۳) تولید محتوا (وبلاگ) ----------
+        if (can('articles.view')) {
+            $lastPublish = Model::scalar("SELECT MAX(created_at) FROM articles WHERE status = 'published'");
+            if (empty($lastPublish)) {
+                $alerts[] = [
+                    'level'  => 'danger',
+                    'icon'   => 'newspaper',
+                    'key'    => 'content-none',
+                    'title'  => 'هنوز هیچ مقاله‌ای در وبلاگ منتشر نشده است',
+                    'desc'   => 'تولید محتوای منظم برای سئو و جذب مشتری اهمیت زیادی دارد؛ اولین مقاله را منتشر کنید.',
+                    'url'    => admin_url('articles/create'),
+                    'action' => 'نوشتن مقاله',
+                ];
+            } else {
+                $daysPassed = max(0, (int) floor((time() - strtotime((string) $lastPublish)) / 86400));
+                if ($daysPassed >= $contentDays) {
+                    $alerts[] = [
+                        'level'  => 'warn',
+                        'icon'   => 'newspaper',
+                        'key'    => 'content-stale',
+                        'title'  => money($daysPassed) . ' روز از آخرین تولید محتوا گذشته است',
+                        'desc'   => 'آخرین مقاله ' . timeAgo((string) $lastPublish) . ' منتشر شده؛ پیشنهاد می‌شود حداقل هفته‌ای یک مقاله منتشر شود.',
+                        'url'    => admin_url('articles/create'),
+                        'action' => 'مقاله جدید',
+                    ];
+                }
+            }
+
+            $drafts = (int) Model::count('articles', "status = 'draft'");
+            if ($drafts > 0) {
+                $alerts[] = [
+                    'level'  => 'info',
+                    'icon'   => 'file-text',
+                    'key'    => 'content-drafts',
+                    'title'  => money($drafts) . ' مقاله پیش‌نویس منتشر نشده است',
+                    'desc'   => 'پیش‌نویس‌های آماده را کامل و منتشر کنید تا محتوای بلاک‌شده بلااستفاده نماند.',
+                    'url'    => admin_url('articles', ['status' => 'draft']),
+                    'action' => 'مشاهده پیش‌نویس‌ها',
+                ];
+            }
+        }
+
+        // ---------- ۴) سایر یادآورهای پشتیبانی و فروش ----------
+        if (can('tickets.view') && $stats['tickets_open'] > 0) {
+            $alerts[] = [
+                'level'  => 'warn',
+                'icon'   => 'headphones',
+                'key'    => 'tickets-open',
+                    'title'  => money($stats['tickets_open']) . ' تیکت باز پاسخ‌داده‌نشده دارید',
+                'desc'   => 'سرعت پاسخ به تیکت‌ها تأثیر مستقیم روی رضایت مشتری دارد.',
+                'url'    => admin_url('tickets'),
+                'action' => 'پاسخ به تیکت‌ها',
+            ];
+        }
+
+        if (can('comments.view') && $stats['comments_pending'] > 0) {
+            $alerts[] = [
+                'level'  => 'info',
+                'icon'   => 'message-square',
+                'key'    => 'comments-pending',
+                'title'  => money($stats['comments_pending']) . ' دیدگاه در انتظار تأیید است',
+                'desc'   => 'دیدگاه‌های تأییدشده اعتماد خریداران بعدی را جلب می‌کنند.',
+                'url'    => admin_url('comments', ['status' => 'pending']),
+                'action' => 'بررسی دیدگاه‌ها',
+            ];
+        }
+
+        if (can('wallet.view') && $stats['wallet_pending'] > 0) {
+            $alerts[] = [
+                'level'  => 'warn',
+                'icon'   => 'wallet',
+                'key'    => 'wallet-pending',
+                'title'  => money($stats['wallet_pending']) . ' درخواست شارژ کیف پول در انتظار رسیدگی است',
+                'desc'   => 'درخواست‌های معلق کیف پول را تأیید یا رد کنید.',
+                'url'    => admin_url('wallet'),
+                'action' => 'رسیدگی کیف پول',
+            ];
+        }
+
+        // ---------- مرتب‌سازی بر اساس شدت ----------
+        $severity = ['danger' => 0, 'warn' => 1, 'info' => 2];
+        usort($alerts, fn($a, $b) => ($severity[$a['level']] ?? 3) <=> ($severity[$b['level']] ?? 3));
+
+        return $alerts;
     }
 }

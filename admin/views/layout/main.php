@@ -99,8 +99,11 @@ $menu = [
         .topbar { background: var(--surface); border-bottom: 1px solid var(--line); padding: 10px 20px;
             display: flex; align-items: center; justify-content: space-between; gap: 14px;
             position: sticky; top: 0; z-index: 40; }
-        .topbar h1 { font-size: 16.5px; font-weight: 900; margin: 0; }
+        .topbar h1 { font-size: 16.5px; font-weight: 900; margin: 0;
+            min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .topbar .sub { font-size: 11px; color: var(--muted); font-weight: 400; }
+        .tb-title { min-width: 0; flex: 1; }
+        .userbox { text-align: left; flex-shrink: 0; }
         .content { padding: 20px; flex: 1; }
 
         /* Cards */
@@ -117,7 +120,24 @@ $menu = [
         .g3 { grid-template-columns: repeat(3, minmax(0,1fr)); }
         .g4 { grid-template-columns: repeat(4, minmax(0,1fr)); }
         @media (max-width:1100px){ .g4{grid-template-columns:repeat(2,minmax(0,1fr))} .g3{grid-template-columns:repeat(2,minmax(0,1fr))} }
-        @media (max-width:720px){ .g2,.g3,.g4{grid-template-columns:1fr} }
+        @media (max-width:720px){
+            .g2,.g3,.g4{grid-template-columns:1fr}
+            /* چیدمان‌های دوستونه با استایل inline هم در موبایل تک‌ستونه شوند */
+            .grid[style]{grid-template-columns:1fr !important}
+            .row-repeat[style], .row-repeat{grid-template-columns:1fr !important}
+            .row-repeat > .btn{justify-self:start;min-width:64px}
+            .p-10{padding:18px} .p-6{padding:15px}
+            /* جلوگیری از زوم خودکار iOS هنگام فوکوس روی فیلدها */
+            input[type=text], input[type=number], input[type=password], input[type=tel], input[type=email],
+            input[type=date], input[type=datetime-local], input[type=search], input[type=file], select, textarea { font-size: 16px; }
+            .btn { padding: 9px 14px; }
+            .btn-sm { padding: 7px 11px; }
+            .stat .val { font-size: 19px; }
+        }
+        @media (max-width:480px){
+            .userbox .sub { display: none; }
+            .topbar { gap: 8px; padding: 10px 12px; }
+        }
 
         .stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 15px; display: block; }
         .stat .lbl { font-size: 10.5px; color: var(--muted); display: block; margin-bottom: 5px; }
@@ -132,7 +152,7 @@ $menu = [
             padding: 11px 13px; border-bottom: 1px solid var(--line); background: #fafbfd; white-space: nowrap; }
         tbody td { padding: 11px 13px; border-bottom: 1px solid var(--line); vertical-align: middle; }
         tbody tr:hover { background: #fbfcfe; }
-        .table-wrap { overflow-x: auto; }
+        .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
         .btn { display: inline-flex; align-items: center; gap: 5px; padding: 8px 13px; border-radius: 11px;
             font-size: 12px; font-weight: 800; border: 1px solid var(--line); background: #fff; color: var(--ink);
@@ -203,7 +223,7 @@ $menu = [
         .bell-dot { position: absolute; top: 3px; left: 3px; min-width: 16px; height: 16px; border-radius: 99px;
             background: var(--red); color: #fff; font-size: 9.5px; font-weight: 800;
             display: none; align-items: center; justify-content: center; padding: 0 4px; }
-        .notif-panel { position: absolute; top: 52px; left: 14px; width: 330px; max-height: 420px; overflow-y: auto;
+        .notif-panel { position: absolute; top: 52px; left: 14px; width: min(330px, calc(100vw - 20px)); max-height: 420px; overflow-y: auto;
             background: #fff; border: 1px solid var(--line); border-radius: 14px;
             box-shadow: 0 16px 40px rgba(0,0,0,.14); display: none; z-index: 100; }
         .notif-panel.open { display: block; }
@@ -215,7 +235,7 @@ $menu = [
         /* جستجوی سراسری */
         .gsearch { position: relative; width: 230px; }
         .gsearch input { padding: 7px 11px; font-size: 12px; border-radius: 10px; }
-        .gsearch-results { position: absolute; top: 40px; right: 0; width: 340px; background: #fff;
+        .gsearch-results { position: absolute; top: 40px; right: 0; width: min(340px, calc(100vw - 24px)); background: #fff;
             border: 1px solid var(--line); border-radius: 13px; box-shadow: 0 16px 40px rgba(0,0,0,.14);
             max-height: 380px; overflow-y: auto; display: none; z-index: 100; }
         .gsearch-results.open { display: block; }
@@ -225,7 +245,8 @@ $menu = [
 
         /* تقویم شمسی */
         .jdp { position: absolute; background: #fff; border: 1px solid var(--line); border-radius: 14px;
-            box-shadow: 0 16px 40px rgba(0,0,0,.16); padding: 12px; z-index: 200; width: 262px; display: none; }
+            box-shadow: 0 16px 40px rgba(0,0,0,.16); padding: 12px; z-index: 200; width: 262px;
+            max-width: calc(100vw - 12px); display: none; }
         .jdp.open { display: block; }
         .jdp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; }
         .jdp-head button { background: none; border: 0; cursor: pointer; font-size: 15px;
@@ -267,11 +288,21 @@ $menu = [
         .tab.active { color: var(--brand); border-bottom-color: var(--brand); }
         .tab-panel { display: none; } .tab-panel.active { display: block; }
 
-        .sidebar-toggle { display: none; background: none; border: 0; cursor: pointer; }
+        .sidebar-toggle { display: none; background: none; border: 0; cursor: pointer;
+            color: var(--ink); padding: 5px; border-radius: 9px; flex-shrink: 0; }
+        .sidebar-toggle:hover { background: var(--bg); }
+        .sidebar-close { display: none; background: none; border: 0; cursor: pointer; color: #d9d4d0;
+            padding: 6px; border-radius: 9px; margin-inline-start: auto; }
+        .sidebar-close:hover { background: rgba(255,255,255,.08); color: #fff; }
+        .sidebar-backdrop { position: fixed; inset: 0; background: rgba(20,14,11,.55); z-index: 55;
+            opacity: 0; pointer-events: none; transition: opacity .25s; }
+        body.sidebar-open .sidebar-backdrop { opacity: 1; pointer-events: auto; }
+        body.sidebar-open { overflow: hidden; }
         @media (max-width: 900px) {
-            .sidebar { position: fixed; right: 0; top: 0; z-index: 60; transform: translateX(100%); transition: .25s; }
+            .sidebar { position: fixed; right: 0; top: 0; bottom: 0; height: auto; z-index: 60; max-width: 86vw;
+                transform: translateX(100%); transition: transform .25s; overscroll-behavior: contain; }
             .sidebar.open { transform: translateX(0); box-shadow: -10px 0 40px rgba(0,0,0,.3); }
-            .sidebar-toggle { display: inline-flex; }
+            .sidebar-toggle, .sidebar-close { display: inline-flex; }
             .content { padding: 13px; } .topbar { padding: 10px 13px; }
             .gsearch { display: none; }
         }
@@ -281,6 +312,7 @@ $menu = [
 </head>
 
 <body data-csrf="<?= e($csrf) ?>">
+    <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
     <div class="layout">
         <aside class="sidebar" id="sidebar">
             <div class="brand">
@@ -289,6 +321,9 @@ $menu = [
                     <b><?= e($siteTitle) ?></b>
                     <span>ADMIN PANEL</span>
                 </div>
+                <button type="button" class="sidebar-close" id="sidebar-close" aria-label="بستن منو">
+                    <i data-lucide="x"></i>
+                </button>
             </div>
 
             <div class="role-chip">
@@ -328,11 +363,11 @@ $menu = [
 
         <div class="main">
             <header class="topbar">
-                <div class="flex items-center" style="gap:12px">
-                    <button class="sidebar-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="منو">
+                <div class="flex items-center tb-title" style="gap:12px">
+                    <button class="sidebar-toggle" id="sidebar-toggle" aria-label="منو">
                         <i data-lucide="menu"></i>
                     </button>
-                    <div>
+                    <div class="tb-title">
                         <h1><?= e($pageTitle ?? 'پیشخوان') ?></h1>
                         <?php if (!empty($pageSub)): ?><div class="sub"><?= e($pageSub) ?></div><?php endif; ?>
                     </div>
@@ -349,7 +384,7 @@ $menu = [
                         <span class="bell-dot" id="bell-dot">0</span>
                     </button>
 
-                    <div style="text-align:left">
+                    <div class="userbox">
                         <div style="font-size:12px;font-weight:800"><?= e($admin['full_name'] ?? 'مدیر') ?></div>
                         <div class="sub mono"><?= e($admin['phone'] ?? '') ?></div>
                     </div>
@@ -382,6 +417,26 @@ $menu = [
 
     window.addEventListener('load', () => { if (window.lucide) lucide.createIcons(); });
     function refreshIcons() { if (window.lucide) lucide.createIcons(); }
+
+    // ===================== سایدبار موبایل =====================
+    const sidebar = document.getElementById('sidebar');
+
+    function setSidebar(open) {
+        if (!sidebar) return;
+        sidebar.classList.toggle('open', open);
+        document.body.classList.toggle('sidebar-open', open);
+    }
+    document.getElementById('sidebar-toggle')?.addEventListener('click', () =>
+        setSidebar(!sidebar.classList.contains('open')));
+    document.getElementById('sidebar-close')?.addEventListener('click', () => setSidebar(false));
+    document.getElementById('sidebar-backdrop')?.addEventListener('click', () => setSidebar(false));
+    sidebar?.querySelectorAll('a.nav-item').forEach(a =>
+        a.addEventListener('click', () => {
+            if (window.matchMedia('(max-width: 900px)').matches) setSidebar(false);
+        }));
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') setSidebar(false);
+    });
 
     // ===================== تقویم شمسی =====================
     const JMONTHS = ['فروردین','اردیبهشت','خرداد','تیر','مرداد','شهریور','مهر','آبان','آذر','دی','بهمن','اسفند'];
@@ -471,7 +526,10 @@ $menu = [
         renderDatepicker();
         const r = input.getBoundingClientRect();
         jdpEl.style.top = (r.bottom + window.scrollY + 5) + 'px';
-        jdpEl.style.right = (document.documentElement.clientWidth - r.right - window.scrollX) + 'px';
+        // در موبایل تقویم از صفحه بیرون نزند
+        jdpEl.style.right = Math.max(6,
+            document.documentElement.clientWidth - r.right - window.scrollX) + 'px';
+        jdpEl.style.left = 'auto';
         jdpEl.classList.add('open');
     }
     function closeDatepicker() { if (jdpEl) jdpEl.classList.remove('open'); }
@@ -606,6 +664,8 @@ $menu = [
                 notifications = data.new.concat(notifications).slice(0, 20);
                 renderNotifications();
                 beep();
+                // رویداد برای صفحاتی مثل پیشخوان که هشدار لحظه‌ای نمایش می‌دهند
+                document.dispatchEvent(new CustomEvent('admin:live-alert', { detail: data.new }));
                 if (Notification && Notification.permission === 'granted') {
                     data.new.slice(0, 2).forEach(n => new Notification(n.title, { body: n.body, icon: '/assets/logo/logo.webp' }));
                 }
