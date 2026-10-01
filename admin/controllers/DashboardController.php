@@ -89,12 +89,22 @@ class DashboardController extends BaseController
         // ===================== هشدارها و یادآورهای مدیریتی =====================
         $alerts = $this->buildAlerts($stats);
 
+        // موجودی و وضعیت حساب sms.ir (با کش ۱۰ دقیقه‌ای سشن تا پیشخوان کند نشود)
+        $smsAccount = null;
+        if (can('sms.view') && Settings::get('smsir_api_key')) {
+            try {
+                $smsAccount = \Admin\core\Sms::accountOverview();
+            } catch (\Throwable $e) {
+                $smsAccount = null;
+            }
+        }
+
         $statuses = OrderController::STATUSES;
         $colors = OrderController::STATUS_COLORS;
 
         $this->view('dashboard',
             compact('stats', 'series', 'recentOrders', 'topProducts', 'recentUsers', 'openTickets',
-                    'statusBreakdown', 'lowStock', 'recentAudit', 'statuses', 'colors', 'alerts'),
+                    'statusBreakdown', 'lowStock', 'recentAudit', 'statuses', 'colors', 'alerts', 'smsAccount'),
             'پیشخوان', 'نمای کلی فروشگاه — ' . shamsiLong(date('Y-m-d')));
     }
 

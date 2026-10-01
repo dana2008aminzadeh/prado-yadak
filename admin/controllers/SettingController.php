@@ -45,10 +45,17 @@ class SettingController extends BaseController
             'bank_sheba'         => ['شماره شبا', 'text'],
         ],
         'سرویس پیامک (SMS.ir)' => [
-            'sms_enabled'       => ['فعال بودن سرویس پیامک', 'bool'],
-            'smsir_api_key'     => ['کلید API', 'secret'],
-            'smsir_line_number' => ['شماره خط ارسال', 'text'],
-            'smsir_template_id' => ['شناسه قالب OTP', 'text'],
+            'sms_enabled'              => ['فعال بودن سرویس پیامک', 'bool'],
+            'smsir_api_key'           => ['کلید API', 'secret'],
+            'smsir_line_number'       => ['شماره خط ارسال', 'text'],
+            'smsir_template_id'       => ['شناسه قالب ورود با رمز یکبارمصرف (OTP)', 'text'],
+            'smsir_order_template_id' => ['شناسه قالب تأیید ثبت سفارش (verify)', 'text'],
+        ],
+        'اطلاع‌رسانی پیامکی رویدادها' => [
+            'sms_notify_order_customer'  => ['پیامک تأیید سفارش به مشتری هنگام ثبت رسید', 'bool'],
+            'sms_notify_new_order_admin' => ['ثبت سفارش/رسید جدید: اعلان پیامکی به مدیران', 'bool'],
+            'sms_notify_status_admin'    => ['تغییر وضعیت سفارش و ثبت بارنامه: اعلان پیامکی به مدیران', 'bool'],
+            'sms_admin_phones'           => ['موبایل مدیران گیرنده اعلان (در هر خط یک شماره یا جدا با ویرگول)', 'textarea'],
         ],
         'تلگرام و پنل' => [
             'telegram_bot_token'   => ['توکن ربات تلگرام', 'secret'],

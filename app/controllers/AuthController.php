@@ -3,9 +3,14 @@ namespace App\controllers;
 
 use App\models\User;
 use App\models\Otp;
+use App\models\Setting;
 
 class AuthController extends Controller
 {
+    /** مقادیر جایگزین در صورت خالی بودن تنظیمات (تا ورود کاربران نشکند) */
+    private const LEGACY_SMS_API_KEY = 'RL2qyUkahbb5FM1gLvqFTQeiXDuULlsa7F1aLlBPobQ2tIQL';
+    private const LEGACY_OTP_TEMPLATE_ID = 597624;
+
     public function loginForm()
     {
         if (isset($_SESSION['user_id'])) {
@@ -84,21 +89,21 @@ class AuthController extends Controller
         exit;
     }
 
+    /**
+     * ارسال رمز یکبارمصرف ورود با قالب verify.
+     * کلید API و شناسه قالب از «تنظیمات سایت» خوانده می‌شوند و در صورت خالی
+     * بودن، از مقادیر از پیش تنظیم‌شده استفاده می‌شود تا ورود کاربران هرگز نشکند.
+     */
     private function sendSmsIr($mobile, $code)
     {
-        $api_key = 'RL2qyUkahbb5FM1gLvqFTQeiXDuULlsa7F1aLlBPobQ2tIQL';
-        $template_id = 597624;
-        $data = ["mobile" => $mobile, "templateId" => $template_id, "parameters" => [["name" => "CODE", "value" => (string) $code]]];
+        $templateId = (int) Setting::get('smsir_template_id', self::LEGACY_OTP_TEMPLATE_ID);
+        $apiKey = (string) Setting::get('smsir_api_key', self::LEGACY_SMS_API_KEY);
 
-        $ch = curl_init("https://api.sms.ir/v1/send/verify");
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ["Content-Type: application/json", "Accept: text/plain", "x-api-key: " . $api_key]);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-        $response = curl_exec($ch);
-        curl_close($ch);
-        return $response;
+        $res = \Admin\core\Sms::sendVerify((string) $mobile, $templateId, ['CODE' => (string) $code], null, 'otp', $apiKey);
+        if (empty($res['success'])) {
+            @error_log('[sms/otp] ارسال ناموفق: ' . ($res['message'] ?? ''));
+        }
+        return $res;
     }
 
     public function sendOtp()

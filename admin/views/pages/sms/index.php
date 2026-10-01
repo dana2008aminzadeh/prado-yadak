@@ -11,6 +11,65 @@
     </div>
 <?php endif; ?>
 
+<?php $credit = $account['credit'] ?? null; ?>
+
+<div class="card mb">
+    <div class="card-head">
+        <h3 class="flex items-center" style="gap:7px">
+            <i data-lucide="wallet" style="width:15px"></i> وضعیت حساب SMS.ir
+        </h3>
+        <a class="btn btn-sm" href="<?= admin_url('sms', ['refresh' => 1]) ?>" title="تازه‌سازی از سرور sms.ir">
+            <i data-lucide="refresh-cw" style="width:13px"></i> به‌روزرسانی
+        </a>
+    </div>
+    <div class="card-body">
+        <div class="grid g4" style="align-items:start">
+            <div>
+                <div class="lbl" style="font-size:11px">موجودی پنل</div>
+                <?php if ($credit !== null): ?>
+                    <div class="val" style="font-size:20px;font-weight:800;direction:ltr;text-align:right"><?= money($credit) ?></div>
+                    <div class="hint">اعتبار حساب — عدد دقیق گزارش sms.ir</div>
+                <?php else: ?>
+                    <div class="val" style="font-size:16px">—</div>
+                <?php endif; ?>
+                <?php if (!empty($account['error'])): ?>
+                    <div class="hint" style="color:var(--red)"><?= e($account['error']) ?></div>
+                <?php endif; ?>
+            </div>
+            <div>
+                <div class="lbl" style="font-size:11px">خطوط متصل به حساب</div>
+                <?php if (!empty($account['lines'])): ?>
+                    <?php foreach (array_slice($account['lines'], 0, 3) as $ln): ?>
+                        <div class="mono" style="font-size:12.5px;font-weight:700;direction:ltr;text-align:right"><?= e($ln) ?></div>
+                    <?php endforeach; ?>
+                    <?php if (count($account['lines']) > 3): ?><div class="hint">+<?= money(count($account['lines']) - 3) ?> خط دیگر</div><?php endif; ?>
+                <?php else: ?>
+                    <div class="hint">—</div>
+                <?php endif; ?>
+                <div class="hint">خط پیش‌فرض تنظیمات: <span class="mono"><?= e($lineNumber !== '' ? $lineNumber : 'ثبت نشده') ?></span></div>
+            </div>
+            <div>
+                <div class="lbl" style="font-size:11px">کلید API</div>
+                <div class="mono" style="font-size:12px;direction:ltr;text-align:right"><?= e($apiKeyMask !== '' ? $apiKeyMask : 'ثبت نشده') ?></div>
+                <div class="hint">سرویس: <span class="badge <?= $enabled ? 'b-green' : 'b-red' ?>" style="font-size:10px"><?= $enabled ? 'فعال' : 'غیرفعال' ?></span></div>
+            </div>
+            <div>
+                <div class="lbl" style="font-size:11px">اعلان خودکار به مدیران</div>
+                <div style="font-size:12px;line-height:1.9">
+                    تأیید مشتری: <span class="badge <?= $notifyToggles['customer'] ? 'b-green' : 'b-gray' ?>" style="font-size:10px"><?= $notifyToggles['customer'] ? 'روشن' : 'خاموش' ?></span><br>
+                    سفارش جدید: <span class="badge <?= $notifyToggles['newOrder'] ? 'b-green' : 'b-gray' ?>" style="font-size:10px"><?= $notifyToggles['newOrder'] ? 'روشن' : 'خاموش' ?></span>
+                    تغییر وضعیت: <span class="badge <?= $notifyToggles['status'] ? 'b-green' : 'b-gray' ?>" style="font-size:10px"><?= $notifyToggles['status'] ? 'روشن' : 'خاموش' ?></span>
+                </div>
+                <div class="hint">گیرندگان: <?= $adminPhones ? money(count($adminPhones)) . ' مدیر' : 'ندارد — از تنظیمات اضافه کنید' ?></div>
+            </div>
+        </div>
+        <div class="hint" style="margin-top:8px">
+            <?= !empty($account['fetched_at']) ? 'آخرین به‌روزرسانی: ' . e(shamsiTime($account['fetched_at'])) . ' — ' : '' ?>
+            برای تغییر موارد بالا به <a href="<?= admin_url('settings') ?>" style="text-decoration:underline">تنظیمات سایت</a> (بخش «سرویس پیامک» و «اطلاع‌رسانی پیامکی رویدادها») مراجعه کنید.
+        </div>
+    </div>
+</div>
+
 <div class="grid g4 mb">
     <div class="stat"><span class="lbl">ارسال موفق (کل)</span><div class="val"><?= money($stats['sent']) ?></div></div>
     <div class="stat"><span class="lbl">ناموفق</span><div class="val"><?= money($stats['failed']) ?></div></div>
