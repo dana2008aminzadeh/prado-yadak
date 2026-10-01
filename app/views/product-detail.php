@@ -11,8 +11,8 @@
     <!-- محتوای اصلی -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 sm:py-12 space-y-12 sm:space-y-16">
 
-        <nav aria-label="Breadcrumb" class="mb-4 overflow-x-auto whitespace-nowrap pb-2">
-            <ol class="flex items-center gap-2 text-xs text-gray-400">
+        <nav aria-label="Breadcrumb" class="mb-4 min-w-0">
+            <ol class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-400 break-words">
                 <li><a href="/" class="hover:text-white transition">صفحه اصلی</a></li>
                 <li aria-hidden="true"><i data-lucide="chevron-left" style="width:12px;height:12px;"></i></li>
                 <li><a href="/parts" class="hover:text-white transition">کاتالوگ قطعات</a></li>
@@ -92,7 +92,7 @@
                                     aria-label="نمایش <?= e($g['alt']) ?>" aria-pressed="<?= $index === 0 ? 'true' : 'false' ?>"
                                     class="thumb-btn h-16 sm:h-20 border rounded-xl flex items-center justify-center cursor-pointer transition duration-200 hover:border-brand-red/50 p-2 <?= $index === 0 ? 'border-brand-red bg-brand-dark' : 'border-white/5 bg-brand-dark/40' ?>">
                                     <img src="<?= e($g['url']) ?>" loading="lazy" width="120" height="120"
-                                        class="max-w-full max-h-full object-contain anim-float"
+                                        class="max-w-full max-h-full object-contain"
                                         alt="">
                                 </button>
                             <?php endforeach; ?>
@@ -496,8 +496,15 @@
             onclick="toggleZoomModal(false)">
             <i data-lucide="x" style="width:24px;height:24px;" aria-hidden="true"></i>
         </button>
-        <div id="zoom-modal-content"
-            class="scale-95 transition-transform duration-300 flex items-center justify-center w-full h-full"></div>
+        <button type="button" id="gallery-prev" aria-label="تصویر قبلی" class="absolute right-3 sm:right-8 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-brand-red text-white rounded-full p-3 z-10"><i data-lucide="chevron-right"></i></button>
+        <button type="button" id="gallery-next" aria-label="تصویر بعدی" class="absolute left-3 sm:left-8 top-1/2 -translate-y-1/2 bg-white/10 hover:bg-brand-red text-white rounded-full p-3 z-10"><i data-lucide="chevron-left"></i></button>
+        <div class="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2 z-10" onclick="event.stopPropagation()">
+            <button type="button" aria-label="کوچک‌نمایی" class="bg-white/10 text-white rounded-lg p-2" onclick="productGalleryZoom(-0.25)"><i data-lucide="zoom-out"></i></button>
+            <button type="button" aria-label="بازنشانی بزرگ‌نمایی" class="bg-white/10 text-white rounded-lg px-3 text-xs" onclick="productGalleryZoom(0,true)">۱۰۰٪</button>
+            <button type="button" aria-label="بزرگ‌نمایی" class="bg-white/10 text-white rounded-lg p-2" onclick="productGalleryZoom(0.25)"><i data-lucide="zoom-in"></i></button>
+        </div>
+        <div id="zoom-modal-content" onclick="event.stopPropagation()"
+            class="scale-95 transition-transform duration-300 flex items-center justify-center w-full h-full overflow-hidden touch-none"></div>
     </div>
 
     <script>
@@ -510,7 +517,35 @@
 
     <?php include 'assets/php/footer.php'; ?>
 
-    <script src="/assets/js/main.min.js" defer></script>
+    <script src="/assets/js/main.min.js"></script>
+    <script>
+    // گالری اختصاصی محصول: بدون انیمیشن شناور و بدون تغییر zoom کل صفحه
+    (() => {
+        const gallery = <?= json_encode(array_map(fn($g) => ['url' => $g['url'], 'alt' => $g['alt']], $gallery), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+        let index = 0, scale = 1;
+        const originalChange = window.changeMainImage;
+        window.changeMainImage = (url, button, alt) => {
+            index = Math.max(0, gallery.findIndex(x => x.url === url));
+            const inner = document.getElementById('main-product-inner');
+            if (inner) inner.innerHTML = `<img src="${escapeHtml(url)}" alt="${escapeHtml(alt || '')}" width="600" height="600" class="max-w-full max-h-full object-contain drop-shadow-2xl">`;
+            document.querySelectorAll('.thumb-btn').forEach(b => { b.classList.remove('border-brand-red','ring-2','ring-brand-red'); b.classList.add('border-white/5'); b.setAttribute('aria-pressed','false'); });
+            if (button) { button.classList.remove('border-white/5'); button.classList.add('border-brand-red','ring-2','ring-brand-red'); button.setAttribute('aria-pressed','true'); }
+            currentImgSource = url;
+        };
+        function renderModal() {
+            const content=document.getElementById('zoom-modal-content'); if(!content || !gallery.length) return;
+            const g=gallery[index]; content.innerHTML=`<img src="${escapeHtml(g.url)}" alt="${escapeHtml(g.alt||'')}" draggable="false" style="transform:scale(${scale});transition:transform .2s;max-width:88vw;max-height:82vh;object-fit:contain">`;
+        }
+        const baseToggle=window.toggleZoomModal;
+        window.toggleZoomModal=(open)=>{ if(open && gallery.length){ const src=document.querySelector('#main-product-inner img')?.src; const found=gallery.findIndex(g=>new URL(g.url,location.href).href===src); if(found>=0) index=found; scale=1; } baseToggle(open); if(open) setTimeout(renderModal,0); };
+        window.productGalleryZoom=(delta,reset=false)=>{ scale=reset?1:Math.min(3,Math.max(.5,scale+delta)); renderModal(); };
+        const move=d=>{ if(!gallery.length)return; index=(index+d+gallery.length)%gallery.length; scale=1; renderModal(); };
+        document.getElementById('gallery-prev')?.addEventListener('click',e=>{e.stopPropagation();move(-1)});
+        document.getElementById('gallery-next')?.addEventListener('click',e=>{e.stopPropagation();move(1)});
+        document.addEventListener('keydown',e=>{ const m=document.getElementById('image-zoom-modal'); if(!m||m.classList.contains('hidden'))return; if(e.key==='ArrowRight')move(-1); if(e.key==='ArrowLeft')move(1); if(e.key==='Escape')toggleZoomModal(false); if(e.key==='+')productGalleryZoom(.25); if(e.key==='-')productGalleryZoom(-.25); });
+        document.getElementById('zoom-modal-content')?.addEventListener('wheel',e=>{e.preventDefault();productGalleryZoom(e.deltaY<0?.2:-.2)},{passive:false});
+    })();
+    </script>
 </body>
 
 </html>

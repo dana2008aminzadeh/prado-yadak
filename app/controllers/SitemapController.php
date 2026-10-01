@@ -349,11 +349,15 @@ class SitemapController
     /** همان محصولاتی که Product::search در کاتالوگ نشان می‌دهد. */
     private function catalogEligibility(string $alias = ''): string
     {
-        if (!$this->columnExists('products', 'lifecycle_status')) {
-            return '1=1';
-        }
         $prefix = $alias !== '' ? $alias . '.' : '';
-        return "COALESCE({$prefix}lifecycle_status, 'active') <> 'discontinued'";
+        $conditions = ['1=1'];
+        if ($this->columnExists('products', 'lifecycle_status')) {
+            $conditions[] = "COALESCE({$prefix}lifecycle_status, 'active') <> 'discontinued'";
+        }
+        if ($this->columnExists('products', 'publication_status')) {
+            $conditions[] = "COALESCE({$prefix}publication_status, 'published') = 'published'";
+        }
+        return implode(' AND ', $conditions);
     }
 
     /**
@@ -366,6 +370,9 @@ class SitemapController
     {
         $prefix = $alias !== '' ? $alias . '.' : '';
         $conditions = ['1=1'];
+        if ($this->columnExists('products', 'publication_status')) {
+            $conditions[] = "COALESCE({$prefix}publication_status, 'published') = 'published'";
+        }
         if ($this->columnExists('products', 'robots_directive')) {
             $conditions[] = "COALESCE({$prefix}robots_directive, 'default') NOT IN ('noindex', 'noindex_nofollow')";
         }

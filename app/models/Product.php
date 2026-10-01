@@ -12,6 +12,11 @@ class Product
         $conditions = ["1=1"];
         $params = [];
 
+        // پیش‌نویس‌های مرحله اول هرگز در کاتالوگ، API و پیشنهادها نمایش داده نشوند.
+        if (self::hasColumn('products', 'publication_status')) {
+            $conditions[] = "COALESCE(p.publication_status, 'published') = 'published'";
+        }
+
         // محصولات متوقف‌شده در فهرست‌ها ظاهر نمی‌شوند؛ صفحه مستقیم آن‌ها برای
         // noindex یا انتقال به جایگزین همچنان توسط findBySlug قابل دسترس است.
         if (self::hasColumn('products', 'lifecycle_status')) {
@@ -159,7 +164,8 @@ class Product
         $sql = "SELECT p.*, c.slug as category_slug 
                 FROM products p 
                 LEFT JOIN categories c ON p.category_id = c.id 
-                WHERE p.slug = ? LIMIT 1";
+                WHERE p.slug = ?" . (self::hasColumn('products', 'publication_status')
+                    ? " AND COALESCE(p.publication_status, 'published') = 'published'" : '') . " LIMIT 1";
         $stmt = $db->prepare($sql);
         $stmt->execute([rawurldecode($slug)]);
         $r = $stmt->fetch();

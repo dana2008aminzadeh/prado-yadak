@@ -110,6 +110,7 @@ class ProductController extends BaseController
             'meta_title' => '', 'meta_description' => '', 'focus_keyword' => '',
             'robots_directive' => 'default', 'canonical_url' => '', 'seo_score' => 0,
             'lifecycle_status' => 'active', 'replacement_product_id' => null, 'sitemap_policy' => 'auto',
+            'publication_status' => 'draft',
         ];
         $this->renderForm($product, 'افزودن محصول جدید');
     }
@@ -245,6 +246,16 @@ class ProductController extends BaseController
             'replacement_product_id' => $replacementId ?: null,
             'sitemap_policy'       => $sitemapPolicy,
         ];
+
+        // محصول تازه در مرحله اول همیشه پیش‌نویس است. انتشار فقط از مرحله دوم
+        // (پس از امکان افزودن و بازبینی تصاویر) انجام می‌شود.
+        if (Model::hasColumn('products', 'publication_status')) {
+            $requestedPublication = (string) post('publication_action', 'save');
+            $currentPublication = (string) ($old['publication_status'] ?? 'draft');
+            $data['publication_status'] = !$old
+                ? 'draft'
+                : ($requestedPublication === 'publish' ? 'published' : $currentPublication);
+        }
 
         // موجودی: اگر ردیابی خاموش است، سوییچ دستی موجود/ناموجود
         if (!$trackStock) {
@@ -388,6 +399,12 @@ class ProductController extends BaseController
         $pid = (int) post('product_id', $id);
         $alts = (array) post('image_alt', []);
         $names = (array) post('image_seo_name', []);
+        $altModes = (array) post('image_alt_mode', []);
+        $product = Model::find('products', $pid) ?? [];
+        $modelName = (string) (Model::scalar(
+            'SELECT cm.name FROM product_vehicles pv JOIN car_models cm ON cm.id = pv.car_model_id WHERE pv.product_id = ? ORDER BY pv.id LIMIT 1',
+            [$pid]
+        ) ?: '');
 
         $saved = 0;
         foreach ($alts as $imgId => $alt) {
@@ -396,8 +413,11 @@ class ProductController extends BaseController
             if (!$img || (int) $img['product_id'] !== $pid) {
                 continue;
             }
+            $finalAlt = (($altModes[$imgId] ?? 'manual') === 'auto')
+                ? \Core\Seo::suggestAlt((string) ($product['name'] ?? ''), $modelName ?: null, $product['oem_code'] ?? null, (int) ($img['sort_order'] ?? 0))
+                : (string) $alt;
             Model::update('product_images', $imgId, Model::filterColumns('product_images', [
-                'alt_text'     => \Core\Seo::sanitizeAltText((string) $alt) ?: null,
+                'alt_text'     => \Core\Seo::sanitizeAltText($finalAlt) ?: null,
                 'seo_filename' => mb_substr(trim((string) ($names[$imgId] ?? '')), 0, 160, 'UTF-8') ?: null,
             ]));
             $saved++;
