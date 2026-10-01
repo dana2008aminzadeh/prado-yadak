@@ -18,18 +18,35 @@ $canStock = can('products.stock');
             <div class="card mb ai-product-tools">
                 <div class="card-head"><h3><i data-lucide="sparkles" style="width:16px"></i> دستیار هوش مصنوعی محصول</h3></div>
                 <div class="card-body">
-                    <p class="hint">پرامپت‌ها ثابت نیستند؛ اطلاعات فعلی، فیلدهای قابل تکمیل و قالب JSON همین محصول داخل آن قرار می‌گیرد.</p>
+                    <p class="hint">
+                        <b>۱)</b> پرامپت موردنظر را بسازید و کپی کنید.
+                        <b>۲)</b> آن را در ChatGPT / Gemini / Claude پیست کنید.
+                        <b>۳)</b> JSON پاسخ را در کادر پایین برگردانید و «اعمال» بزنید.
+                    </p>
                     <div class="flex gap wrap mt">
-                        <button type="button" class="btn btn-sm" onclick="buildProductPrompt()">ساخت پرامپت اطلاعات محصول</button>
-                        <button type="button" class="btn btn-sm" onclick="buildImagePrompt()">ساخت پرامپت عکس محصول</button>
+                        <button type="button" class="btn btn-sm" onclick="buildProductPrompt()">
+                            <i data-lucide="file-text" style="width:13px"></i> پرامپت تکمیل اطلاعات (JSON)
+                        </button>
+                        <button type="button" class="btn btn-sm" onclick="buildImagePrompt()">
+                            <i data-lucide="image" style="width:13px"></i> پرامپت عکس محصول (انگلیسی)
+                        </button>
                     </div>
-                    <textarea id="ai-prompt-output" rows="8" class="mono mt" readonly placeholder="پرامپت تولیدشده اینجا نمایش داده می‌شود"></textarea>
+                    <textarea id="ai-prompt-output" rows="10" class="mono mt" readonly placeholder="پرامپت تولیدشده اینجا نمایش داده می‌شود"></textarea>
                     <div class="flex gap wrap mt">
-                        <button type="button" class="btn btn-sm" onclick="copyAiPrompt()">کپی پرامپت</button>
-                        <button type="button" class="btn btn-sm btn-primary" onclick="applyAiJson()">اعمال خروجی JSON در فرم</button>
+                        <button type="button" class="btn btn-sm" onclick="copyAiPrompt()">
+                            <i data-lucide="copy" style="width:13px"></i> کپی پرامپت
+                        </button>
                     </div>
-                    <textarea id="ai-json-input" rows="6" class="mono mt" placeholder="خروجی JSON هوش مصنوعی را اینجا پیست کنید"></textarea>
-                    <div class="hint mt">فقط JSON معتبر وارد کنید؛ اسلاگ، متن جایگزین و فیلدهای قابل تولید خودکار تکمیل می‌شوند و موارد نامطمئن خالی می‌مانند.</div>
+                    <textarea id="ai-json-input" rows="6" class="mono mt" placeholder="خروجی JSON هوش مصنوعی را اینجا پیست کنید (اگر داخل ```json بود، خودش تشخیص داده می‌شود)"></textarea>
+                    <div class="flex gap wrap mt">
+                        <button type="button" class="btn btn-sm btn-primary" onclick="applyAiJson()">
+                            <i data-lucide="check-check" style="width:13px"></i> اعمال خروجی JSON در فرم
+                        </button>
+                    </div>
+                    <div class="hint mt">
+                        پرامپت عکس به انگلیسی ساخته می‌شود چون مدل‌های تصویرساز انگلیسی را دقیق‌تر می‌فهمند؛ نام و کد فنی قطعه داخل آن حفظ می‌شود.
+                        اعمال JSON فقط فیلدهای معتبر را به‌روز می‌کند — قیمت، موجودی و وضعیت انتشار فقط با دست خودتان تغییر می‌کند.
+                    </div>
                 </div>
             </div>
 
@@ -373,6 +390,9 @@ $canStock = can('products.stock');
 
 <script>
 const CAR_MODELS = <?= json_encode(array_map(fn($m) => ['id' => (int) $m['id'], 'name' => $m['name']], $carModels), JSON_UNESCAPED_UNICODE) ?>;
+// فهرست‌های مجاز برای پرامپت هوش مصنوعی: مدل فقط شناسه‌های واقعی سیستم را برمی‌گرداند
+const AI_CATEGORIES = <?= json_encode(array_map(fn($c) => ['id' => (int) $c['id'], 'name' => (string) $c['name']], $categories), JSON_UNESCAPED_UNICODE) ?>;
+const AI_PRESET_KEYS = <?= json_encode(array_values(array_map(fn($p) => (string) $p['attr_key'], $presets)), JSON_UNESCAPED_UNICODE) ?>;
 
 function addVehicleRow() {
     document.getElementById('no-vehicles')?.remove();
@@ -426,19 +446,301 @@ if (dz) {
         if (input.files.length) document.getElementById('imgForm').submit();
     });
 }
+// ================= دستیار هوش مصنوعی =================
 // انتخاب thumbnail همیشه با تصویر اصلی همگام است و متن جایگزین دو حالت دارد.
-function productFormValue(name) { const el=document.querySelector('[name="'+name+'"]'); return el ? el.value.trim() : ''; }
-function currentProductContext() {
- return {name:productFormValue('name'), category:productFormValue('category_id'), brand:productFormValue('brand'), oem_code:productFormValue('oem_code'), description:productFormValue('description'), price:productFormValue('price'), current_slug:productFormValue('slug'), vehicle_models:[...document.querySelectorAll('[name="vehicle_model_id[]"]')].map(x=>x.value), attributes:[...document.querySelectorAll('[name="attr_key[]"]')].map((x,i)=>({name:x.value,value:document.querySelectorAll('[name="attr_value[]"]')[i]?.value||''}))};
-}
-function buildProductPrompt() {
- const schema={name:'string required',slug:'lowercase latin url slug; generate from name',category_id:'number|null',brand:'string|null',oem_code:'string|null',price:'number',description:'safe Persian HTML/text',vehicles:[{model_id:'number',year_from:'number|null',year_to:'number|null',trim:'string|null'}],attributes:[{name:'string',value:'string'}],meta_title:'string|null',meta_description:'string|null',focus_keyword:'string|null',image_alt_mode:'auto|manual',images:[{alt:'string',seo_filename:'string'}]};
- document.getElementById('ai-prompt-output').value=`نقش شما کارشناس کاتالوگ قطعات خودرو هستید. با داده زمینه زیر فقط JSON معتبر و بدون markdown برگردان. اطلاعات را حدس نزن؛ موارد نامعلوم را null یا آرایه خالی بگذار. اسلاگ را هوشمند، یکتا، کوتاه و فقط با حروف لاتین کوچک و خط تیره بساز. خروجی باید دقیقاً همین کلیدها را داشته باشد و JSON اضافی ننویس. زمینه فعلی: ${JSON.stringify(currentProductContext())}\nقالب استاندارد خروجی: ${JSON.stringify(schema)}\nتمام اعداد را عدد واقعی بده و متن فارسی را UTF-8 نگه دار.`;
-}
-function buildImagePrompt() {
- const c=currentProductContext(); document.getElementById('ai-prompt-output').value=`یک تصویر محصول کاتالوگی حرفه‌ای و یکدست برای «${c.name||'نامشخص'}»${c.brand?' برند '+c.brand:''}${c.oem_code?' با کد فنی '+c.oem_code:''} بساز. قطعه دقیقاً در مرکز، نمای سه‌ربع و کامل، پس‌زمینه سفید یا خاکستری بسیار روشن، نور استودیویی نرم، سایه کنترل‌شده، بدون لوگو و نوشته و واترمارک، بدون دست و خودرو و بسته‌بندی، نسبت 1:1، کیفیت بالا، رنگ و جنس واقعی قطعه. تصویر مناسب فروشگاه قطعات خودرو و هماهنگ با سایر تصاویر کاتالوگ باشد.`;
-}
-function copyAiPrompt(){const x=document.getElementById('ai-prompt-output'); navigator.clipboard?.writeText(x.value);}
-function applyAiJson(){try{const d=JSON.parse(document.getElementById('ai-json-input').value); const set=(n,v)=>{const x=document.querySelector('[name="'+n+'"]');if(x&&v!==null&&v!==undefined)x.value=v}; Object.keys(d).forEach(k=>{if(!['vehicles','attributes','images'].includes(k))set(k,d[k]);}); if(d.slug)set('slug',d.slug); if(d.attributes){document.getElementById('attrs-box').innerHTML='';d.attributes.forEach(a=>{addAttrRow(a.name);document.querySelectorAll('[name="attr_value[]"]')[document.querySelectorAll('[name="attr_value[]"]').length-1].value=a.value||'';});} if(d.image_alt_mode==='auto'){document.querySelectorAll('input[name^="image_alt"]').forEach(x=>{if(!x.value)x.value=productFormValue('name')});} alert('اطلاعات JSON با موفقیت در فرم قرار گرفت.');}catch(e){alert('JSON معتبر نیست: '+e.message)}}
+function productFormValue(name) { const el = document.querySelector('[name="' + name + '"]'); return el ? el.value.trim() : ''; }
 
+function aiChecked(name) {
+    const el = document.querySelector('[name="' + name + '"]');
+    return !!(el && el.checked);
+}
+
+/** وضعیت فعلی فرم به‌همراه نام‌ها (نه فقط شناسه‌ها) تا مدل بدون حدس، فیلدها را تکمیل کند */
+function aiCurrentContext() {
+    const catId = parseInt(productFormValue('category_id'), 10) || null;
+    const cat = AI_CATEGORIES.find(c => c.id === catId) || null;
+    const attrKeys = [...document.querySelectorAll('[name="attr_key[]"]')];
+    const attrVals = [...document.querySelectorAll('[name="attr_value[]"]')];
+    return {
+        name: productFormValue('name'),
+        brand: productFormValue('brand'),
+        oem_code: productFormValue('oem_code'),
+        current_slug: productFormValue('slug'),
+        category_id: catId,
+        category_name: cat ? cat.name : null,
+        is_genuine: aiChecked('is_genuine'),
+        description: productFormValue('description'),
+        vehicles: [...document.querySelectorAll('[name="vehicle_model_id[]"]')].map(sel => {
+            const mid = parseInt(sel.value, 10) || null;
+            const m = CAR_MODELS.find(x => x.id === mid);
+            const row = sel.closest('.row-repeat');
+            const yf = row ? row.querySelector('[name="vehicle_year_from[]"]') : null;
+            const yt = row ? row.querySelector('[name="vehicle_year_to[]"]') : null;
+            const tr = row ? row.querySelector('[name="vehicle_trim[]"]') : null;
+            return {
+                model_id: mid,
+                model_name: m ? m.name : null,
+                year_from: yf && yf.value ? parseInt(yf.value, 10) : null,
+                year_to: yt && yt.value ? parseInt(yt.value, 10) : null,
+                trim: tr ? tr.value.trim() : null
+            };
+        }),
+        attributes: attrKeys.map((k, i) => ({ name: k.value.trim(), value: (attrVals[i] ? attrVals[i].value : '').trim() }))
+    };
+}
+
+/** پرامپت تکمیل اطلاعات محصول: زمینه + فهرست‌های مجاز + قالب دقیق خروجی */
+function buildProductPrompt() {
+    const schema = {
+        name: 'نام کامل و استاندارد قطعه (فارسی؛ جلو/عقب/چپ/راست اگر مشخص است)',
+        slug: 'اسلاگ لاتین کوچک با خط تیره، حداکثر ۵ کلمه، ساخته‌شده از نام قطعه',
+        category_id: 'عدد — فقط یکی از idهای «فهرست دسته‌های مجاز»؛ نامعلوم = null',
+        brand: 'برند واقعی قطعه یا null',
+        oem_code: 'کد فنی (OEM) یا null — فقط اگر قطعی است',
+        description: 'HTML فارسی سئوشده فقط با تگ‌های مجاز <p> <strong> <ul> <li> <br>',
+        vehicles: [{ model_id: 'عدد — فقط از «فهرست خودروهای مجاز»', year_from: 'عدد میلادی یا null', year_to: 'عدد میلادی یا null', trim: 'تیپ/موتور مثل 1GR-FE یا null' }],
+        attributes: [{ name: 'عنوان مشخصه — ترجیحاً از «کلیدهای پیشنهادی مشخصات»', value: 'مقدار درست و بدون حدس' }],
+        meta_title: 'حداکثر ۶۰ کاراکتر، شامل نام قطعه',
+        meta_description: 'بین ۱۲۰ تا ۱۵۵ کاراکتر، ترغیب‌کننده کلیک',
+        focus_keyword: 'عبارتی که خریدار واقعاً جستجو می‌کند',
+        image_alt_mode: "اگر متن جایگزین تصاویر از نام محصول ساخته شود 'auto' وگرنه 'manual'",
+        images: [{ alt: 'متن جایگزین گویا برای هر تصویر', seo_filename: 'نام فایل لاتین کوچک با خط تیره' }]
+    };
+    const rules = [
+        'قواعد الزامی:',
+        '۱) هیچ اطلاعات فنی، سازگاری، سال یا کد فنی را از خودت نساز؛ هر چیزی که در داده‌ها نیست را null یا آرایه خالی بگذار.',
+        '۲) category_id فقط از «فهرست دسته‌های مجاز» و model_id فقط از «فهرست خودروهای مجاز» انتخاب کن؛ اگر مورد مناسبی نیست، null یا [] بگذار.',
+        '۳) اسلاگ فقط با حروف لاتین کوچک، عدد و خط تیره باشد (مثال: prado-front-brake-pad-set).',
+        '۴) description فارسی روان و یکتا باشد: ۲ تا ۴ پاراگراف شامل کاربرد قطعه، خودروهای سازگار، نکته کیفیت/نصب و مزیت خرید؛ از جمله‌های کلی و تکراری بپرهیز.',
+        '۵) در attributes فقط مشخصات استاندارد و درست برای این نوع قطعه را بنویس (جنس، کشور سازنده، سمت نصب و...)؛ مقدار نامعلوم را حذف کن، حدس نزن.',
+        '۶) meta_title حداکثر ۶۰ کاراکتر و meta_description بین ۱۲۰ تا ۱۵۵ کاراکتر باشد.',
+        '۷) همه اعداد به‌صورت عدد JSON (بدون گیومه و جداکننده هزارگان) و متن فارسی UTF-8 باشد.',
+        '۸) خروجی فقط و فقط یک JSON معتبر باشد: بدون markdown، بدون ```، بدون هیچ توضیحی قبل و بعد.'
+    ].join('\n');
+    const prompt = [
+        'تو یک کارشناس ارشد کاتالوگ قطعات خودرو (تویوتا، لندکروزر، پرادو) و متخصص سئوی فارسی هستی.',
+        'وظیفه: داده‌های ناقص محصول زیر را طبق قواعد تکمیل و اصلاح کن و خروجی را دقیقاً با ساختار «قالب خروجی» برگردان.',
+        '',
+        rules,
+        '',
+        'فهرست دسته‌های مجاز (id و نام): ' + JSON.stringify(AI_CATEGORIES),
+        'فهرست خودروهای مجاز (id و نام): ' + JSON.stringify(CAR_MODELS),
+        'کلیدهای پیشنهادی مشخصات فنی: ' + JSON.stringify(AI_PRESET_KEYS),
+        '',
+        'داده‌های فعلی محصول: ' + JSON.stringify(aiCurrentContext()),
+        '',
+        'قالب خروجی (دقیقاً همین کلیدها، هیچ کلید دیگری اضافه نکن):',
+        JSON.stringify(schema, null, 2)
+    ].join('\n');
+    document.getElementById('ai-prompt-output').value = prompt;
+}
+
+// واژه‌نامه قطعات پرتکرار برای ساخت پرامپت انگلیسی تصویر (طولانی‌ترین تطبیق برنده است)
+const AI_PART_EN = [
+    ['لنت ترمز جلو', 'front brake pad set'], ['لنت ترمز عقب', 'rear brake pad set'], ['لنت ترمز', 'brake pad set'],
+    ['لنت', 'brake pad'], ['دیسک ترمز', 'brake rotor disc'], ['کاسه ترمز', 'brake drum'],
+    ['سیلندر ترمز', 'brake wheel cylinder'], ['شیلنگ ترمز', 'brake hose'], ['ترمز دست', 'parking brake lever'],
+    ['فیلتر روغن', 'engine oil filter'], ['فیلتر هوا', 'engine air filter'], ['فیلتر کابین', 'cabin air filter'],
+    ['فیلتر اتاق', 'cabin air filter'], ['فیلتر بنزین', 'fuel filter'], ['فیلتر گازوئیل', 'diesel fuel filter'],
+    ['فیلتر', 'filter'], ['شمع', 'spark plug'], ['سیم شمع', 'spark plug wire set'], ['کویل', 'ignition coil'],
+    ['دینام', 'alternator'], ['استارت', 'starter motor'], ['باتری', 'car battery'], ['رله', 'relay'],
+    ['سنسور اکسیژن', 'oxygen sensor'], ['حسگر', 'sensor'], ['سنسور', 'sensor'], ['لامپ', 'bulb'],
+    ['برف پاک کن', 'wiper blade'], ['کمک فنر جلو', 'front shock absorber'], ['کمک فنر عقب', 'rear shock absorber'],
+    ['کمک فنر', 'shock absorber'], ['کمک', 'shock absorber'], ['فنر', 'coil spring'], ['طبق', 'control arm'],
+    ['سیبک', 'ball joint'], ['جعبه فرمان', 'steering gearbox'], ['میل تعادل', 'stabilizer bar link'],
+    ['بوش', 'bushing'], ['بلبرینگ', 'wheel bearing'], ['گلگیر', 'fender'], ['سپر', 'bumper'], ['آینه', 'side mirror'],
+    ['رادیاتور کولر', 'AC condenser'], ['رادیاتور', 'radiator'], ['فن رادیاتور', 'radiator cooling fan'],
+    ['ترموستات', 'thermostat'], ['واتر پمپ', 'water pump'], ['واترپمپ', 'water pump'], ['تسمه تایم', 'timing belt'],
+    ['زنجیر تایم', 'timing chain'], ['تسمه دینام', 'serpentine belt'], ['تسمه', 'belt'],
+    ['واشر سرسیلندر', 'cylinder head gasket'], ['واشر', 'gasket'], ['پمپ بنزین', 'fuel pump'],
+    ['انژکتور', 'fuel injector'], ['کاربراتور', 'carburetor'], ['دستگاه کلاچ', 'clutch kit'],
+    ['دیسک کلاچ', 'clutch disc'], ['پلوس', 'drive axle shaft'], ['گاردان', 'propeller shaft'],
+    ['دیفرانسیل', 'differential'], ['چراغ جلو', 'headlight assembly'], ['چراغ عقب', 'tail light assembly'],
+    ['چراغ', 'light assembly'], ['دریچه باک', 'fuel filler door'], ['کاپوت', 'hood'],
+    ['روغن موتور', 'engine oil'], ['مایع ترمز', 'brake fluid'], ['ضدیخ', 'antifreeze coolant']
+];
+const AI_BRAND_EN = { 'تویوتا': 'Toyota', 'دنسو': 'Denso', 'ایسین': 'Aisin', 'بوش': 'Bosch', 'نیپوندنسو': 'Nippon Denso' };
+
+function aiEnglishPartName(c) {
+    const hay = ((c.category_name || '') + ' ' + (c.name || '')).replace(/\u200c/g, ' ');
+    let best = null;
+    AI_PART_EN.forEach(row => {
+        if (hay.indexOf(row[0]) !== -1 && (!best || row[0].length > best[0].length)) best = row;
+    });
+    return best ? best[1] : '';
+}
+
+function aiEnglishBrand(c) {
+    const b = (c.brand || '').trim();
+    if (!b) return '';
+    if (/[A-Za-z]/.test(b)) return b;
+    return AI_BRAND_EN[b] || '';
+}
+
+/** پرامپت عکس: انگلیسی (مدل‌های تصویرساز انگلیسی را دقیق‌تر می‌فهمند) + حفظ نام و کد فنی قطعه */
+function buildImagePrompt() {
+    const c = aiCurrentContext();
+    const partEn = aiEnglishPartName(c);
+    const brandEn = aiEnglishBrand(c);
+    const subject = [
+        partEn
+            ? 'Professional e-commerce product photo of a ' + partEn + ' automotive spare part'
+            : 'Professional e-commerce product photo of an automotive spare part (identify the exact part type from the Persian name below first)',
+        c.is_genuine ? 'genuine original equipment (OEM) part' : 'quality OEM replacement part',
+        brandEn ? ('brand: ' + brandEn) : '',
+        c.oem_code ? ('manufacturer part number: ' + c.oem_code) : '',
+        c.name ? ('Persian part name: ' + c.name) : ''
+    ].filter(Boolean).join(', ');
+    const style = 'the single part is perfectly centered in a three-quarter view, fully visible with nothing cropped, pure white seamless studio background, soft diffused studio lighting, subtle soft contact shadow under the part, photorealistic, ultra sharp focus, accurate true-to-life colors and material texture (metal, plastic or rubber as applicable), clean minimal catalog composition matching a professional auto parts store';
+    const negative = 'strictly avoid: any text or writing on the image, watermarks, overlaid brand logos, hands or people, tools, the whole car or its interior, workshop or garage background, packaging boxes, harsh shadows, busy background, cropped or cut-off part edges';
+    document.getElementById('ai-prompt-output').value =
+        subject + '.\n\n' + style + '.\n\n' + negative + '.\n\nAspect ratio: 1:1 (square).';
+}
+
+function copyAiPrompt() {
+    const box = document.getElementById('ai-prompt-output');
+    if (!box.value.trim()) { alert('ابتدا یکی از دکمه‌های ساخت پرامپت را بزنید.'); return; }
+    const done = () => alert('پرامپت کپی شد؛ آن را در ابزار هوش مصنوعی پیست کنید.');
+    const fallback = () => {
+        const ta = document.createElement('textarea');
+        ta.value = box.value;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        let ok = false;
+        try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+        ta.remove();
+        if (ok) done(); else alert('کپی خودکار ممکن نشد؛ متن پرامپت را دستی انتخاب و کپی کنید.');
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(box.value).then(done, fallback);
+    } else {
+        fallback();
+    }
+}
+
+/** پاسخ مدل حتی داخل ```json یا همراه متن اضافه هم قابل استخراج است */
+function aiExtractJson(raw) {
+    let t = String(raw || '').trim();
+    const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (fence) t = fence[1].trim();
+    const s = t.indexOf('{');
+    const e = t.lastIndexOf('}');
+    if (s !== -1 && e > s) t = t.slice(s, e + 1);
+    return t;
+}
+
+function aiSetField(name, value) {
+    const el = document.querySelector('[name="' + name + '"]');
+    if (!el || value === null || value === undefined || String(value) === '') return false;
+    el.value = String(value);
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+}
+
+function applyAiJson() {
+    let d;
+    try {
+        d = JSON.parse(aiExtractJson(document.getElementById('ai-json-input').value));
+    } catch (err) {
+        alert('خروجی قابل خواندن نبود:\n' + err.message + '\n\nکل پاسخ هوش مصنوعی را (حتی اگر داخل ```json است) پیست کنید.');
+        return;
+    }
+    if (!d || typeof d !== 'object' || Array.isArray(d)) {
+        alert('ساختار پاسخ درست نیست؛ باید یک شیء JSON با کلیدهای قالب پرامپت باشد.');
+        return;
+    }
+    // بعضی مدل‌ها خروجی را داخل product یا data می‌پیچند
+    const hasKnown = Object.keys(d).some(k => ['name', 'slug', 'category_id', 'brand', 'oem_code', 'description', 'vehicles', 'attributes', 'meta_title'].indexOf(k) !== -1);
+    if (!hasKnown && d.product && typeof d.product === 'object') d = d.product;
+
+    const applied = [], skipped = [];
+
+    if (aiSetField('name', d.name)) applied.push('نام');
+    if (aiSetField('slug', d.slug)) applied.push('اسلاگ');
+    if (aiSetField('brand', d.brand)) applied.push('برند');
+    if (aiSetField('oem_code', d.oem_code)) applied.push('کد فنی');
+    if (aiSetField('description', d.description)) applied.push('توضیحات');
+    if (aiSetField('meta_title', d.meta_title)) applied.push('عنوان سئو');
+    if (aiSetField('meta_description', d.meta_description)) applied.push('توضیحات متا');
+    if (aiSetField('focus_keyword', d.focus_keyword)) applied.push('کلمه کلیدی');
+
+    // دسته‌بندی: فقط شناسه‌ای که واقعاً در سیستم وجود دارد
+    if (d.category_id !== undefined && d.category_id !== null && d.category_id !== '') {
+        const cid = parseInt(d.category_id, 10);
+        if (cid && AI_CATEGORIES.some(c => c.id === cid)) {
+            if (aiSetField('category_id', cid)) applied.push('دسته‌بندی');
+        } else {
+            skipped.push('دسته‌بندی (شناسه در فهرست نیست)');
+        }
+    }
+
+    // خودروهای سازگار: ردیف‌ها بازسازی می‌شوند
+    if (Array.isArray(d.vehicles)) {
+        const box = document.getElementById('vehicles-box');
+        const valid = d.vehicles.filter(v => v && CAR_MODELS.some(m => m.id === parseInt(v.model_id, 10)));
+        if (box && valid.length) {
+            box.innerHTML = '';
+            document.getElementById('no-vehicles')?.remove();
+            valid.forEach(() => addVehicleRow());
+            const rows = [...box.querySelectorAll('.row-repeat')];
+            valid.forEach((v, i) => {
+                const row = rows[i];
+                if (!row) return;
+                row.querySelector('[name="vehicle_model_id[]"]').value = String(parseInt(v.model_id, 10));
+                row.querySelector('[name="vehicle_year_from[]"]').value = v.year_from ? String(parseInt(v.year_from, 10)) : '';
+                row.querySelector('[name="vehicle_year_to[]"]').value = v.year_to ? String(parseInt(v.year_to, 10)) : '';
+                row.querySelector('[name="vehicle_trim[]"]').value = v.trim || '';
+            });
+            applied.push('خودروهای سازگار (' + valid.length + ' ردیف)');
+            if (d.vehicles.length > valid.length) skipped.push((d.vehicles.length - valid.length) + ' خودرو با model_id نامعتبر');
+        } else if (d.vehicles.length) {
+            skipped.push('خودروهای سازگار (model_id نامعتبر)');
+        }
+    }
+
+    // مشخصات فنی
+    if (Array.isArray(d.attributes)) {
+        const box = document.getElementById('attrs-box');
+        const valid = d.attributes.filter(a => a && String(a.name || '').trim());
+        if (box && valid.length) {
+            box.innerHTML = '';
+            valid.forEach(a => {
+                addAttrRow(String(a.name).trim());
+                [...box.querySelectorAll('[name="attr_value[]"]')].pop().value = String(a.value || '').trim();
+            });
+            applied.push('مشخصات فنی (' + valid.length + ' ردیف)');
+        }
+    }
+
+    // حالت متن جایگزین خودکار
+    if (d.image_alt_mode === 'auto' || d.image_alt_mode === 'manual') {
+        const cb = document.getElementById('auto-alt-mode');
+        if (cb) {
+            cb.checked = d.image_alt_mode === 'auto';
+            cb.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    }
+
+    // تصاویر: متن جایگزین و نام فایل سئو (بعد از حالت خودکار تا مقدار اختصاصی AI جایگزین شود)
+    if (Array.isArray(d.images)) {
+        const alts = [...document.querySelectorAll('input[name^="image_alt"]')];
+        const seos = [...document.querySelectorAll('input[name^="image_seo_name"]')];
+        let n = 0;
+        d.images.forEach((im, i) => {
+            if (!im) return;
+            if (alts[i] && im.alt) { alts[i].value = String(im.alt); n++; }
+            if (seos[i] && im.seo_filename) seos[i].value = String(im.seo_filename);
+        });
+        if (n) applied.push('متن جایگزین تصاویر (' + n + ')');
+    }
+
+    let msg = applied.length
+        ? '✅ اعمال شد: ' + applied.join('، ')
+        : '❌ هیچ فیلدی از این JSON قابل اعمال نبود؛ کلیدها را با قالب پرامپت مقایسه کنید.';
+    if (skipped.length) msg += '\n⚠️ نادیده گرفته شد: ' + skipped.join('، ');
+    msg += '\n\nقیمت، موجودی و وضعیت انتشار فقط با دست خودتان در فرم تغییر می‌کند.';
+    alert(msg);
+}
 </script>
