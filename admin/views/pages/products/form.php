@@ -12,6 +12,24 @@ $canStock = can('products.stock');
     <?= Auth::csrfField() ?>
     <input type="hidden" name="id" value="<?= $pid ?>">
 
+    <div class="card mb" id="ai-product-assistant">
+        <div class="card-head"><h3><i data-lucide="sparkles" style="width:16px"></i> دستیار هوش مصنوعی محصول</h3></div>
+        <div class="card-body">
+            <div class="hint mb">پرامپت‌ها ثابت نیستند؛ دسته‌ها، خودروها، مشخصات موجود، قواعد سئو و اطلاعات همین محصول هر بار داخل آن‌ها قرار می‌گیرند.</div>
+            <div class="flex gap wrap">
+                <button type="button" class="btn btn-sm" onclick="copyAiPrompt('product')">کپی پرامپت تکمیل محصول</button>
+                <button type="button" class="btn btn-sm" onclick="copyAiPrompt('image')">کپی پرامپت ساخت تصویر یکدست</button>
+            </div>
+            <div class="field mt">
+                <label class="fl" for="ai-json-import">خروجی JSON هوش مصنوعی</label>
+                <textarea id="ai-json-import" rows="6" dir="ltr" class="mono" placeholder='{"name":"...","slug":"...","category_id":1,...}'></textarea>
+                <div class="hint">JSON را مستقیماً پیست کنید. فقط فیلدهای موجود در خروجی پر می‌شوند و بقیه اطلاعات فرم دست‌نخورده می‌مانند.</div>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" onclick="importAiProduct()">اعتبارسنجی و پر کردن فرم</button>
+            <span id="ai-import-status" class="hint" role="status" aria-live="polite"></span>
+        </div>
+    </div>
+
     <div class="grid g2" style="grid-template-columns:2fr 1fr;align-items:start">
         <div>
             <!-- اطلاعات پایه -->
@@ -198,9 +216,16 @@ $canStock = can('products.stock');
                         </select>
                     </div>
 
-                    <button class="btn btn-primary btn-block mt" type="submit" <?= $canEdit ? '' : 'disabled' ?>>
-                        <i data-lucide="save" style="width:15px"></i> ذخیره محصول
+                    <?php $publication = $product['publication_status'] ?? ($pid ? 'published' : 'draft'); ?>
+                    <div class="hint mt">وضعیت انتشار: <b><?= $publication === 'published' ? 'منتشرشده' : 'پیش‌نویس' ?></b></div>
+                    <button class="btn btn-primary btn-block mt" type="submit" name="publication_action" value="save" <?= $canEdit ? '' : 'disabled' ?>>
+                        <i data-lucide="save" style="width:15px"></i> <?= $pid ? 'ذخیره تغییرات' : 'ذخیره مرحله اول به‌عنوان پیش‌نویس' ?>
                     </button>
+                    <?php if ($pid): ?>
+                        <button class="btn btn-block mt" type="submit" name="publication_action" value="publish" <?= $canEdit ? '' : 'disabled' ?>>
+                            <i data-lucide="send" style="width:15px"></i> ذخیره و انتشار محصول
+                        </button>
+                    <?php endif; ?>
 
                     <?php if ($pid): ?>
                         <a class="btn btn-block mt" target="_blank" rel="noopener" href="/product/<?= e($product['slug']) ?>">
@@ -289,8 +314,12 @@ $canStock = can('products.stock');
                                 <span class="star">شاخص</span>
                             <?php endif; ?>
                             <div style="padding:8px">
-                                <input type="text" name="image_alt[<?= $imgId ?>]"
-                                       value="<?= e($img['alt_text'] ?? '') ?>"
+                                <select name="image_alt_mode[<?= $imgId ?>]" class="image-alt-mode" data-target="image-alt-<?= $imgId ?>" style="font-size:11px;padding:6px 8px;margin-bottom:5px">
+                                    <option value="auto">خودکار — بر اساس نام محصول</option>
+                                    <option value="manual" <?= !empty($img['alt_text']) ? 'selected' : '' ?>>دستی</option>
+                                </select>
+                                <input type="text" id="image-alt-<?= $imgId ?>" name="image_alt[<?= $imgId ?>]"
+                                       value="<?= e($img['alt_text'] ?? $suggestAlt) ?>"
                                        placeholder="<?= e($suggestAlt) ?>"
                                        style="font-size:11px;padding:6px 8px" title="متن جایگزین تصویر (alt)">
                                 <input type="text" name="image_seo_name[<?= $imgId ?>]" class="mono"
@@ -343,7 +372,56 @@ $canStock = can('products.stock');
 <?php endif; ?>
 
 <script>
-const CAR_MODELS = <?= json_encode(array_map(fn($m) => ['id' => (int) $m['id'], 'name' => $m['name']], $carModels), JSON_UNESCAPED_UNICODE) ?>;
+const CAR_MODELS = <?= json_encode(array_map(fn($m) => ['id' => (int) $m['id'], 'slug' => $m['slug'], 'name' => $m['name']], $carModels), JSON_UNESCAPED_UNICODE) ?>;
+const AI_CATEGORIES = <?= json_encode(array_map(fn($c) => ['id' => (int) $c['id'], 'name' => $c['name']], $categories), JSON_UNESCAPED_UNICODE) ?>;
+
+function aiCurrentContext() {
+    const get = name => document.querySelector(`[name="${name}"]`)?.value || '';
+    return {
+        current: {name:get('name'), slug:get('slug'), price:get('price'), brand:get('brand'), oem_code:get('oem_code'), description:get('description')},
+        categories: AI_CATEGORIES,
+        car_models: CAR_MODELS,
+        required_output_schema: {
+            name:'string', slug:'lowercase-latin-kebab-case', price:'non-negative number', category_id:'id from categories or null',
+            brand:'string or null', oem_code:'string or null', is_genuine:'boolean', description:'safe HTML string',
+            stock_qty:'non-negative integer', low_stock_threshold:'non-negative integer', track_stock:'boolean',
+            meta_title:'string max 60 chars', meta_description:'string 120-155 chars', focus_keyword:'string',
+            vehicles:[{car_model_id:'id from car_models',year_from:'integer or null',year_to:'integer or null',trim:'string or null'}],
+            attributes:[{key:'string',value:'string'}]
+        }
+    };
+}
+function buildAiPrompt(type) {
+    const context = aiCurrentContext();
+    if (type === 'image') return `نقش تو: عکاس حرفه‌ای کاتالوگ قطعات خودرو. برای محصول زیر یک تصویر مربعی 1:1، فوتورئال، با نور نرم استودیویی، پس‌زمینه سفید خالص، سایه طبیعی بسیار ملایم، زاویه سه‌ربع ثابت، محصول دقیقاً در مرکز و با حاشیه امن 12٪ بساز. هیچ متن، لوگوی ساختگی، واترمارک، دست، خودرو یا وسیله اضافی در تصویر نباشد. رنگ، شکل، اتصالات و کد حک‌شده قطعه را جعل نکن؛ اگر مرجع تصویری داده شد عیناً حفظ کن. کیفیت مناسب فروشگاه اینترنتی و خروجی WebP/JPG حداقل 1600×1600.\nاطلاعات پویا:\n${JSON.stringify(context.current, null, 2)}`;
+    return `نقش تو: کارشناس قطعات تویوتا و تولید محتوای فروشگاهی فارسی. اطلاعات محصول را دقیق، واقعی و بدون حدس تکمیل کن. داده نامطمئن را null یا خالی بگذار. slug را لاتین، کوتاه و kebab-case بساز. توضیحات HTML امن و اختصاصی باشد. فقط و فقط یک JSON معتبر، بدون markdown و بدون توضیح اضافی، مطابق schema زیر برگردان. شناسه دسته و خودرو را فقط از فهرست‌های داده‌شده انتخاب کن. فیلدهای ناموجود را حذف نکن؛ null بگذار.\nCONTEXT_AND_SCHEMA:\n${JSON.stringify(context, null, 2)}`;
+}
+async function copyAiPrompt(type) {
+    try { await navigator.clipboard.writeText(buildAiPrompt(type)); document.getElementById('ai-import-status').textContent = 'پرامپت کپی شد.'; }
+    catch (_) { prompt('پرامپت را کپی کنید:', buildAiPrompt(type)); }
+}
+function setField(name, value) {
+    if (value === undefined || value === null) return;
+    const el = document.querySelector(`[name="${name}"]`); if (!el) return;
+    if (el.type === 'checkbox') el.checked = !!value; else el.value = String(value);
+    el.dispatchEvent(new Event('input', {bubbles:true})); el.dispatchEvent(new Event('change', {bubbles:true}));
+}
+function importAiProduct() {
+    const status = document.getElementById('ai-import-status');
+    try {
+        let raw = document.getElementById('ai-json-import').value.trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'');
+        const d = JSON.parse(raw); if (!d || Array.isArray(d) || typeof d !== 'object') throw new Error('ساختار باید object باشد');
+        ['name','slug','price','category_id','brand','oem_code','description','stock_qty','low_stock_threshold','track_stock','is_genuine','meta_title','meta_description','focus_keyword'].forEach(k => setField(k,d[k]));
+        if (Array.isArray(d.vehicles)) { document.getElementById('vehicles-box').innerHTML=''; d.vehicles.forEach(v => { addVehicleRow(); const r=document.getElementById('vehicles-box').lastElementChild; r.querySelector('select').value=String(v.car_model_id||''); const x=r.querySelectorAll('input'); x[0].value=v.year_from||''; x[1].value=v.year_to||''; x[2].value=v.trim||''; }); }
+        if (Array.isArray(d.attributes)) { document.getElementById('attrs-box').innerHTML=''; d.attributes.forEach(a => { addAttrRow(a.key||''); const r=document.getElementById('attrs-box').lastElementChild; r.querySelectorAll('input')[1].value=a.value||''; }); }
+        status.textContent='اطلاعات معتبر بود و فیلدهای موجود پر شدند.'; status.style.color='var(--green)';
+    } catch (e) { status.textContent='JSON نامعتبر است: '+e.message; status.style.color='var(--red)'; }
+}
+
+document.querySelectorAll('.image-alt-mode').forEach(sel => {
+    const sync = () => { const input=document.getElementById(sel.dataset.target); const auto=sel.value==='auto'; input.readOnly=auto; if(auto) input.value=input.placeholder; };
+    sel.addEventListener('change',sync); sync();
+});
 
 function addVehicleRow() {
     document.getElementById('no-vehicles')?.remove();

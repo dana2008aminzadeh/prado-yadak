@@ -150,6 +150,9 @@ use Admin\core\Uploader;
                             </td>
                             <td>
                                 <div style="font-weight:700;max-width:250px"><?= e($p['name']) ?></div>
+                                <?php if (($p['publication_status'] ?? 'published') !== 'published'): ?>
+                                    <span class="badge b-amber">پیش‌نویس — مرحله دوم تکمیل نشده</span>
+                                <?php endif; ?>
                                 <div class="hint mono">
                                     <?= e($p['oem_code'] ?: '—') ?>
                                     <?= $p['is_genuine'] ? ' • <span style="color:var(--green)">اصل</span>' : '' ?>
