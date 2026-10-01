@@ -14,6 +14,25 @@ $canStock = can('products.stock');
 
     <div class="grid g2" style="grid-template-columns:2fr 1fr;align-items:start">
         <div>
+            <!-- دستیار هوش مصنوعی: پرامپت‌ها عمداً از داده‌های همین فرم ساخته می‌شوند -->
+            <div class="card mb ai-product-tools">
+                <div class="card-head"><h3><i data-lucide="sparkles" style="width:16px"></i> دستیار هوش مصنوعی محصول</h3></div>
+                <div class="card-body">
+                    <p class="hint">پرامپت‌ها ثابت نیستند؛ اطلاعات فعلی، فیلدهای قابل تکمیل و قالب JSON همین محصول داخل آن قرار می‌گیرد.</p>
+                    <div class="flex gap wrap mt">
+                        <button type="button" class="btn btn-sm" onclick="buildProductPrompt()">ساخت پرامپت اطلاعات محصول</button>
+                        <button type="button" class="btn btn-sm" onclick="buildImagePrompt()">ساخت پرامپت عکس محصول</button>
+                    </div>
+                    <textarea id="ai-prompt-output" rows="8" class="mono mt" readonly placeholder="پرامپت تولیدشده اینجا نمایش داده می‌شود"></textarea>
+                    <div class="flex gap wrap mt">
+                        <button type="button" class="btn btn-sm" onclick="copyAiPrompt()">کپی پرامپت</button>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="applyAiJson()">اعمال خروجی JSON در فرم</button>
+                    </div>
+                    <textarea id="ai-json-input" rows="6" class="mono mt" placeholder="خروجی JSON هوش مصنوعی را اینجا پیست کنید"></textarea>
+                    <div class="hint mt">فقط JSON معتبر وارد کنید؛ اسلاگ، متن جایگزین و فیلدهای قابل تولید خودکار تکمیل می‌شوند و موارد نامطمئن خالی می‌مانند.</div>
+                </div>
+            </div>
+
             <!-- اطلاعات پایه -->
             <div class="card mb">
                 <div class="card-head"><h3>اطلاعات محصول</h3></div>
@@ -198,6 +217,15 @@ $canStock = can('products.stock');
                         </select>
                     </div>
 
+                    <div class="field mt">
+                        <label class="fl">وضعیت انتشار</label>
+                        <select name="publication_status">
+                            <option value="draft" <?= ($product['publication_status'] ?? 'draft') !== 'published' ? 'selected' : '' ?>>پیش‌نویس (ذخیره بدون انتشار)</option>
+                            <option value="published" <?= ($product['publication_status'] ?? '') === 'published' ? 'selected' : '' ?>>انتشار در سایت</option>
+                        </select>
+                        <div class="hint">محصول تازه همیشه ابتدا پیش‌نویس ذخیره می‌شود؛ بعد از افزودن تصاویر، انتشار را انتخاب کنید.</div>
+                    </div>
+
                     <button class="btn btn-primary btn-block mt" type="submit" <?= $canEdit ? '' : 'disabled' ?>>
                         <i data-lucide="save" style="width:15px"></i> ذخیره محصول
                     </button>
@@ -256,6 +284,7 @@ $canStock = can('products.stock');
     <div class="card mt">
         <div class="card-head">
             <h3>گالری تصاویر (<?= count($images) ?>)</h3>
+            <label class="chk" title="در حالت خودکار، نام محصول متن جایگزین تصویر می‌شود"><input type="checkbox" id="auto-alt-mode" checked> <span>متن جایگزین خودکار (نام محصول)</span></label>
             <span class="hint">اولین تصویر یا تصویر ستاره‌دار، شاخص محصول است.</span>
         </div>
         <div class="card-body">
@@ -380,6 +409,8 @@ document.querySelector('input[name=track_stock]')?.addEventListener('change', fu
     document.getElementById('manual-stock').style.display = this.checked ? 'none' : 'flex';
 });
 
+document.getElementById('auto-alt-mode')?.addEventListener('change', function(){ document.querySelectorAll('input[name^=\"image_alt\"]').forEach((x,i)=>{ if(this.checked){x.value=productFormValue('name')+(i?' - تصویر '+(i+1):'');x.readOnly=true;}else{x.readOnly=false;} }); });
+
 // آپلود کشیدن و رها کردن
 const dz = document.getElementById('dropzone');
 if (dz) {
@@ -395,4 +426,19 @@ if (dz) {
         if (input.files.length) document.getElementById('imgForm').submit();
     });
 }
+// انتخاب thumbnail همیشه با تصویر اصلی همگام است و متن جایگزین دو حالت دارد.
+function productFormValue(name) { const el=document.querySelector('[name="'+name+'"]'); return el ? el.value.trim() : ''; }
+function currentProductContext() {
+ return {name:productFormValue('name'), category:productFormValue('category_id'), brand:productFormValue('brand'), oem_code:productFormValue('oem_code'), description:productFormValue('description'), price:productFormValue('price'), current_slug:productFormValue('slug'), vehicle_models:[...document.querySelectorAll('[name="vehicle_model_id[]"]')].map(x=>x.value), attributes:[...document.querySelectorAll('[name="attr_key[]"]')].map((x,i)=>({name:x.value,value:document.querySelectorAll('[name="attr_value[]"]')[i]?.value||''}))};
+}
+function buildProductPrompt() {
+ const schema={name:'string required',slug:'lowercase latin url slug; generate from name',category_id:'number|null',brand:'string|null',oem_code:'string|null',price:'number',description:'safe Persian HTML/text',vehicles:[{model_id:'number',year_from:'number|null',year_to:'number|null',trim:'string|null'}],attributes:[{name:'string',value:'string'}],meta_title:'string|null',meta_description:'string|null',focus_keyword:'string|null',image_alt_mode:'auto|manual',images:[{alt:'string',seo_filename:'string'}]};
+ document.getElementById('ai-prompt-output').value=`نقش شما کارشناس کاتالوگ قطعات خودرو هستید. با داده زمینه زیر فقط JSON معتبر و بدون markdown برگردان. اطلاعات را حدس نزن؛ موارد نامعلوم را null یا آرایه خالی بگذار. اسلاگ را هوشمند، یکتا، کوتاه و فقط با حروف لاتین کوچک و خط تیره بساز. خروجی باید دقیقاً همین کلیدها را داشته باشد و JSON اضافی ننویس. زمینه فعلی: ${JSON.stringify(currentProductContext())}\nقالب استاندارد خروجی: ${JSON.stringify(schema)}\nتمام اعداد را عدد واقعی بده و متن فارسی را UTF-8 نگه دار.`;
+}
+function buildImagePrompt() {
+ const c=currentProductContext(); document.getElementById('ai-prompt-output').value=`یک تصویر محصول کاتالوگی حرفه‌ای و یکدست برای «${c.name||'نامشخص'}»${c.brand?' برند '+c.brand:''}${c.oem_code?' با کد فنی '+c.oem_code:''} بساز. قطعه دقیقاً در مرکز، نمای سه‌ربع و کامل، پس‌زمینه سفید یا خاکستری بسیار روشن، نور استودیویی نرم، سایه کنترل‌شده، بدون لوگو و نوشته و واترمارک، بدون دست و خودرو و بسته‌بندی، نسبت 1:1، کیفیت بالا، رنگ و جنس واقعی قطعه. تصویر مناسب فروشگاه قطعات خودرو و هماهنگ با سایر تصاویر کاتالوگ باشد.`;
+}
+function copyAiPrompt(){const x=document.getElementById('ai-prompt-output'); navigator.clipboard?.writeText(x.value);}
+function applyAiJson(){try{const d=JSON.parse(document.getElementById('ai-json-input').value); const set=(n,v)=>{const x=document.querySelector('[name="'+n+'"]');if(x&&v!==null&&v!==undefined)x.value=v}; Object.keys(d).forEach(k=>{if(!['vehicles','attributes','images'].includes(k))set(k,d[k]);}); if(d.slug)set('slug',d.slug); if(d.attributes){document.getElementById('attrs-box').innerHTML='';d.attributes.forEach(a=>{addAttrRow(a.name);document.querySelectorAll('[name="attr_value[]"]')[document.querySelectorAll('[name="attr_value[]"]').length-1].value=a.value||'';});} if(d.image_alt_mode==='auto'){document.querySelectorAll('input[name^="image_alt"]').forEach(x=>{if(!x.value)x.value=productFormValue('name')});} alert('اطلاعات JSON با موفقیت در فرم قرار گرفت.');}catch(e){alert('JSON معتبر نیست: '+e.message)}}
+
 </script>

@@ -16,6 +16,9 @@ class Product
         // noindex یا انتقال به جایگزین همچنان توسط findBySlug قابل دسترس است.
         if (self::hasColumn('products', 'lifecycle_status')) {
             $conditions[] = "COALESCE(p.lifecycle_status, 'active') <> 'discontinued'";
+            if (self::hasColumn('products', 'publication_status')) {
+                $conditions[] = "COALESCE(p.publication_status, 'published') = 'published'";
+            }
         }
         if (!empty($filters['excludeIds']) && is_array($filters['excludeIds'])) {
             $excludeIds = array_values(array_unique(array_filter(array_map('intval', $filters['excludeIds']))));
@@ -156,10 +159,12 @@ class Product
     public static function findBySlug($slug)
     {
         $db = Database::getInstance();
-        $sql = "SELECT p.*, c.slug as category_slug 
-                FROM products p 
-                LEFT JOIN categories c ON p.category_id = c.id 
-                WHERE p.slug = ? LIMIT 1";
+        $publication = self::hasColumn('products', 'publication_status')
+            ? " AND COALESCE(p.publication_status, 'published') = 'published'" : '';
+        $sql = "SELECT p.*, c.slug as category_slug
+                FROM products p
+                LEFT JOIN categories c ON p.category_id = c.id
+                WHERE p.slug = ?{$publication} LIMIT 1";
         $stmt = $db->prepare($sql);
         $stmt->execute([rawurldecode($slug)]);
         $r = $stmt->fetch();

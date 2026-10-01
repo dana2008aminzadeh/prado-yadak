@@ -24,6 +24,7 @@ class ProductController extends BaseController
         'stock'        => 'products.stock',
         'saveImageMeta' => 'products.edit',
         'suggestSeo'   => 'products.edit',
+        'applyAi'      => 'products.edit',
     ];
 
     // ---------------------------------------------------------------- لیست
@@ -110,6 +111,7 @@ class ProductController extends BaseController
             'meta_title' => '', 'meta_description' => '', 'focus_keyword' => '',
             'robots_directive' => 'default', 'canonical_url' => '', 'seo_score' => 0,
             'lifecycle_status' => 'active', 'replacement_product_id' => null, 'sitemap_policy' => 'auto',
+            'publication_status' => 'draft',
         ];
         $this->renderForm($product, 'افزودن محصول جدید');
     }
@@ -244,6 +246,7 @@ class ProductController extends BaseController
             'lifecycle_status'     => $lifecycle,
             'replacement_product_id' => $replacementId ?: null,
             'sitemap_policy'       => $sitemapPolicy,
+            'publication_status' => (post('publication_status') === 'published' && $pid) ? 'published' : 'draft',
         ];
 
         // موجودی: اگر ردیابی خاموش است، سوییچ دستی موجود/ناموجود
@@ -397,7 +400,7 @@ class ProductController extends BaseController
                 continue;
             }
             Model::update('product_images', $imgId, Model::filterColumns('product_images', [
-                'alt_text'     => \Core\Seo::sanitizeAltText((string) $alt) ?: null,
+                'alt_text'     => \Core\Seo::sanitizeAltText((string) $alt) ?: \Core\Seo::suggestAlt((string) (Model::find('products', $pid)['name'] ?? 'محصول'), null, null, $saved),
                 'seo_filename' => mb_substr(trim((string) ($names[$imgId] ?? '')), 0, 160, 'UTF-8') ?: null,
             ]));
             $saved++;
