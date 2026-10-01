@@ -16,9 +16,12 @@ class Product
         // noindex یا انتقال به جایگزین همچنان توسط findBySlug قابل دسترس است.
         if (self::hasColumn('products', 'lifecycle_status')) {
             $conditions[] = "COALESCE(p.lifecycle_status, 'active') <> 'discontinued'";
-            if (self::hasColumn('products', 'publication_status')) {
-                $conditions[] = "COALESCE(p.publication_status, 'published') = 'published'";
-            }
+        }
+        // فیلتر پیش‌نویس مستقل از lifecycle_status است؛ پیش از این داخل if
+        // بالا تودرتو بود و اگر ستون lifecycle در دیتابیس وجود نداشت، پیش‌نویس‌ها
+        // در فهرست دیده می‌شدند درحالی‌که findBySlug آن‌ها را ۴۰۴ می‌کرد.
+        if (self::hasColumn('products', 'publication_status')) {
+            $conditions[] = "COALESCE(p.publication_status, 'published') = 'published'";
         }
         if (!empty($filters['excludeIds']) && is_array($filters['excludeIds'])) {
             $excludeIds = array_values(array_unique(array_filter(array_map('intval', $filters['excludeIds']))));
@@ -452,13 +455,16 @@ class Product
 
         $lifecycle = self::hasColumn('products', 'lifecycle_status')
             ? "AND COALESCE(p.lifecycle_status, 'active') <> 'discontinued'" : '';
+        // پیش‌نویس‌ها در پیشنهاد محصولات مرتبط نیایند؛ لینکشان در سایت ۴۰۴ است.
+        $publication = self::hasColumn('products', 'publication_status')
+            ? "AND COALESCE(p.publication_status, 'published') = 'published'" : '';
         $fetchLimit = max($limit * 5, 20);
         $scoreSql = implode(' + ', $scoreParts ?: ['0']);
         $sql = "SELECT p.*, c.slug AS category_slug, {$scoreSql} AS similarity_score,
                        " . implode(', ', $selectFlags) . "
                 FROM products p
                 LEFT JOIN categories c ON c.id = p.category_id
-                WHERE p.id <> ? {$lifecycle} AND (" . implode(' OR ', $conditions) . ")
+                WHERE p.id <> ? {$lifecycle} {$publication} AND (" . implode(' OR ', $conditions) . ")
                 ORDER BY similarity_score DESC, p.in_stock DESC, p.id DESC
                 LIMIT {$fetchLimit}";
 

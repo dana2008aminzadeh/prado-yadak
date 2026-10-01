@@ -349,11 +349,17 @@ class SitemapController
     /** همان محصولاتی که Product::search در کاتالوگ نشان می‌دهد. */
     private function catalogEligibility(string $alias = ''): string
     {
-        if (!$this->columnExists('products', 'lifecycle_status')) {
-            return '1=1';
-        }
         $prefix = $alias !== '' ? $alias . '.' : '';
-        return "COALESCE({$prefix}lifecycle_status, 'active') <> 'discontinued'";
+        $conditions = [];
+        if ($this->columnExists('products', 'lifecycle_status')) {
+            $conditions[] = "COALESCE({$prefix}lifecycle_status, 'active') <> 'discontinued'";
+        }
+        // پیش‌نویس‌ها مانند کاتالوگ (Product::search) از Sitemap حذف می‌شوند؛
+        // صفحه جزئیاتشان ۴۰۴ می‌دهد و crawl آن‌ها بودجه خزش را هدر می‌دهد.
+        if ($this->columnExists('products', 'publication_status')) {
+            $conditions[] = "COALESCE({$prefix}publication_status, 'published') = 'published'";
+        }
+        return $conditions ? implode(' AND ', $conditions) : '1=1';
     }
 
     /**
@@ -371,6 +377,11 @@ class SitemapController
         }
         if ($this->columnExists('products', 'lifecycle_status')) {
             $conditions[] = "COALESCE({$prefix}lifecycle_status, 'active') <> 'discontinued'";
+        }
+        // پیش‌نویس (publication_status != published) هرگز در Sitemap نمی‌آید؛
+        // findBySlug آن‌ها را تحویل نمی‌دهد و URLشان ۴۰۴ است.
+        if ($this->columnExists('products', 'publication_status')) {
+            $conditions[] = "COALESCE({$prefix}publication_status, 'published') = 'published'";
         }
         if ($this->columnExists('products', 'sitemap_policy')) {
             $conditions[] = "COALESCE({$prefix}sitemap_policy, 'auto') <> 'exclude'";
