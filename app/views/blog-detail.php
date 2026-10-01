@@ -11,7 +11,7 @@
     <main class="max-w-4xl mx-auto px-4 py-8 sm:py-12 space-y-8">
         <!-- مسیر ناوبری -->
         <nav aria-label="مسیر صفحه"
-            class="flex items-center gap-2 text-xs text-gray-400 mb-4 overflow-x-auto whitespace-nowrap pb-2">
+            class="flex flex-wrap items-center gap-2 text-xs text-gray-400 mb-4 max-w-full overflow-hidden pb-2">
             <a href="/" class="hover:text-brand-accent transition">صفحه اصلی</a>
             <i data-lucide="chevron-left" style="width:12px;height:12px;"></i>
             <a href="/blog" class="hover:text-brand-accent transition">وبلاگ فنی</a>

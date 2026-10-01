@@ -11,8 +11,8 @@
     <!-- محتوای اصلی -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 sm:py-12 space-y-12 sm:space-y-16">
 
-        <nav aria-label="Breadcrumb" class="mb-4 overflow-x-auto whitespace-nowrap pb-2">
-            <ol class="flex items-center gap-2 text-xs text-gray-400">
+        <nav aria-label="Breadcrumb" class="mb-4 max-w-full overflow-hidden pb-2">
+            <ol class="flex flex-wrap items-center gap-2 text-xs text-gray-400 break-words">
                 <li><a href="/" class="hover:text-white transition">صفحه اصلی</a></li>
                 <li aria-hidden="true"><i data-lucide="chevron-left" style="width:12px;height:12px;"></i></li>
                 <li><a href="/parts" class="hover:text-white transition">کاتالوگ قطعات</a></li>
@@ -60,7 +60,7 @@
                         <span id="main-product-inner" class="w-full h-full flex items-center justify-center">
                             <?php if ($mainImage !== ''): ?>
                                 <img src="<?= e($mainImage) ?>" alt="<?= e($mainAlt) ?>" width="600" height="600"
-                                    class="max-w-full max-h-full object-contain drop-shadow-2xl transition transform group-hover:scale-110 duration-300">
+                                    class="max-w-full max-h-full object-contain drop-shadow-2xl transition transform group-hover:scale-105 duration-300">
                             <?php else: ?>
                                 <span class="text-gray-500 flex flex-col items-center gap-3" role="img"
                                     aria-label="تصویری برای <?= e($product['name']) ?> ثبت نشده است">
@@ -511,6 +511,22 @@
     <?php include 'assets/php/footer.php'; ?>
 
     <script src="/assets/js/main.min.js" defer></script>
+<script>
+/* گالری مستقل: زوم فقط روی تصویر، بدون زوم شدن صفحه؛ wheel و کلیدهای چپ/راست */
+window.addEventListener('load', function () {
+ const gallery = <?= json_encode($gallery ?? [], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) ?>;
+ let index=0, scale=1;
+ window.changeMainImage=function(url, button, alt){
+  const holder=document.getElementById('main-product-inner'); if(!holder)return;
+  holder.innerHTML='<img src="'+String(url).replace(/"/g,'&quot;')+'" alt="'+String(alt||'تصویر محصول').replace(/"/g,'&quot;')+'" class="max-w-full max-h-full object-contain drop-shadow-2xl transition duration-200">';
+  window.currentImgSource=url; index=Math.max(0,gallery.findIndex(x=>x.url===url));
+  document.querySelectorAll('.thumb-btn').forEach(x=>{x.classList.remove('border-brand-red','bg-brand-dark');x.classList.add('border-white/5','bg-brand-dark/40');x.setAttribute('aria-pressed','false')});
+  if(button){button.classList.add('border-brand-red','bg-brand-dark');button.classList.remove('border-white/5','bg-brand-dark/40');button.setAttribute('aria-pressed','true')}
+ };
+ window.toggleZoomModal=function(open){const modal=document.getElementById('image-zoom-modal'),box=document.getElementById('zoom-modal-content');if(!modal||!box)return;if(!open){modal.classList.remove('opacity-100');setTimeout(()=>modal.classList.add('hidden'),200);document.body.style.overflow='';return} const img=document.querySelector('#main-product-inner img');if(!img)return;scale=1;box.innerHTML='<img id="zoomable-product-image" src="'+img.src+'" alt="'+(img.alt||'تصویر محصول')+'" style="transform:scale(1);max-width:90vw;max-height:80vh;object-fit:contain;transition:transform .15s;cursor:zoom-in">';modal.classList.remove('hidden');document.body.style.overflow='hidden';setTimeout(()=>modal.classList.add('opacity-100'),20);const zi=document.getElementById('zoomable-product-image');zi.addEventListener('wheel',function(e){e.preventDefault();scale=Math.min(4,Math.max(1,scale+(e.deltaY<0?.25:-.25)));zi.style.transform='scale('+scale+')';},{passive:false});zi.addEventListener('click',function(e){e.stopPropagation();scale=scale>=4?1:scale+.5;zi.style.transform='scale('+scale+')'});};
+ document.addEventListener('keydown',e=>{if(document.getElementById('image-zoom-modal')?.classList.contains('hidden'))return;if(e.key==='Escape')toggleZoomModal(false);if((e.key==='ArrowLeft'||e.key==='ArrowRight')&&gallery.length>1){index=(index+(e.key==='ArrowLeft'?1:-1)+gallery.length)%gallery.length;const b=[...document.querySelectorAll('.thumb-btn')][index];changeMainImage(gallery[index].url,b,gallery[index].alt)}});
+});
+</script>
 </body>
 
 </html>
