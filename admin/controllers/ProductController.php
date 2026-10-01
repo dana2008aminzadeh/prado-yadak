@@ -246,7 +246,10 @@ class ProductController extends BaseController
             'lifecycle_status'     => $lifecycle,
             'replacement_product_id' => $replacementId ?: null,
             'sitemap_policy'       => $sitemapPolicy,
-            'publication_status' => (post('publication_status') === 'published' && $pid) ? 'published' : 'draft',
+            // انتخاب مدیر در فرم معیار است؛ پیش از این «&& $pid» باعث می‌شد
+            // محصول تازه‌ساخته‌شده همیشه پیش‌نویس ذخیره شود و صفحه جزئیات آن
+            // در سایت ۴۰۴ بدهد، درحالی‌که فهرست‌ها آن را نمایش می‌دادند.
+            'publication_status' => post('publication_status') === 'published' ? 'published' : 'draft',
         ];
 
         // موجودی: اگر ردیابی خاموش است، سوییچ دستی موجود/ناموجود
