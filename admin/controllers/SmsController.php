@@ -68,8 +68,23 @@ class SmsController extends BaseController
         $configured = (bool) (Settings::get('smsir_api_key') && Settings::get('smsir_line_number'));
         $audiences = self::AUDIENCES;
 
+        // نمای کلی حساب sms.ir (اعتبار/خطوط) با کش سشن؛ با ?refresh=1 تازه می‌شود
+        $account = ['fetched' => false, 'credit' => null, 'lines' => [], 'error' => null, 'fetched_at' => null];
+        if (Settings::get('smsir_api_key')) {
+            $account = Sms::accountOverview(param('refresh') === '1');
+        }
+        $apiKeyMask = self::maskSecret((string) Settings::get('smsir_api_key'));
+        $lineNumber = (string) Settings::get('smsir_line_number', '');
+        $adminPhones = Sms::adminPhones();
+        $notifyToggles = [
+            'customer' => Settings::bool('sms_notify_order_customer'),
+            'newOrder' => Settings::bool('sms_notify_new_order_admin'),
+            'status'   => Settings::bool('sms_notify_status_admin'),
+        ];
+
         $this->view('sms/index',
-            compact('logs', 'pg', 'stats', 'templates', 'campaigns', 'status', 'q', 'enabled', 'configured', 'audiences'),
+            compact('logs', 'pg', 'stats', 'templates', 'campaigns', 'status', 'q', 'enabled', 'configured',
+                    'audiences', 'account', 'apiKeyMask', 'lineNumber', 'adminPhones', 'notifyToggles'),
             'سامانه پیامک', money($total) . ' پیامک ثبت‌شده');
     }
 
@@ -228,6 +243,16 @@ class SmsController extends BaseController
         flash($res['success'] ? 'success' : 'error',
             $res['success'] ? 'پیامک مجدداً ارسال شد.' : ('ارسال مجدد ناموفق: ' . $res['message']));
         back(admin_url('sms'));
+    }
+
+    /** نمایش امن کلید API (فقط ابتدا و انتها) */
+    private static function maskSecret(string $secret): string
+    {
+        $len = strlen($secret);
+        if ($len <= 8) {
+            return $secret !== '' ? '••••••••' : '';
+        }
+        return substr($secret, 0, 6) . '••••' . substr($secret, -4);
     }
 
     /** استخراج لیست مخاطبان بر اساس گروه انتخابی */

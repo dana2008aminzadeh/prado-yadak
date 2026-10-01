@@ -10,10 +10,15 @@ use App\models\Notice;
 use App\models\Location;
 use App\models\Address;
 use App\models\ShippingMethod;
+use App\models\Setting;
 use App\models\User;
 
 class OrderController extends Controller
 {
+    /** مقادیر جایگزین در صورت خالی بودن تنظیمات پیامک */
+    private const LEGACY_SMS_API_KEY = 'RL2qyUkahbb5FM1gLvqFTQeiXDuULlsa7F1aLlBPobQ2tIQL';
+    private const LEGACY_ORDER_TEMPLATE_ID = 989878;
+
     public function checkout()
     {
         header('X-Robots-Tag: noindex, nofollow', true);
@@ -256,7 +261,8 @@ class OrderController extends Controller
             exit;
         }
 
-        $this->sendOrderNotificationSms($recipientPhone, $recipientName, $trackingCode);
+        // پیامک‌های ثبت سفارش (تأیید مشتری + اعلان مدیران) — قابل کنترل از تنظیمات
+        $this->notifyOrderCreated($recipientPhone, $recipientName, $trackingCode, $totalAmount, $userId);
 
         $_SESSION['last_checkout_time'] = time();
         Address::saveIfNotExists($userId, $provinceCity, $addressDetail, $postalCode);
@@ -332,31 +338,47 @@ class OrderController extends Controller
         exit;
     }
 
-    private function sendOrderNotificationSms(string $mobile, string $name, string $trackingCode): void
+    /**
+     * پیامک‌های رویداد ثبت سفارش (همزمان با ثبت رسید بانکی):
+     * ۱) تأیید ثبت سفارش به مشتری با قالب verify — شناسه قالب از تنظیمات.
+     * ۲) اعلان متنی به مدیران — متن از «قالب‌های خودکار» پنل پیامک
+     *    (admin_order_new) خوانده می‌شود و در نبود آن متن پیش‌فرض می‌رود.
+     * هر دو کاملاً از تنظیمات قابل خاموش/روشن شدن هستند.
+     */
+    private function notifyOrderCreated(string $mobile, string $name, string $trackingCode, float $totalAmount, int $userId): void
     {
-        $apiKey = 'RL2qyUkahbb5FM1gLvqFTQeiXDuULlsa7F1aLlBPobQ2tIQL';
-        $templateId = 989878;
+        // ۱) تأیید به مشتری (قالب تأییدشده sms.ir)
+        try {
+            if (Setting::boolish('sms_notify_order_customer', true)) {
+                $templateId = (int) Setting::get('smsir_order_template_id', (string) self::LEGACY_ORDER_TEMPLATE_ID);
+                $apiKey = (string) Setting::get('smsir_api_key', self::LEGACY_SMS_API_KEY);
+                $res = \Admin\core\Sms::sendVerify($mobile, $templateId, [
+                    'NAME' => $name,
+                    'CODE' => $trackingCode,
+                ], $userId, 'order_new_customer', $apiKey);
+                if (empty($res['success'])) {
+                    @error_log('[sms/order-customer] ارسال ناموفق: ' . ($res['message'] ?? ''));
+                }
+            }
+        } catch (\Throwable $e) {
+            @error_log('[sms/order-customer] ' . $e->getMessage());
+        }
 
-        $data = [
-            "mobile" => $mobile,
-            "templateId" => $templateId,
-            "parameters" => [
-                ["name" => "NAME", "value" => (string) $name],
-                ["name" => "CODE", "value" => (string) $trackingCode]
-            ]
-        ];
-
-        $ch = curl_init("https://api.sms.ir/v1/send/verify");
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            "Content-Type: application/json",
-            "Accept: text/plain",
-            "x-api-key: " . $apiKey
-        ]);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
-        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-        curl_exec($ch);
-        curl_close($ch);
+        // ۲) اعلان به مدیران
+        try {
+            if (Setting::boolish('sms_notify_new_order_admin', true)) {
+                $text = \Admin\core\Sms::renderTemplate('admin_order_new',
+                    "سفارش جدید ثبت شد\nکد رهگیری: {order}\nمشتری: {name}\nموبایل: {customer_phone}\nمبلغ: {amount} تومان\nرسید بانکی ثبت شد و نیازمند بررسی است.",
+                    [
+                        'order'          => $trackingCode,
+                        'name'           => $name,
+                        'customer_phone' => $mobile,
+                        'amount'         => number_format($totalAmount),
+                    ]);
+                \Admin\core\Sms::notifyAdmins($text, 'admin_order_new');
+            }
+        } catch (\Throwable $e) {
+            @error_log('[sms/order-admin] ' . $e->getMessage());
+        }
     }
 }

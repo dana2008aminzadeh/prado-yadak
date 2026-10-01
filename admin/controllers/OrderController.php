@@ -219,6 +219,16 @@ class OrderController extends BaseController
             'وضعیت سفارش ' . $order['tracking_code'] . ' از «' . (self::STATUSES[$oldStatus] ?? $oldStatus)
             . '» به «' . self::STATUSES[$new] . '» تغییر کرد.' . ($note ? ' یادداشت: ' . $note : ''));
 
+        // --- اعلان خودکار به مدیران هنگام تغییر وضعیت ---
+        if ($oldStatus !== $new && Settings::bool('sms_notify_status_admin')) {
+            $this->notifyAdminsOrderEvent($oid, 'admin_order_status',
+                "وضعیت سفارش {order} تغییر کرد\nاز «{from}» به «{to}»\nمشتری: {name}\nموبایل: {customer_phone}\nمبلغ: {amount} تومان",
+                [
+                    'from' => self::STATUSES[$oldStatus] ?? $oldStatus,
+                    'to'   => self::STATUSES[$new] ?? $new,
+                ]);
+        }
+
         // --- اطلاع‌رسانی پیامکی ---
         if ($sendSms) {
             $res = $this->sendStatusSms($oid, $new);
@@ -302,6 +312,16 @@ class OrderController extends BaseController
         $this->audit('order.shipping', 'order', $oid,
             'ثبت بارنامه برای ' . $order['tracking_code'] . ' — ' . (self::CARRIERS[$carrier] ?? '—') . ' / ' . ($code ?: 'بدون کد'),
             $old, $data);
+
+        // --- اعلان خودکار به مدیران هنگام ثبت بارنامه ---
+        if (Settings::bool('sms_notify_status_admin')) {
+            $this->notifyAdminsOrderEvent($oid, 'admin_order_shipping',
+                "بارنامه سفارش {order} ثبت شد\nحمل: {carrier} — کد رهگیری: {tracking}\nمشتری: {name}\nموبایل: {customer_phone}\nمبلغ: {amount} تومان",
+                [
+                    'tracking' => $code !== '' ? $code : '—',
+                    'carrier'  => $carrier !== '' ? (self::CARRIERS[$carrier] ?? $carrier) : '—',
+                ]);
+        }
 
         if ($sendSms) {
             $res = $this->sendStatusSms($oid, 'shipped');
@@ -387,6 +407,39 @@ class OrderController extends BaseController
         }
 
         return ['success' => false, 'message' => 'ارسال پیامک ناموفق بود: ' . ($res['message'] ?? '')];
+    }
+
+    /**
+     * اعلان پیامکی رویداد سفارش به مدیران.
+     * متن از قالب «قالب‌های خودکار» پنل پیامک (template_key) خوانده می‌شود؛
+     * اگر قالب وجود نداشته باشد یا غیرفعال باشد، متن پیش‌فرض ارسال می‌شود.
+     */
+    private function notifyAdminsOrderEvent(int $oid, string $templateKey, string $defaultBody, array $vars = []): void
+    {
+        $order = Model::one('SELECT o.*, u.full_name, u.phone FROM orders o
+                             LEFT JOIN users u ON u.id = o.user_id WHERE o.id = ?', [$oid]);
+        if (!$order) {
+            return;
+        }
+
+        $vars += [
+            'order'          => (string) $order['tracking_code'],
+            'name'           => (string) ($order['recipient_name'] ?: ($order['full_name'] ?: 'مشتری')),
+            'customer_phone' => (string) ($order['recipient_phone'] ?: $order['phone']),
+            'amount'         => money($order['total_amount']),
+            'tracking'       => (string) ($order['shipping_tracking_code'] ?: '—'),
+            'carrier'        => self::CARRIERS[$order['shipping_carrier']] ?? ($order['shipping_carrier'] ?: '—'),
+            'status'         => self::STATUSES[$order['status']] ?? $order['status'],
+        ];
+
+        try {
+            $res = Sms::notifyAdmins(Sms::renderTemplate($templateKey, $defaultBody, $vars), $templateKey);
+            if (!empty($res['success'])) {
+                $this->audit('sms.send', 'order', $oid, 'اعلان «' . $templateKey . '» به مدیران (' . $res['sent'] . ' نفر)');
+            }
+        } catch (\Throwable $e) {
+            @error_log('[sms/admin-notify] ' . $e->getMessage());
+        }
     }
 
     // ---------------------------------------------------------------- ویرایش

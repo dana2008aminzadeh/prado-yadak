@@ -132,6 +132,20 @@ $growth = $stats['revenue_growth'];
             <div class="hint"><?= e($sub) ?></div>
         </a>
     <?php endforeach; ?>
+
+    <?php if ($smsAccount !== null): ?>
+        <a href="<?= admin_url('sms') ?>" class="stat" title="وضعیت حساب SMS.ir">
+            <span class="lbl">موجودی پنل پیامک</span>
+            <div class="val" style="direction:ltr"><?= $smsAccount['credit'] !== null ? money($smsAccount['credit']) : '—' ?></div>
+            <div class="hint"<?= $smsAccount['error'] ? ' style="color:var(--red)"' : '' ?>>
+                <?php if ($smsAccount['error']): ?>
+                    <?= e(excerpt($smsAccount['error'], 45)) ?>
+                <?php else: ?>
+                    <?= count($smsAccount['lines']) ? money(count($smsAccount['lines'])) . ' خط متصل' : 'اعتبار حساب SMS.ir' ?>
+                <?php endif; ?>
+            </div>
+        </a>
+    <?php endif; ?>
 </div>
 
 <div class="card mb">

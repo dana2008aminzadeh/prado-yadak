@@ -231,6 +231,7 @@ define('BASE_URL', '/');
 spl_autoload_register(function ($class) {
     $prefix_app = 'App\\';
     $prefix_core = 'Core\\';
+    $prefix_admin_core = 'Admin\\core\\';
     $file = '';
 
     if (strncmp($prefix_app, $class, strlen($prefix_app)) === 0) {
@@ -239,6 +240,11 @@ spl_autoload_register(function ($class) {
     } elseif (strncmp($prefix_core, $class, strlen($prefix_core)) === 0) {
         $relative_class = substr($class, strlen($prefix_core));
         $file = CORE_PATH . '/' . str_replace('\\', '/', $relative_class) . '.php';
+    } elseif (strncmp($prefix_admin_core, $class, strlen($prefix_admin_core)) === 0) {
+        // سرویس‌های مشترک هسته مدیریت (مثل پیامک) در درگاه فروشگاه هم
+        // قابل استفاده‌اند؛ فقط کلاس‌های core/autoload می‌شوند، نه کنترلرها.
+        $relative_class = substr($class, strlen($prefix_admin_core));
+        $file = BASE_PATH . '/admin/core/' . str_replace('\\', '/', $relative_class) . '.php';
     }
 
     if (file_exists($file)) {
