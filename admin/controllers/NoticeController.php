@@ -28,12 +28,25 @@ class NoticeController extends BaseController
             back(admin_url('notices'));
         }
 
+        // کلید صفحه باید یکی از صفحات شناخته‌شده مدل Notice باشد؛ لیست صفحات
+        // را فقط از Notice::PAGES تغییر دهید تا پنل و سایت هم‌گام بمانند.
+        $page = trim((string) post('page'));
+        if (!array_key_exists($page, \App\models\Notice::PAGES)) {
+            $page = 'global';
+        }
+
+        // آیکون‌ها از کتابخانه Lucide هستند؛ فقط نام مجاز (حروف، عدد و خط تیره) پذیرفته می‌شود.
+        $icon = preg_replace('/[^a-z0-9-]/i', '', (string) post('icon'));
+        if ($icon === '') {
+            $icon = 'info';
+        }
+
         $data = [
-            'page'      => trim((string) post('page')) ?: 'checkout',
+            'page'      => $page,
             'type'      => in_array(post('type'), ['info', 'warning', 'danger'], true) ? (string) post('type') : 'info',
             'title'     => mb_substr($title, 0, 255),
             'message'   => (string) post('message'),
-            'icon'      => trim((string) post('icon')) ?: 'info',
+            'icon'      => $icon,
             'is_active' => post('is_active') ? 1 : 0,
             'priority'  => (int) post('priority', 0),
         ];

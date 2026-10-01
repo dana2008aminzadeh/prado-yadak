@@ -1,10 +1,12 @@
 <?php
 use Admin\core\Auth;
+
 $n = $editing ?: ['id' => 0, 'page' => 'checkout', 'type' => 'info', 'title' => '', 'message' => '',
     'icon' => 'info', 'is_active' => 1, 'priority' => 0];
 $types = ['info' => ['اطلاع‌رسانی (آبی)', 'b-blue'], 'warning' => ['هشدار (زرد)', 'b-amber'], 'danger' => ['خطر (قرمز)', 'b-red']];
-$pages = ['global' => 'همه صفحات', 'checkout' => 'تسویه حساب', 'parts' => 'صفحه قطعات',
-          'home' => 'صفحه اصلی', 'cart' => 'سبد خرید'];
+// فهرست صفحات از مدل خوانده می‌شود تا پنل و سایت همیشه هم‌گام باشند؛
+// برای افزودن صفحه جدید کلید را در App\models\Notice::PAGES اضافه کنید.
+$pages = \App\models\Notice::PAGES;
 $canEdit = can('notices.edit');
 ?>
 
@@ -42,6 +44,8 @@ $canEdit = can('notices.edit');
                 </div>
                 <label class="chk"><input type="checkbox" name="is_active" value="1"
                     <?= (int) $n['is_active'] === 1 ? 'checked' : '' ?>><span>فعال باشد</span></label>
+                <p class="hint">اطلاعیه‌ها بلافاصله پس از ذخیره، زیر منوی بالای صفحه‌ی انتخابی نمایش داده می‌شوند؛
+                    اطلاعیه «سبد خرید» داخل کشوی کنار صفحه و «همه صفحات» در تمام سایت دیده می‌شود.</p>
                 <button class="btn btn-primary btn-block" type="submit">ذخیره اطلاعیه</button>
             </div>
         </form>

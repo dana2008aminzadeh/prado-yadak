@@ -195,6 +195,14 @@ if (!isset($current_page)) {
             </button>
         </div>
 
+        <!-- اطلاعیه‌های مرتبط با سبد خرید (فقط اطلاعیه‌های page=cart) -->
+        <?php
+        $noticePageKey = 'cart';
+        $noticeContext = 'bare';
+        include __DIR__ . '/notices.php';
+        unset($noticePageKey, $noticeContext);
+        ?>
+
         <!-- لیست قطعات -->
         <div class="space-y-4 max-h-[60vh] overflow-y-auto pr-1" id="cart-items-container">
 

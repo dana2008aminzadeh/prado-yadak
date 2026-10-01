@@ -6,7 +6,6 @@ use App\models\Order;
 use App\models\Cart;
 use App\models\Product;
 use App\models\Coupon;
-use App\models\Notice;
 use App\models\Location;
 use App\models\Address;
 use App\models\ShippingMethod;
@@ -26,7 +25,9 @@ class OrderController extends Controller
         global $settings;
         $siteName = $settings['site_title'] ?? 'پرادو یدک';
         $pageTitle = 'تسویه حساب و پرداخت نهایی | ' . $siteName;
-        $notices = Notice::getForPage('checkout');
+        // اطلاعیه‌های صفحه تسویه حساب دیگر اینجا واکشی نمی‌شوند؛
+        // پارشال مشترک assets/php/notices.php (فراخوانی از header.php) بر اساس
+        // مسیر جاری همان نتیجه را رندر می‌کند.
         $provinces = Location::getActiveProvinces();
         $savedAddresses = Address::getByUserId($userId);
         $currentUser = User::findById($userId);
