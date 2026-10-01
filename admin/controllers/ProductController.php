@@ -110,6 +110,7 @@ class ProductController extends BaseController
             'meta_title' => '', 'meta_description' => '', 'focus_keyword' => '',
             'robots_directive' => 'default', 'canonical_url' => '', 'seo_score' => 0,
             'lifecycle_status' => 'active', 'replacement_product_id' => null, 'sitemap_policy' => 'auto',
+            'publication_status' => 'draft',
         ];
         $this->renderForm($product, 'افزودن محصول جدید');
     }
@@ -210,6 +211,11 @@ class ProductController extends BaseController
         if (!in_array($lifecycle, ['active', 'out_of_stock', 'discontinued'], true)) {
             $lifecycle = 'active';
         }
+        // مرحله اول فقط پیش‌نویس می‌سازد؛ انتشار فقط با دکمه صریح مرحله دوم ممکن است.
+        $publicationStatus = (string) post('publication_status', $old['publication_status'] ?? 'draft');
+        if (!in_array($publicationStatus, ['draft', 'published'], true)) {
+            $publicationStatus = 'draft';
+        }
         $sitemapPolicy = (string) post('sitemap_policy', 'auto');
         if (!in_array($sitemapPolicy, ['auto', 'include', 'exclude'], true)) {
             $sitemapPolicy = 'auto';
@@ -244,6 +250,7 @@ class ProductController extends BaseController
             'lifecycle_status'     => $lifecycle,
             'replacement_product_id' => $replacementId ?: null,
             'sitemap_policy'       => $sitemapPolicy,
+            'publication_status'  => $publicationStatus,
         ];
 
         // موجودی: اگر ردیابی خاموش است، سوییچ دستی موجود/ناموجود
@@ -564,7 +571,7 @@ class ProductController extends BaseController
                 'product_id'       => $pid,
                 'telegram_file_id' => $res['telegram_file_id'] ?? null,
                 'image_path'       => $res['path'] ?? null,
-                'alt_text'         => \Core\Seo::suggestAlt((string) ($prod['name'] ?? ''), $modelName ?: null, $prod['oem_code'] ?? null, (int) $idx),
+                'alt_text'         => post('image_alt_mode', 'auto') === 'manual' ? null : \Core\Seo::suggestAlt((string) ($prod['name'] ?? ''), $modelName ?: null, $prod['oem_code'] ?? null, (int) $idx),
                 'seo_filename'     => \Core\Seo::imageSlug((string) ($prod['name'] ?? ''), $prod['oem_code'] ?? null, $modelName ?: null, (int) $idx),
                 'is_primary'       => (!$hasPrimary && $saved === 0) ? 1 : 0,
                 'sort_order'       => ++$maxOrder,

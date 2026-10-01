@@ -17,6 +17,9 @@ class Product
         if (self::hasColumn('products', 'lifecycle_status')) {
             $conditions[] = "COALESCE(p.lifecycle_status, 'active') <> 'discontinued'";
         }
+        if (self::hasColumn('products', 'publication_status')) {
+            $conditions[] = "COALESCE(p.publication_status, 'published') = 'published'";
+        }
         if (!empty($filters['excludeIds']) && is_array($filters['excludeIds'])) {
             $excludeIds = array_values(array_unique(array_filter(array_map('intval', $filters['excludeIds']))));
             if ($excludeIds) {
@@ -166,6 +169,9 @@ class Product
 
         if (!$r)
             return null;
+        if (self::hasColumn('products', 'publication_status') && ($r['publication_status'] ?? 'published') !== 'published') {
+            return null;
+        }
 
         return self::mapRow($r, true);
     }

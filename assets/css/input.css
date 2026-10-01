@@ -472,3 +472,7 @@ input[type="range"]::-webkit-slider-thumb {
     0%, 100% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.3); }
     50% { box-shadow: 0 0 40px rgba(245, 158, 11, 0.6); }
 }
+/* تصویر انتخاب‌شده در گالری همیشه از وضعیت تصویری جدا قابل تشخیص است. */
+.thumb-btn.thumb-active { border-color: var(--color-brand-red, #eb0a1e) !important; background-color: var(--color-brand-dark, #251e1b) !important; }
+/* مسیرهای طولانی نباید عرض صفحه را در موبایل زیاد کنند. */
+[aria-label="Breadcrumb"], [aria-label="مسیر صفحه"] { min-width: 0; max-width: 100%; }

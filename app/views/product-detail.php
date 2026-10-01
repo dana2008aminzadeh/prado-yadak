@@ -11,8 +11,9 @@
     <!-- محتوای اصلی -->
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-6 sm:py-12 space-y-12 sm:space-y-16">
 
-        <nav aria-label="Breadcrumb" class="mb-4 overflow-x-auto whitespace-nowrap pb-2">
-            <ol class="flex items-center gap-2 text-xs text-gray-400">
+        <nav aria-label="Breadcrumb" class="mb-4 min-w-0 overflow-hidden pb-2">
+            <div class="flex flex-wrap items-center gap-2 text-xs text-gray-400 leading-6 break-words">
+            <ol class="flex flex-wrap items-center gap-2 text-xs text-gray-400 min-w-0 break-words">
                 <li><a href="/" class="hover:text-white transition">صفحه اصلی</a></li>
                 <li aria-hidden="true"><i data-lucide="chevron-left" style="width:12px;height:12px;"></i></li>
                 <li><a href="/parts" class="hover:text-white transition">کاتالوگ قطعات</a></li>
@@ -29,6 +30,7 @@
 
                 <li aria-current="page" class="text-brand-red font-bold"><?= e($product['name']) ?></li>
             </ol>
+            </div>
         </nav>
 
         <!-- باکس اصلی محصول -->
@@ -92,7 +94,7 @@
                                     aria-label="نمایش <?= e($g['alt']) ?>" aria-pressed="<?= $index === 0 ? 'true' : 'false' ?>"
                                     class="thumb-btn h-16 sm:h-20 border rounded-xl flex items-center justify-center cursor-pointer transition duration-200 hover:border-brand-red/50 p-2 <?= $index === 0 ? 'border-brand-red bg-brand-dark' : 'border-white/5 bg-brand-dark/40' ?>">
                                     <img src="<?= e($g['url']) ?>" loading="lazy" width="120" height="120"
-                                        class="max-w-full max-h-full object-contain anim-float"
+                                        class="max-w-full max-h-full object-contain"
                                         alt="">
                                 </button>
                             <?php endforeach; ?>
@@ -491,6 +493,11 @@
     <div id="image-zoom-modal" role="dialog" aria-modal="true" aria-label="بزرگ‌نمایی تصویر محصول"
         class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-4 cursor-zoom-out"
         onclick="toggleZoomModal(false)">
+        <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-black/70 rounded-xl p-2" onclick="event.stopPropagation()">
+            <button type="button" class="text-white bg-white/10 hover:bg-brand-red rounded-lg px-4 py-2" onclick="productGalleryZoom(-0.2)" aria-label="کوچک‌نمایی">−</button>
+            <span id="product-gallery-zoom-label" class="text-xs text-white px-2">۱۰۰٪</span>
+            <button type="button" class="text-white bg-white/10 hover:bg-brand-red rounded-lg px-4 py-2" onclick="productGalleryZoom(0.2)" aria-label="بزرگ‌نمایی">+</button>
+        </div>
         <button type="button" aria-label="بستن تصویر بزرگ"
             class="absolute top-6 right-6 text-white bg-white/10 hover:bg-brand-red rounded-full p-2 transition"
             onclick="toggleZoomModal(false)">
@@ -506,6 +513,23 @@
                 partsDatabase.push(<?= json_encode($product, JSON_UNESCAPED_UNICODE) ?>);
             }
         });
+    </script>
+
+    <script>
+        let productGalleryScale = 1;
+        window.productGalleryZoom = function (delta) {
+            productGalleryScale = Math.min(3, Math.max(.5, productGalleryScale + delta));
+            const img = document.querySelector('#zoom-modal-content img');
+            if (img) img.style.transform = 'scale(' + productGalleryScale + ')';
+            const label = document.getElementById('product-gallery-zoom-label');
+            if (label) label.textContent = Math.round(productGalleryScale * 100) + '%';
+        };
+        const oldToggleZoom = window.toggleZoomModal;
+        window.toggleZoomModal = function (open) {
+            productGalleryScale = 1;
+            if (typeof oldToggleZoom === 'function') oldToggleZoom(open);
+            if (open) setTimeout(() => productGalleryZoom(0), 30);
+        };
     </script>
 
     <?php include 'assets/php/footer.php'; ?>

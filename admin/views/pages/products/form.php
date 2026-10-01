@@ -11,6 +11,23 @@ $canStock = can('products.stock');
 <form method="POST" action="<?= admin_url('products/save') ?>">
     <?= Auth::csrfField() ?>
     <input type="hidden" name="id" value="<?= $pid ?>">
+    <input type="hidden" name="publication_status" id="publication-status" value="<?= e($product['publication_status'] ?? 'draft') ?>">
+
+    <div class="card mb ai-product-tools">
+        <div class="card-head"><h3>دستیار هوش مصنوعی محصول</h3><span class="badge b-blue">خروجی استاندارد JSON</span></div>
+        <div class="card-body">
+            <p class="hint mb">پرامت‌ها ثابت نیستند؛ بر اساس فیلدهای همین فرم و اطلاعات فروشگاه ساخته می‌شوند. خروجی JSON را پیست کنید تا همه فیلدهای قابل تشخیص پر شوند.</p>
+            <div class="flex gap wrap mb">
+                <button type="button" class="btn btn-sm" onclick="copyProductPrompt('data')">کپی پرامت تکمیل اطلاعات</button>
+                <button type="button" class="btn btn-sm" onclick="copyProductPrompt('image')">کپی پرامت ساخت تصویر یکدست</button>
+            </div>
+            <textarea id="ai-json-output" rows="4" placeholder="خروجی JSON هوش مصنوعی را اینجا پیست کنید..."></textarea>
+            <div class="flex gap wrap mt">
+                <button type="button" class="btn btn-primary btn-sm" onclick="applyProductAIJson()">اعمال اطلاعات JSON</button>
+                <span id="ai-json-status" class="hint" aria-live="polite"></span>
+            </div>
+        </div>
+    </div>
 
     <div class="grid g2" style="grid-template-columns:2fr 1fr;align-items:start">
         <div>
@@ -198,9 +215,18 @@ $canStock = can('products.stock');
                         </select>
                     </div>
 
-                    <button class="btn btn-primary btn-block mt" type="submit" <?= $canEdit ? '' : 'disabled' ?>>
-                        <i data-lucide="save" style="width:15px"></i> ذخیره محصول
-                    </button>
+                    <div class="flex gap wrap mt">
+                        <button class="btn btn-primary" type="submit" onclick="document.getElementById('publication-status').value='draft'" <?= $canEdit ? '' : 'disabled' ?>>
+                            <i data-lucide="save" style="width:15px"></i> ذخیره پیش‌نویس
+                        </button>
+                        <?php if ($pid): ?>
+                            <button class="btn btn-success" type="submit" onclick="document.getElementById('publication-status').value='published'" <?= $canEdit ? '' : 'disabled' ?>>
+                                <i data-lucide="send" style="width:15px"></i> ذخیره و انتشار
+                            </button>
+                        <?php else: ?>
+                            <span class="hint" style="align-self:center">پس از ذخیره مرحله اول، تصاویر و اطلاعات تکمیلی را اضافه و سپس منتشر کنید.</span>
+                        <?php endif; ?>
+                    </div>
 
                     <?php if ($pid): ?>
                         <a class="btn btn-block mt" target="_blank" rel="noopener" href="/product/<?= e($product['slug']) ?>">
@@ -259,6 +285,14 @@ $canStock = can('products.stock');
             <span class="hint">اولین تصویر یا تصویر ستاره‌دار، شاخص محصول است.</span>
         </div>
         <div class="card-body">
+            <div class="field" style="max-width:420px">
+                <label class="fl">متن جایگزین تصاویر</label>
+                <select name="image_alt_mode" form="imgForm" id="image-alt-mode">
+                    <option value="auto">خودکار: نام محصول + مشخصات</option>
+                    <option value="manual">دستی: بعداً برای هر تصویر وارد می‌کنم</option>
+                </select>
+                <div class="hint">در حالت خودکار، alt استاندارد بر اساس نام محصول تولید می‌شود؛ در حالت دستی مقدار خالی می‌ماند.</div>
+            </div>
             <form method="POST" action="<?= admin_url('products/uploadImage') ?>" enctype="multipart/form-data" id="imgForm">
                 <?= Auth::csrfField() ?>
                 <input type="hidden" name="product_id" value="<?= $pid ?>">
@@ -395,4 +429,44 @@ if (dz) {
         if (input.files.length) document.getElementById('imgForm').submit();
     });
 }
+</script>
+
+<script>
+(function () {
+    const fieldNames = ['name','slug','price','category_id','brand','oem_code','description','stock_qty','low_stock_threshold','track_stock','in_stock','is_genuine','lifecycle_status','meta_title','meta_description','focus_keyword'];
+    function val(name) { const el = document.querySelector('[name="'+name+'"]'); return el ? el.value : ''; }
+    window.copyProductPrompt = function (kind) {
+        const context = {
+            site: 'پرادو یدک، فروشگاه تخصصی قطعات تویوتا و لکسوس',
+            language: 'فارسی روان و دقیق',
+            current_product: Object.fromEntries(fieldNames.map(n => [n, val(n)])),
+            available_categories: <?= json_encode(array_map(fn($c) => ['id'=>(int)$c['id'],'name'=>$c['name']], $categories), JSON_UNESCAPED_UNICODE) ?>,
+            available_vehicle_models: CAR_MODELS,
+            required_fields: {name:'string', slug:'string انگلیسی kebab-case', price:'number تومان', category_id:'integer یا null', brand:'string', oem_code:'string', description:'string HTML ساده', stock_qty:'integer', low_stock_threshold:'integer', track_stock:'0 یا 1', in_stock:'0 یا 1', is_genuine:'0 یا 1', lifecycle_status:'active|out_of_stock|discontinued', vehicles:'array', attributes:'array از {key,value}', seo:'object'}
+        };
+        const schema = '{"name":"...","slug":"...","price":0,"category_id":null,"brand":"...","oem_code":"...","description":"...","stock_qty":0,"low_stock_threshold":3,"track_stock":1,"in_stock":1,"is_genuine":0,"lifecycle_status":"active","vehicles":[{"model_id":0,"year_from":null,"year_to":null,"trim":""}],"attributes":[{"key":"","value":""}],"seo":{"meta_title":"","meta_description":"","focus_keyword":""}}';
+        const prompt = kind === 'image'
+            ? `برای محصول زیر یک پرامت نهایی ساخت تصویر محصول بنویس. تصویر فوتورئال استودیویی، پس‌زمینه سفید یا خاکستری بسیار روشن، نور نرم، سایه کنترل‌شده، بدون لوگو و نوشته اضافه، بدون دست و خودرو، نسبت 1:1، کادر کامل و یکدست با سایر محصولات فروشگاه. خروجی فقط پرامت فارسی و negative prompt را بده.\nاطلاعات محصول:\n${JSON.stringify(context.current_product, null, 2)}`
+            : `نقش تو دستیار ورود محصول فروشگاه «پرادو یدک» است. بر اساس اطلاعاتی که الان در فرم موجود است و زمینه زیر، فیلدهای خالی را با داده قابل اتکا تکمیل کن. هرگز اطلاعات فنی، قیمت، سازگاری یا OEM را حدس نزن؛ مورد نامطمئن را null یا آرایه خالی بگذار. اسلاگ یکتا، انگلیسی، lowercase و kebab-case بساز. فقط JSON معتبر مطابق schema بده؛ بدون markdown و توضیح.\nزمینه و فیلدهای مجاز:\n${JSON.stringify(context, null, 2)}\nschema نمونه (کلیدها را تغییر نده):\n${schema}`;
+        navigator.clipboard.writeText(prompt).then(() => {
+            const s = document.getElementById('ai-json-status'); if (s) s.textContent = 'پرامت کپی شد.';
+        });
+    };
+    window.applyProductAIJson = function () {
+        const box = document.getElementById('ai-json-output'), status = document.getElementById('ai-json-status');
+        try {
+            let raw = box.value.trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'');
+            const data = JSON.parse(raw);
+            const set = (name, value) => { const el = document.querySelector('[name="'+name+'"]'); if (!el || value === undefined || value === null) return; if (el.type === 'checkbox') el.checked = value === true || String(value) === '1'; else el.value = value; };
+            fieldNames.forEach(n => set(n, data[n]));
+            if (data.seo) Object.entries(data.seo).forEach(([k,v]) => set(k, v));
+            if (Array.isArray(data.attributes)) { document.getElementById('attrs-box').innerHTML=''; data.attributes.forEach(a => addAttrRow(a.key || '', a.value || '')); }
+            if (Array.isArray(data.vehicles)) { document.getElementById('vehicles-box').innerHTML=''; data.vehicles.forEach(v => { addVehicleRow(); const row=document.querySelector('#vehicles-box .row-repeat:last-child'); if(row){ row.querySelector('[name="vehicle_model_id[]"]').value=v.model_id || ''; row.querySelector('[name="vehicle_year_from[]"]').value=v.year_from || ''; row.querySelector('[name="vehicle_year_to[]"]').value=v.year_to || ''; row.querySelector('[name="vehicle_trim[]"]').value=v.trim || ''; }}); }
+            status.textContent = 'اطلاعات با موفقیت در فرم اعمال شد؛ قبل از ذخیره بازبینی کنید.';
+        } catch (e) { status.textContent = 'JSON معتبر نیست؛ خروجی را بدون متن اضافی و مطابق قالب دریافت کنید.'; }
+    };
+    const originalAddAttr = window.addAttrRow;
+    // مقدار ویژگی تولیدشده توسط AI را نیز پشتیبانی می‌کنیم.
+    window.addAttrRow = function(key, value) { originalAddAttr(key); const row=document.querySelector('#attrs-box .row-repeat:last-child'); if(row && value) row.querySelector('[name="attr_value[]"]').value=value; };
+})();
 </script>
