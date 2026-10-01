@@ -92,7 +92,7 @@
                                     aria-label="نمایش <?= e($g['alt']) ?>" aria-pressed="<?= $index === 0 ? 'true' : 'false' ?>"
                                     class="thumb-btn h-16 sm:h-20 border rounded-xl flex items-center justify-center cursor-pointer transition duration-200 hover:border-brand-red/50 p-2 <?= $index === 0 ? 'border-brand-red bg-brand-dark' : 'border-white/5 bg-brand-dark/40' ?>">
                                     <img src="<?= e($g['url']) ?>" loading="lazy" width="120" height="120"
-                                        class="max-w-full max-h-full object-contain anim-float"
+                                        class="max-w-full max-h-full object-contain transition-transform duration-300 hover:scale-105"
                                         alt="">
                                 </button>
                             <?php endforeach; ?>
