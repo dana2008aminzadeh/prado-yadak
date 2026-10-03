@@ -3,8 +3,8 @@ use Admin\core\Auth;
 $n = $editing ?: ['id' => 0, 'page' => 'checkout', 'type' => 'info', 'title' => '', 'message' => '',
     'icon' => 'info', 'is_active' => 1, 'priority' => 0];
 $types = ['info' => ['اطلاع‌رسانی (آبی)', 'b-blue'], 'warning' => ['هشدار (زرد)', 'b-amber'], 'danger' => ['خطر (قرمز)', 'b-red']];
-$pages = ['global' => 'همه صفحات', 'checkout' => 'تسویه حساب', 'parts' => 'صفحه قطعات',
-          'home' => 'صفحه اصلی', 'cart' => 'سبد خرید'];
+// لیست صفحات از مدل مشترک فروشگاه می‌آید تا پنل و سایت همیشه هماهنگ باشند
+$pages = \App\models\Notice::PAGE_LABELS;
 $canEdit = can('notices.edit');
 ?>
 
@@ -22,6 +22,8 @@ $canEdit = can('notices.edit');
                     <input type="text" name="title" value="<?= e($n['title']) ?>" required></div>
                 <div class="field"><label class="fl">متن اطلاعیه</label>
                     <textarea name="message" rows="4"><?= e($n['message']) ?></textarea></div>
+                <p class="hint">اطلاعیه «همه صفحات» زیر منوی همه صفحات فروشگاه و اطلاعیه «سبد خرید»
+                    در کشوی سبد خرید نمایش داده می‌شود؛ بقیه فقط در صفحه انتخاب‌شده دیده می‌شوند.</p>
                 <div class="grid g2">
                     <div class="field"><label class="fl">صفحه نمایش</label>
                         <select name="page">

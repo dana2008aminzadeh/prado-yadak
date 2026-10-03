@@ -195,6 +195,9 @@ if (!isset($current_page)) {
             </button>
         </div>
 
+        <!-- اطلاعیه‌های سبد خرید (با JS از /api/notices?page=cart بارگذاری می‌شود) -->
+        <div id="cart-notices" class="space-y-3 mb-4" aria-live="polite" hidden></div>
+
         <!-- لیست قطعات -->
         <div class="space-y-4 max-h-[60vh] overflow-y-auto pr-1" id="cart-items-container">
 
