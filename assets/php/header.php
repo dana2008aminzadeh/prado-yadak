@@ -154,6 +154,12 @@ if (!in_array($current_page, $hide_floating_buttons_on)):
     </div>
 </nav>
 
+<?php
+// اطلاعیه‌های سایت (مدیریت از پنل ← اطلاعیه‌ها) بر اساس صفحه جاری؛
+// کلید صفحه از URI تشخیص داده می‌شود و «همه صفحات» همیشه اعمال می‌شود.
+include __DIR__ . '/notices.php';
+?>
+
 <!-- لایه تاریک پس‌زمینه منوی موبایل -->
 <div id="mobile-menu-overlay"
     class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden opacity-0 transition-opacity duration-300"

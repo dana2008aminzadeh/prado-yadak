@@ -41,33 +41,10 @@
                 نمایید.</p>
         </div>
 
-        <!-- اطلاعیه‌های ضروری بالای صفحه -->
-        <?php if (!empty($notices)): ?>
-            <div class="space-y-3 mb-8">
-                <?php foreach ($notices as $notice):
-                    $type = $notice['type'] ?? 'info';
-                    if ($type === 'warning') {
-                        $boxStyle = 'bg-amber-50/80 border-amber-200 text-amber-900';
-                        $iconColor = 'text-amber-600';
-                    } elseif ($type === 'danger') {
-                        $boxStyle = 'bg-rose-50/80 border-rose-200 text-rose-900';
-                        $iconColor = 'text-rose-600';
-                    } else {
-                        $boxStyle = 'bg-[#F0EBE1] border-[#d8cfc4] text-[#251E1B]';
-                        $iconColor = 'text-[#8B533A]';
-                    }
-                    ?>
-                    <div class="border rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 shadow-xs <?= $boxStyle ?>">
-                        <i data-lucide="<?= e($notice['icon'] ?: 'info') ?>"
-                            class="w-5 h-5 shrink-0 mt-0.5 <?= $iconColor ?>"></i>
-                        <div class="text-xs sm:text-sm leading-relaxed">
-                            <strong class="block font-bold mb-0.5"><?= e($notice['title']) ?></strong>
-                            <p class="opacity-90"><?= nl2br(e($notice['message'])) ?></p>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
+        <?php
+        // اطلاعیه‌های «تسویه حساب» و «همه صفحات» توسط پارشیال مشترک
+        // assets/php/notices.php در هدر رندر می‌شوند (مشابه بقیه صفحات سایت).
+        ?>
 
         <?php if (!empty($_SESSION['checkout_error'])): ?>
             <div

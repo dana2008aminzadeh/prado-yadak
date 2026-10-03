@@ -28,12 +28,16 @@ class NoticeController extends BaseController
             back(admin_url('notices'));
         }
 
+        // کلید صفحه فقط از لیست مجاز مدل مشترک فروشگاه پذیرفته می‌شود
+        $noticePage = trim((string) post('page'));
+        $validPages = array_keys(\App\models\Notice::PAGE_LABELS);
+
         $data = [
-            'page'      => trim((string) post('page')) ?: 'checkout',
+            'page'      => in_array($noticePage, $validPages, true) ? $noticePage : 'checkout',
             'type'      => in_array(post('type'), ['info', 'warning', 'danger'], true) ? (string) post('type') : 'info',
             'title'     => mb_substr($title, 0, 255),
             'message'   => (string) post('message'),
-            'icon'      => trim((string) post('icon')) ?: 'info',
+            'icon'      => mb_substr(trim((string) post('icon')) ?: 'info', 0, 64),
             'is_active' => post('is_active') ? 1 : 0,
             'priority'  => (int) post('priority', 0),
         ];

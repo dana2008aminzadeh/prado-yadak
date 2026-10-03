@@ -148,6 +148,9 @@ class Router
         // وب‌سرویس‌ها و APIهای عمومی
         $this->get('/api/parts', 'PartController@apiList');
         $this->get('/api/product', 'PartController@apiShow');
+
+        // اطلاعیه‌های عمومی سایت بر اساس کلید صفحه (مثلا cart برای کشوی سبد خرید)
+        $this->get('/api/notices', 'NoticeController@apiList');
         $this->post('/api/submit-comment', 'PartController@submitComment');
         $this->post('/api/track-order', 'OrderController@trackOrder');
         $this->get('/api/locations/provinces', 'LocationController@provinces');
